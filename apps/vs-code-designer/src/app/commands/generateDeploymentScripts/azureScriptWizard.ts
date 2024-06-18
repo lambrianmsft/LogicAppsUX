@@ -24,6 +24,8 @@ export interface IAzureScriptWizard extends IProjectWizardContext, IActionContex
   storageAccountName: string;
   workspaceName?: string;
   logicAppName: string;
+  setSlot: boolean;
+  slotName: string;
   appServicePlan: string;
   isValidWorkspace: boolean;
   folderPath?: string;
@@ -45,7 +47,13 @@ export function createAzureWizard(wizardContext: IAzureScriptWizard): AzureWizar
   // Create the Azure Wizard with the modified steps
   return new AzureWizard(wizardContext, {
     title: localize('generateDeploymentScripts', 'Generate deployment scripts'),
-    promptSteps: [new ConfigureInitialLogicAppStep(), new setLogicappName(), new setStorageAccountName(), new setAppPlanName()],
+    promptSteps: [
+      new ConfigureInitialLogicAppStep(),
+      new setLogicappName(),
+      new setStorageAccountName(),
+      new setAppPlanName(),
+      new setSlotName(),
+    ],
     executeSteps: [new SourceControlPathListStep()],
     showLoadingPrompt: true,
   });
@@ -176,5 +184,28 @@ export class setAppPlanName extends AzureWizardPromptStep<IAzureScriptWizard> {
 
   public shouldPrompt(context: IAzureScriptWizard): boolean {
     return !context.appServicePlan;
+  }
+}
+
+// Define the setSlotName class
+export class setSlotName extends AzureWizardPromptStep<IAzureScriptWizard> {
+  public hideStepCount = true;
+
+  public async prompt(context: IAzureScriptWizard): Promise<void> {
+    context.slotName = await context.ui.showInputBox({
+      placeHolder: localize('setSlotName', 'Slot name'),
+      prompt: localize('slotNamePrompt', 'Provide a name for the slot.'),
+      // validateInput: (value: string): string | undefined => {
+      //   if (!value || value.length === 0) {
+      //     return localize('slotNameEmpty', 'Slot name cannot be empty');
+      //   }
+      //   return undefined;
+      // },
+    });
+  }
+
+  public shouldPrompt(context: IAzureScriptWizard): boolean {
+    // return !context.slotName && context.setSlot;
+    return !context.slotName;
   }
 }

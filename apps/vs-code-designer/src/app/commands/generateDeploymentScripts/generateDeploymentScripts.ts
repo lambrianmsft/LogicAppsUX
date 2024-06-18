@@ -46,32 +46,32 @@ export async function generateDeploymentScripts(context: IActionContext, project
     const workspaceFolder = await getWorkspaceFolder(context);
     const projectPath = await tryGetLogicAppProjectRoot(context, workspaceFolder);
     const connectionsJson = await getConnectionsJson(projectPath);
-    if (isEmptyString(connectionsJson)) {
-      return;
-    }
+    const logicAppFolder = path.basename(workspaceFolder.toString());
+    if (!isEmptyString(connectionsJson)) {
+      const connectionsData: ConnectionsData = JSON.parse(connectionsJson);
+      const isParameterized = await isConnectionsParameterized(connectionsData);
 
-    const connectionsData: ConnectionsData = JSON.parse(connectionsJson);
-    const isParameterized = await isConnectionsParameterized(connectionsData);
-
-    if (!isParameterized) {
-      const message = localize(
-        'parameterizeInDeploymentScripts',
-        'Allow parameterization for connections? Declining cancels generation for deployment scripts.'
-      );
-      const result = await window.showInformationMessage(message, { modal: true }, DialogResponses.yes, DialogResponses.no);
-      if (result === DialogResponses.yes) {
-        await parameterizeConnections(context);
-        context.telemetry.properties.parameterizeConnectionsInDeploymentScripts = 'true';
-      } else {
-        context.telemetry.properties.parameterizeConnectionsInDeploymentScripts = 'false';
-        return;
+      if (!isParameterized) {
+        const message = localize(
+          'parameterizeInDeploymentScripts',
+          'Allow parameterization for connections? Declining cancels generation for deployment scripts.'
+        );
+        const result = await window.showInformationMessage(message, { modal: true }, DialogResponses.yes, DialogResponses.no);
+        if (result === DialogResponses.yes) {
+          await parameterizeConnections(context);
+          context.telemetry.properties.parameterizeConnectionsInDeploymentScripts = 'true';
+        } else {
+          context.telemetry.properties.parameterizeConnectionsInDeploymentScripts = 'false';
+          return;
+        }
       }
     }
+
     const scriptContext = await setupWizardScriptContext(context, projectRoot);
     const inputs = await gatherAndValidateInputs(scriptContext, projectRoot);
     const sourceControlPath = scriptContext.sourceControlPath;
     await callConsumptionApi(scriptContext, inputs);
-    const standardArtifactsContent = await callStandardApi(inputs);
+    const standardArtifactsContent = await callStandardApi(inputs, logicAppFolder);
     await handleApiResponse(standardArtifactsContent, sourceControlPath);
 
     const deploymentScriptLocation = `workspace/${scriptContext.sourceControlPath}`;
@@ -121,12 +121,22 @@ async function setupWizardScriptContext(context: IActionContext, projectRoot: vs
 /**
  * Calls the iac API to obtain the deployment standard artifacts.
  * @param inputs - Object containing required inputs like subscriptionId, resourceGroup etc.
+ * @param logicAppFolder - String containing logic app folder name in the workspace.
  * @returns - Promise<Buffer> containing the API response as a buffer.
  */
-async function callStandardApi(inputs: any): Promise<Buffer> {
+async function callStandardApi(inputs: any, logicAppFolder: string): Promise<Buffer> {
   try {
-    const { subscriptionId, resourceGroup, storageAccount, location, logicAppName, appServicePlan } = inputs;
-    return await callStandardResourcesApi(subscriptionId, resourceGroup, storageAccount, location, logicAppName, appServicePlan);
+    const { subscriptionId, resourceGroup, storageAccount, location, logicAppName, appServicePlan, slotName } = inputs;
+    return await callStandardResourcesApi(
+      subscriptionId,
+      resourceGroup,
+      storageAccount,
+      location,
+      logicAppName,
+      appServicePlan,
+      logicAppFolder,
+      slotName
+    );
   } catch (error) {
     throw new Error(localize('Error calling Standard Resources API', error));
   }
@@ -247,7 +257,9 @@ async function callStandardResourcesApi(
   storageAccount: string,
   location: string,
   logicAppName: string,
-  appServicePlan: string
+  appServicePlan: string,
+  logicAppFolder: string,
+  slotName?: string
 ): Promise<Buffer> {
   try {
     ext.outputChannel.appendLog(localize('initApiWorkflowDesignerPort', 'Initiating API connection through workflow designer port...'));
@@ -269,6 +281,8 @@ async function callStandardResourcesApi(
 
     // Construct the request body based on the parameters
     const deploymentArtifactsInput = {
+      logicAppFolder: logicAppFolder,
+      targetSlotName: slotName,
       targetSubscriptionName: subscriptionId,
       targetResourceGroupName: resourceGroup,
       targetStorageAccountName: storageAccount,
@@ -423,6 +437,7 @@ async function gatherAndValidateInputs(scriptContext: IAzureScriptWizard, folder
     appServicePlan: scriptContext.appServicePlan || appServicePlan,
     localSubscriptionId: defaultSubscriptionId,
     localResourceGroup: defaultResourceGroup,
+    slotName: scriptContext.slotName,
   };
 }
 
