@@ -20,6 +20,7 @@ import {
   openPanel,
   useNodesInitialized,
   serializeUnitTestDefinition,
+  getNodeOutputOperations,
   useAssertionsValidationErrors,
   getCustomCodeFilesWithData,
   resetDesignerDirtyState,
@@ -112,6 +113,14 @@ export const DesignerCommandBar = ({
     alert('Check console for unit test serialization');
   });
 
+  const { isLoading: isSavingBlankUnitTest, mutate: saveBlankUnitTestMutate } = useMutation(async () => {
+    const designerState = DesignerStore.getState();
+    const operationContents = await getNodeOutputOperations(designerState);
+
+    console.log(operationContents);
+    alert('Check console for blank unit test operationContents');
+  });
+
   const designerIsDirty = useIsDesignerDirty();
 
   const allInputErrors = useSelector((state: RootState) => {
@@ -138,6 +147,7 @@ export const DesignerCommandBar = ({
   const saveIsDisabled = isSaving || allInputErrors.length > 0 || haveWorkflowParameterErrors || haveSettingsErrors || !designerIsDirty;
 
   const saveUnitTestIsDisabled = !isUnitTest || isSavingUnitTest || haveAssertionErrors;
+  const saveBlankUnitTestIsDisabled = !isUnitTest || isSavingBlankUnitTest || haveAssertionErrors;
 
   const items: ICommandBarItemProps[] = useMemo(
     () => [
@@ -169,6 +179,25 @@ export const DesignerCommandBar = ({
         },
         onClick: () => {
           saveUnitTestMutate();
+        },
+      },
+      {
+        key: 'saveBlankUnitTest',
+        text: 'Save Blank Unit Test',
+        disabled: saveBlankUnitTestIsDisabled,
+        onRenderIcon: () => {
+          return isSavingBlankUnitTest ? (
+            <Spinner size={SpinnerSize.small} />
+          ) : (
+            <FontIcon
+              aria-label="Save"
+              iconName="Save"
+              className={saveBlankUnitTestIsDisabled ? classNames.azureGrey : classNames.azureBlue}
+            />
+          );
+        },
+        onClick: () => {
+          saveBlankUnitTestMutate();
         },
       },
       {
@@ -269,7 +298,9 @@ export const DesignerCommandBar = ({
       isUnitTest,
       saveUnitTestMutate,
       isSavingUnitTest,
+      isSavingBlankUnitTest,
       saveUnitTestIsDisabled,
+      saveBlankUnitTestIsDisabled,
       haveAssertionErrors,
     ]
   );
