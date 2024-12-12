@@ -342,6 +342,11 @@
         "category": "Azure Logic Apps"
       },
       {
+        "command": "azureLogicAppsStandard.saveBlankUnitTest",
+        "title": "Create blank unit test",
+        "category": "Azure Logic Apps"
+      },
+      {
         "command": "azureLogicAppsStandard.openUnitTestResults",
         "title": "View unit test results",
         "category": "Azure Logic Apps",
