@@ -351,14 +351,18 @@ describe('isMockable', () => {
 //
 describe('buildClassDefinition', () => {
   it('should build a class definition for an object', () => {
-    const classDef = buildClassDefinition('RootClass', {
-      type: 'object',
-      key1: { type: 'string', description: 'Key 1 description' },
-      nested: {
+    const classDef = buildClassDefinition(
+      'RootClass',
+      {
         type: 'object',
-        nestedKey: { type: 'boolean', description: 'Nested key description' },
+        key1: { type: 'string', description: 'Key 1 description' },
+        nested: {
+          type: 'object',
+          nestedKey: { type: 'boolean', description: 'Nested key description' },
+        },
       },
-    });
+      'ClassMock'
+    );
 
     expect(classDef).toEqual({
       className: 'RootClass',
