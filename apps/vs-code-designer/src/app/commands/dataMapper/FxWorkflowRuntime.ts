@@ -8,6 +8,8 @@ import {
   hostFileName,
   localSettingsFileName,
   logicAppKind,
+  functionsInprocNet8Enabled,
+  functionsInprocNet8EnabledValue,
   workerRuntimeKey,
 } from '../../../constants';
 import { ext } from '../../../extensionVariables';
@@ -65,7 +67,8 @@ export async function startBackendRuntime(projectPath: string, context: IActionC
           {
             [appKindSetting]: logicAppKind,
             [ProjectDirectoryPath]: projectPath,
-            [workerRuntimeKey]: WorkerRuntime.Node,
+            [workerRuntimeKey]: WorkerRuntime.Dotnet,
+            [functionsInprocNet8Enabled]: functionsInprocNet8EnabledValue,
           },
           true
         );

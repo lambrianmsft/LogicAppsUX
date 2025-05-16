@@ -12,6 +12,8 @@ import {
   logicAppKind,
   workerRuntimeKey,
   azureStorageTypeSetting,
+  functionsInprocNet8Enabled,
+  functionsInprocNet8EnabledValue,
 } from '../../../constants';
 import { localize } from '../../../localize';
 import { decryptLocalSettings } from '../../commands/appSettings/decryptLocalSettings';
@@ -113,6 +115,16 @@ export async function getLocalSettingsJson(
 }
 
 /**
+ * Set local.settings.json values needed for .NET 8 functions.
+ * @param {IActionContext} context - Command context.
+ * @param {string} projectPath - Project path.
+ */
+export async function setLocalAppSettingsForDotNet8(context: IActionContext, projectPath: string) {
+  await setLocalAppSetting(context, projectPath, functionsInprocNet8Enabled, functionsInprocNet8EnabledValue, MismatchBehavior.Overwrite);
+  await setLocalAppSetting(context, projectPath, workerRuntimeKey, WorkerRuntime.Dotnet, MismatchBehavior.Overwrite);
+}
+
+/**
  * Set local.settings.json values.
  * @param {IActionContext} context - Command context.
  * @param {string} logicAppPath - Project path.
@@ -177,7 +189,7 @@ export const getLocalSettingsSchema = (isDesignTime: boolean, projectPath?: stri
     IsEncrypted: false,
     Values: {
       [appKindSetting]: logicAppKind,
-      [workerRuntimeKey]: WorkerRuntime.Node,
+      [workerRuntimeKey]: WorkerRuntime.Dotnet,
       ...(projectPath ? { [ProjectDirectoryPath]: projectPath } : {}),
       ...(isDesignTime
         ? { [azureWebJobsSecretStorageTypeKey]: azureStorageTypeSetting }

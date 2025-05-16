@@ -18,10 +18,12 @@ import {
   type hostFileContent,
   workerRuntimeKey,
   appKindSetting,
+  functionsInprocNet8Enabled,
+  functionsInprocNet8EnabledValue,
 } from '../../../constants';
 import { ext } from '../../../extensionVariables';
 import { localize } from '../../../localize';
-import { addOrUpdateLocalAppSettings, getLocalSettingsSchema } from '../appSettings/localSettings';
+import { addOrUpdateLocalAppSettings, getLocalSettingsSchema, setLocalAppSettingsForDotNet8 } from '../appSettings/localSettings';
 import { updateFuncIgnore } from '../codeless/common';
 import { writeFormattedJson } from '../fs';
 import { getFunctionsCommand } from '../funcCoreTools/funcVersion';
@@ -48,6 +50,7 @@ import { Uri, window, workspace, type MessageItem } from 'vscode';
 import { findChildProcess } from '../../commands/pickFuncProcess';
 import pstree from 'ps-tree';
 import find_process from 'find-process';
+import * as semver from 'semver';
 
 export async function startDesignTimeApi(projectPath: string): Promise<void> {
   await callWithTelemetryAndErrorHandling('azureLogicAppsStandard.startDesignTimeApi', async (actionContext: IActionContext) => {
@@ -106,7 +109,8 @@ export async function startDesignTimeApi(projectPath: string): Promise<void> {
           {
             [appKindSetting]: logicAppKind,
             [ProjectDirectoryPath]: projectPath,
-            [workerRuntimeKey]: WorkerRuntime.Node,
+            [workerRuntimeKey]: WorkerRuntime.Dotnet,
+            [functionsInprocNet8Enabled]: functionsInprocNet8EnabledValue,
           },
           true
         );
@@ -124,8 +128,12 @@ export async function startDesignTimeApi(projectPath: string): Promise<void> {
           if (data.extensionBundle.id === extensionBundleId && versionWithoutSpaces === rangeWithoutSpaces) {
             ext.currentBundleVersion.set(projectPath, ext.latestBundleVersion);
           } else if (data.extensionBundle.id === extensionBundleId && versionWithoutSpaces !== rangeWithoutSpaces) {
-            ext.currentBundleVersion.set(projectPath, extractPinnedVersion(data.extensionBundle.version) ?? data.extensionBundle.version);
+            const bundleVersion = extractPinnedVersion(data.extensionBundle.version) ?? data.extensionBundle.version;
+            ext.currentBundleVersion.set(projectPath, bundleVersion);
             ext.pinnedBundleVersion.set(projectPath, true);
+            if (semver.gte(bundleVersion, '1.117.31')) {
+              await setLocalAppSettingsForDotNet8(actionContext, projectPath);
+            }
           }
         }
         actionContext.telemetry.properties.startDesignTimeApi = 'true';
@@ -148,14 +156,23 @@ export async function startDesignTimeApi(projectPath: string): Promise<void> {
 }
 
 function extractPinnedVersion(input: string): string | null {
-  // Regular expression to match the format "[1.24.58]"
-  const regex = /^\[(\d{1}\.\d{1,2}\.\d{1,2})\]$/;
+  // Regular expression to match the format "[1.24.58]" or "[1.24.58.0]"
+  const regex = /^\[(\d+\.\d+\.\d+(?:\.\d+)?)\]$/;
+  // New regex for "[1.*, 1.117.31.0)" format - extracts version after comma
+  const rangeRegex = /\[\d+\.\*,\s*(\d+\.\d+\.\d+(?:\.\d+)?)\)/;
+
   const match = input.match(regex);
 
+  const rangeMatch = input.match(rangeRegex);
+
   if (match) {
-    // Extracted time part is in the first capturing group
     return match[1];
   }
+
+  if (rangeMatch) {
+    return rangeMatch[1];
+  }
+
   return null;
 }
 
