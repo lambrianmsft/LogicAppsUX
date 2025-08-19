@@ -14,18 +14,17 @@ import {
 import type { WorkflowEdgeType, WorkflowNodeType } from '@microsoft/logic-apps-shared';
 import type { ElkExtendedEdge, ElkNode } from 'elkjs';
 
-export const isRootNodeInGraph = (nodeId: string, graphId: string, nodesMetadata: NodesMetadata): boolean => {
-  const nodeMetadata = getRecordEntry(nodesMetadata, nodeId);
-  return nodeMetadata?.graphId === graphId && !!nodeMetadata?.isRoot;
-};
-
 export const isRootNode = (nodeId: string, nodesMetadata: NodesMetadata) => {
   return !!getRecordEntry(nodesMetadata, nodeId)?.isRoot;
 };
 
+export const isTriggerNode = (nodeId: string, nodesMetadata: NodesMetadata) => {
+  return !!getRecordEntry(nodesMetadata, nodeId)?.isTrigger;
+};
+
 export const getTriggerNode = (state: WorkflowState): WorkflowNode => {
   const rootGraph = state.graph as WorkflowNode;
-  const rootNode = rootGraph.children?.find((child) => isRootNode(child.id, state.nodesMetadata)) as WorkflowNode;
+  const rootNode = rootGraph.children?.find((child) => isTriggerNode(child.id, state.nodesMetadata)) as WorkflowNode;
   return rootNode;
 };
 
@@ -134,6 +133,7 @@ export const getNewNodeId = (state: WorkflowState, nodeId: string): string => {
 
   return newNodeId;
 };
+
 const getAllSourceNodeIds = (graph: WorkflowNode, nodeId: string, operationMap: Record<string, string>): string[] => {
   const visited: string[] = [];
   const visit = [...getImmediateSourceNodeIds(graph, nodeId)];
@@ -156,6 +156,13 @@ export const getAllParentsForNode = (nodeId: string, nodesMetadata: NodesMetadat
   while (currentParent) {
     result.push(currentParent);
     currentParent = getRecordEntry(nodesMetadata, currentParent)?.parentNodeId;
+  }
+
+  // Add any nodes that are a handoff parent of the node
+  for (const [id, metadata] of Object.entries(nodesMetadata)) {
+    if (Object.values(metadata.handoffs ?? {})?.includes(nodeId)) {
+      result.push(id);
+    }
   }
 
   return result;

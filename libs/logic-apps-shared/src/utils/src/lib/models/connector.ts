@@ -82,6 +82,7 @@ export interface ConnectionParameterUIDefinitionBase {
       value: any;
     };
     requiresConnectionNamePrefix?: string;
+    notSupportedConnectionParameters?: Record<string, string[]>;
   };
   tooltip?: string;
   /**
@@ -139,6 +140,7 @@ export interface OAuthSetting {
 export interface ManagedIdentitySetting {
   resourceUri: string;
   additionalResourceUris?: string[];
+  requiredRoles?: string[];
 }
 
 export interface GatewaySetting {
@@ -184,6 +186,7 @@ export interface ConnectionParameterSetParameter {
   oAuthSettings?: OAuthSetting;
   gateway?: GatewaySetting;
   parameterSource?: ConnectionParameterSource;
+  allowedValues?: { value: string }[];
 }
 
 export interface ConnectionParameterSet {
@@ -195,6 +198,11 @@ export interface ConnectionParameterSet {
 export interface ConnectionParameterSets {
   uiDefinition: ConnectionParameterSetUIDefinition;
   values: ConnectionParameterSet[];
+}
+
+export interface OperationParameterSetParameter {
+  name: string;
+  uiDefinition?: ConnectionParameterSetParameterUIDefinition;
 }
 
 export interface ConnectorProperty {
@@ -211,8 +219,10 @@ export interface ConnectorProperty {
   primaryRuntimeUrl?: string;
   connectionParameters?: Record<string, ConnectionParameter>;
   connectionParameterSets?: ConnectionParameterSets;
+  operationParameterSets?: Record<string, OperationParameterSetParameter>;
   connectionAlternativeParameters?: ConnectionAlternativeParameters;
   isExportSupported?: boolean;
+  isDynamicConnectionAllowed?: boolean;
   isSecureByDefault?: boolean;
   swagger?: any;
   wadlUrl?: string;

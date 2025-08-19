@@ -4,6 +4,7 @@ export * from './ProviderWrappedContext';
 export { getReactQueryClient } from './ReactQueryProvider';
 export type { RootState, AppDispatch } from './store';
 export { store } from './store';
+export { mcpStore } from './state/mcp/store';
 export { templateStore } from './state/templates/store';
 export {
   useConnectionMapping,
@@ -61,6 +62,10 @@ export { resetWorkflowState, resetNodesLoadStatus } from './state/global';
 export { TemplatesDataProvider } from './templates/TemplatesDataProvider';
 export { TemplatesDesignerProvider } from './templates/TemplatesDesignerProvider';
 export { ConfigureTemplateDataProvider } from './configuretemplate/ConfigureTemplateDataProvider';
+export { McpDataProvider } from './mcp/McpDataProvider';
+export { McpWizardProvider } from './mcp/McpWizardProvider';
+export { resetMcpStateOnResourceChange } from './actions/bjsworkflow/mcp';
+export type { McpServerCreateData } from './mcp/utils/serializer';
 export {
   validateParameter,
   parameterValueToString,
@@ -93,6 +98,7 @@ export { updateNodeConnection } from './actions/bjsworkflow/connections';
 export { storeStateToUndoRedoHistory, onUndoClick, onRedoClick } from './actions/bjsworkflow/undoRedo';
 export { useCanUndo, useCanRedo } from './state/undoRedo/undoRedoSelectors';
 export { resetDesignerView } from './state/designerView/designerViewSlice';
+export * from './queries/role';
 export * from './queries/runs';
 export * from './queries/template';
 export {

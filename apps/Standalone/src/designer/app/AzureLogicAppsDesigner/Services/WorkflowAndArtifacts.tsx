@@ -5,7 +5,7 @@ import { validateResourceId } from '../Utilities/resourceUtilities';
 import { convertDesignerWorkflowToConsumptionWorkflow } from './ConsumptionSerializationHelpers';
 import { getReactQueryClient, runsQueriesKeys, type AllCustomCodeFiles } from '@microsoft/logic-apps-designer';
 import { CustomCodeService, LogEntryLevel, LoggerService, equals, getAppFileForFileExtension } from '@microsoft/logic-apps-shared';
-import type { LogicAppsV2, VFSObject } from '@microsoft/logic-apps-shared';
+import type { AgentQueryParams, AgentURL, LogicAppsV2, VFSObject } from '@microsoft/logic-apps-shared';
 import axios from 'axios';
 import jwt_decode from 'jwt-decode';
 import { useQuery } from '@tanstack/react-query';
@@ -20,9 +20,9 @@ const baseUrl = 'https://management.azure.com';
 const standardApiVersion = '2020-06-01';
 const consumptionApiVersion = '2019-05-01';
 
-export const useConnectionsData = (appId?: string) => {
+export const useConnectionsData = (appId?: string, enabled = true) => {
   return useQuery(['getConnectionsData', appId], async () => getConnectionsData(appId as string), {
-    enabled: !!appId,
+    enabled: !!appId && enabled,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
@@ -30,7 +30,7 @@ export const useConnectionsData = (appId?: string) => {
 };
 
 export const getConnectionsData = async (appId: string): Promise<ConnectionsData> => {
-  const uri = `${baseUrl}/${appId}/workflowsconfiguration/connections?api-version=2018-11-01`;
+  const uri = `${baseUrl}${appId}/workflowsconfiguration/connections?api-version=2018-11-01`;
   try {
     const response = await axios.get(uri, {
       headers: {
@@ -289,11 +289,120 @@ export const listCallbackUrl = async (
   });
 };
 
-export const useWorkflowApp = (siteResourceId: string, hostingPlan: HostingPlanTypes) => {
+// Helper function to fetch A2A authentication key
+const fetchA2AAuthKey = async (siteResourceId: string, workflowName: string) => {
+  const response = await axios.post(
+    `${baseUrl}${siteResourceId}/hostruntime/runtime/webhooks/workflow/api/management/workflows/${workflowName}/listApiKeys?api-version=2018-11-01`,
+    {
+      expiry: undefined,
+      keyType: 'Primary',
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${environment.armToken}`,
+      },
+    }
+  );
+  return response.data;
+};
+
+// Helper function to fetch OBO (On-Behalf-Of) data
+const fetchOBOData = async (siteResourceId: string) => {
+  try {
+    const connectionsResponse = await axios.get(`${baseUrl}${siteResourceId}/workflowsconfiguration/connections?api-version=2018-11-01`, {
+      headers: {
+        Authorization: `Bearer ${environment.armToken}`,
+      },
+    });
+    const connectionsData = connectionsResponse.data.properties.files['connections.json'];
+
+    // Find dynamic connection
+    const apiConnections = connectionsData?.managedApiConnections ?? {};
+    let connectionId = '';
+    for (const key of Object.keys(apiConnections)) {
+      if (equals(apiConnections[key].runtimeSource ?? '', 'Dynamic', true)) {
+        connectionId = apiConnections[key].connection.id;
+        break;
+      }
+    }
+
+    if (connectionId) {
+      const oboResponse = await axios.post(`${baseUrl}${connectionId}/listDynamicConnectionKeys?api-version=2020-06-01`, null, {
+        headers: {
+          Authorization: `Bearer ${environment.armToken}`,
+        },
+      });
+      return oboResponse.data;
+    }
+    return null;
+  } catch (error) {
+    // OBO is optional, continue without it
+    LoggerService().log({
+      level: LogEntryLevel.Error,
+      message: `Failed to get OBO data: ${error}`,
+      area: 'fetchAgentUrl',
+    });
+    return null;
+  }
+};
+
+// Async function to get Agent URL with authentication tokens (uses React Query for memoization)
+export const fetchAgentUrl = (siteResourceId: string, workflowName: string, hostName: string): Promise<AgentURL> => {
+  const queryClient = getReactQueryClient();
+
+  return queryClient.fetchQuery(['agentUrl', siteResourceId, workflowName, hostName], async (): Promise<AgentURL> => {
+    if (!workflowName || !hostName) {
+      return { agentUrl: '', chatUrl: '', hostName: '' };
+    }
+
+    try {
+      // Get A2A authentication key
+      const a2aData = await fetchA2AAuthKey(siteResourceId, workflowName);
+
+      // Get OBO data if available
+      const oboData = await fetchOBOData(siteResourceId);
+
+      const agentBaseUrl = hostName.startsWith('https://') ? hostName : `https://${hostName}`;
+      const agentUrl = `${agentBaseUrl}/api/Agents/${workflowName}`;
+      const chatUrl = `${agentBaseUrl}/api/agentsChat/${workflowName}/IFrame`;
+
+      let queryParams: AgentQueryParams | undefined = undefined;
+
+      // Add authentication tokens if available
+      const a2aKey = a2aData?.key;
+      if (a2aKey) {
+        queryParams = { apiKey: a2aKey };
+
+        // Add OBO token if available
+        const oboKey = oboData?.properties?.key;
+        if (oboKey) {
+          queryParams.oboToken = oboKey;
+        }
+      }
+
+      return {
+        agentUrl,
+        chatUrl,
+        queryParams,
+        hostName,
+      };
+    } catch (error) {
+      LoggerService().log({
+        level: LogEntryLevel.Error,
+        message: `Failed to get agent URL: ${error}`,
+        area: 'fetchAgentUrl',
+      });
+      return { agentUrl: '', chatUrl: '', hostName };
+    }
+  });
+};
+
+export const useWorkflowApp = (siteResourceId: string, hostingPlan: HostingPlanTypes, enabled = true) => {
   return useQuery(['workflowApp', siteResourceId], async () => getWorkflowApp(siteResourceId, hostingPlan), {
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
+    enabled,
   });
 };
 

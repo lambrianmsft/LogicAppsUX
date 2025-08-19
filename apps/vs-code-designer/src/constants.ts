@@ -109,6 +109,7 @@ export const WorkflowKind = {
   stateful: 'Stateful',
   stateless: 'Stateless',
   agentic: 'Agentic',
+  agent: 'Agent',
 } as const;
 export type WorkflowKind = (typeof WorkflowKind)[keyof typeof WorkflowKind];
 
@@ -202,6 +203,7 @@ export const extensionCommand = {
   saveBlankUnitTest: 'azureLogicAppsStandard.saveBlankUnitTest',
   vscodeOpenFolder: 'vscode.openFolder',
   debugLogicApp: 'azureLogicAppsStandard.debugLogicApp',
+  switchToDataMapperV2: 'azureLogicAppsStandard.dataMap.switchToDataMapperV2',
 } as const;
 export type extensionCommand = (typeof extensionCommand)[keyof typeof extensionCommand];
 
@@ -263,7 +265,7 @@ export const appKindSetting = 'APP_KIND';
 export const sqlStorageConnectionStringKey = 'Workflows.Sql.ConnectionString';
 
 export const workerRuntimeKey = 'FUNCTIONS_WORKER_RUNTIME';
-export const ProjectDirectoryPath = 'ProjectDirectoryPath';
+export const ProjectDirectoryPathKey = 'ProjectDirectoryPath';
 export const extensionVersionKey = 'FUNCTIONS_EXTENSION_VERSION';
 export const azureStorageTypeSetting = 'Files';
 export const isZipDeployEnabledSetting = 'IS_ZIP_DEPLOY_ENABLED';
@@ -286,7 +288,7 @@ export const defaultExtensionBundlePathValue = path.join(
   'ExtensionBundles',
   extensionBundleId
 );
-export const defaultDataMapperVersion = 1;
+export const defaultDataMapperVersion = 2;
 
 // Fallback Dependency Versions
 export const DependencyVersion = {
@@ -326,8 +328,6 @@ export const DotnetVersion = {
   net48: 'net48',
 } as const;
 export type DotnetVersion = (typeof DotnetVersion)[keyof typeof DotnetVersion];
-export const dotNet8ItemTemplatesURL = 'https://www.nuget.org/api/v2/package/Microsoft.Azure.WebJobs.ItemTemplates/4.0.5086';
-export const dotNet8ProjectTemplatesURL = 'https://www.nuget.org/api/v2/package/Microsoft.Azure.WebJobs.ProjectTemplates/4.0.5086';
 
 export const dotnetExtensionId = 'ms-dotnettools.csharp';
 
@@ -405,11 +405,12 @@ export const CodefulSDKs = {
 };
 export type CodefulSDKs = (typeof CodefulSDKs)[keyof typeof CodefulSDKs];
 
-const codefulSdkVersion = '1.126.0.16';
+const codefulSdkVersion = '1.127.21.3-preview';
+const workflowsWebJobsVersion = '1.127.21.3-preview';
 const durableTaskVersion = '2.9.0';
 
 export const CodefulSdkVersions = {
   [CodefulSDKs.DurableTask]: durableTaskVersion,
-  [CodefulSDKs.WorkflowsWebJobs]: codefulSdkVersion,
+  [CodefulSDKs.WorkflowsWebJobs]: workflowsWebJobsVersion,
   [CodefulSDKs.WorkflowsSDK]: codefulSdkVersion,
 };

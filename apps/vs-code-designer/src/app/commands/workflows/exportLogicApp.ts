@@ -17,7 +17,6 @@ import { cacheWebviewPanel, removeWebviewPanelFromCache, tryGetWebviewPanel } fr
 import { getAuthorizationToken, getCloudHost } from '../../utils/codeless/getAuthorizationToken';
 import { getWebViewHTML } from '../../utils/codeless/getWebViewHTML';
 import { getRandomHexString } from '../../utils/fs';
-import { delay } from '@azure/ms-rest-js';
 import type { IActionContext } from '@microsoft/vscode-azext-utils';
 import { ExtensionCommand, ProjectName, getBaseGraphApi } from '@microsoft/vscode-extension-logic-apps';
 import axios from 'axios';
@@ -27,6 +26,8 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import AdmZip = require('adm-zip');
+import { getSubscriptionContext } from '../../utils/subscription';
+import { delay } from '../../utils/delay';
 
 interface ConnectionsDeploymentOutput {
   connections: {
@@ -119,7 +120,7 @@ class ExportEngine {
 
       try {
         await this.getResourceGroup();
-      } catch (exception) {
+      } catch {
         await this.createResourceGroup();
       }
 
@@ -323,8 +324,11 @@ export async function exportLogicApp(context: IActionContext): Promise<void> {
   const apiVersion = '2021-03-01';
   const existingPanel: vscode.WebviewPanel | undefined = tryGetWebviewPanel(panelGroupKey, panelName);
   const cloudHost = await getCloudHost();
+  // TODO(aeldridge): This is a workaround to get the subscription context needed for auth token before selection is made in the webview.
+  // TODO(aeldridge): This should be refactored to not require a separate prompt for subscription selection.
+  const selectedSubscription = await getSubscriptionContext(context);
   let accessToken: string;
-  accessToken = await getAuthorizationToken();
+  accessToken = await getAuthorizationToken(selectedSubscription?.tenantId);
 
   if (existingPanel) {
     if (!existingPanel.active) {
@@ -362,7 +366,7 @@ export async function exportLogicApp(context: IActionContext): Promise<void> {
           },
         });
         interval = setInterval(async () => {
-          const updatedAccessToken = await getAuthorizationToken();
+          const updatedAccessToken = await getAuthorizationToken(selectedSubscription?.tenantId);
           if (updatedAccessToken !== accessToken) {
             accessToken = updatedAccessToken;
             panel.webview.postMessage({
@@ -423,8 +427,10 @@ export async function exportLogicApp(context: IActionContext): Promise<void> {
         engine.export();
         break;
       }
-      case ExtensionCommand.log_telemtry: {
-        ext.logTelemetry(context, message.key, message.value);
+      case ExtensionCommand.logTelemetry: {
+        const eventName = message.key;
+        ext.telemetryReporter.sendTelemetryEvent(eventName, { value: message.value });
+        ext.logTelemetry(context, eventName, message.value);
         break;
       }
       default:

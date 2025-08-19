@@ -76,7 +76,7 @@ export const useOperationPanelAlternateNodeActiveTabId = () =>
   useSelector(createSelector(getPanelState, (state) => state.operationContent.alternateSelectedNode?.activeTabId));
 
 export const useOperationPanelSelectedNodeId = () =>
-  useSelector(createSelector(getPanelState, (state) => state.operationContent.selectedNodeId ?? ''));
+  useSelector(createSelector(getPanelState, (state) => state.operationContent?.selectedNodeId ?? ''));
 
 export const useOperationPanelSelectedNodeActiveTabId = () =>
   useSelector(createSelector(getPanelState, (state) => state.operationContent.selectedNodeActiveTabId));
@@ -85,4 +85,4 @@ export const usePanelLocation = () => useSelector(createSelector(getPanelState, 
 
 export const usePreviousPanelMode = () => useSelector(createSelector(getPanelState, (state) => state.previousPanelMode));
 
-export const useIsAgentTool = () => useSelector(createSelector(getPanelState, (state) => state.discoveryContent.isAgentTool));
+export const useIsAddingAgentTool = () => useSelector(createSelector(getPanelState, (state) => state.discoveryContent.isAddingAgentTool));

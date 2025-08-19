@@ -29,7 +29,7 @@ import { initializeTokensAndVariables } from '../../state/tokens/tokensSlice';
 import type { NodesMetadata, Operations, WorkflowKind } from '../../state/workflow/workflowInterfaces';
 import type { RootState } from '../../store';
 import { getConnectionReference, isConnectionReferenceValid, mockConnectionReference } from '../../utils/connectors/connections';
-import { isRootNodeInGraph } from '../../utils/graph';
+import { isTriggerNode } from '../../utils/graph';
 import { getRepetitionContext } from '../../utils/loops';
 import type { RepetitionContext } from '../../utils/parameters/helper';
 import {
@@ -53,6 +53,7 @@ import {
   getOutputParametersFromManifest,
   getSupportedChannelsFromManifest,
   updateCallbackUrlInInputs,
+  updateAgentUrlInInputs,
   updateCustomCodeInInputs,
   updateInvokerSettings,
 } from './initialize';
@@ -129,7 +130,7 @@ export const initializeOperationMetadata = async (
     if (operationId === Constants.NODE.TYPE.PLACEHOLDER_TRIGGER) {
       continue;
     }
-    const isTrigger = isRootNodeInGraph(operationId, 'root', nodesMetadata);
+    const isTrigger = isTriggerNode(operationId, nodesMetadata);
 
     if (isTrigger) {
       triggerNodeId = operationId;
@@ -263,6 +264,7 @@ export const initializeOperationDetailsForManifest = async (
 
     if (isTrigger) {
       await updateCallbackUrlInInputs(nodeId, nodeOperationInfo, nodeInputs);
+      await updateAgentUrlInInputs(nodeOperationInfo, nodeInputs);
     }
 
     const customCodeParameter = getParameterFromName(nodeInputs, Constants.DEFAULT_CUSTOM_CODE_INPUT);
@@ -487,7 +489,7 @@ const initializeOutputTokensForOperations = (
       nodeTokens.tokens.push(...getBuiltInTokens(manifest));
       nodeTokens.tokens.push(
         ...convertOutputsToTokens(
-          isRootNodeInGraph(operationId, 'root', nodesMetadata) ? undefined : operationId,
+          isTriggerNode(operationId, nodesMetadata) ? undefined : operationId,
           operations[operationId]?.type,
           nodeOutputs.outputs ?? {},
           { iconUri, brandColor },
@@ -606,7 +608,7 @@ export const initializeDynamicDataInNodes = async (
         return;
       }
 
-      const isTrigger = isRootNodeInGraph(nodeId, 'root', nodesMetadata);
+      const isTrigger = isTriggerNode(nodeId, nodesMetadata);
       const connectionReference = getConnectionReference(connections, nodeId);
       const isFreshCreatedAgent =
         (Object.keys(connections.connectionReferences).length === 0 || deepCompareObjects(connectionReference, mockConnectionReference)) &&
@@ -643,7 +645,23 @@ const updateDynamicDataForValidConnection = async (
   const isValidConnection = await isConnectionReferenceValid(operationInfo, reference);
 
   if (isValidConnection) {
-    await updateDynamicDataInNode(nodeId, isTrigger, operationInfo, reference, dependencies, dispatch, getState, operation);
+    const {
+      tokens: { variables },
+      workflowParameters: { definitions },
+    } = getState() as RootState;
+    await updateDynamicDataInNode(
+      nodeId,
+      isTrigger,
+      operationInfo,
+      reference,
+      dependencies,
+      dispatch,
+      getState,
+      variables,
+      definitions,
+      true /* updateTokenMetadata */,
+      operation
+    );
   } else if (!isFreshCreatedAgent) {
     LoggerService().log({
       level: LogEntryLevel.Warning,

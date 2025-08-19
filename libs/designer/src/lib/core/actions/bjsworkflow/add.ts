@@ -21,7 +21,7 @@ import type { NodesMetadata, WorkflowState } from '../../state/workflow/workflow
 import { addAgentTool, addNode, setFocusNode } from '../../state/workflow/workflowSlice';
 import type { AppDispatch, RootState } from '../../store';
 import { getBrandColorFromManifest, getIconUriFromManifest } from '../../utils/card';
-import { getTriggerNodeId, isRootNodeInGraph } from '../../utils/graph';
+import { getTriggerNodeId, isTriggerNode } from '../../utils/graph';
 import { getParameterFromName, updateDynamicDataInNode } from '../../utils/parameters/helper';
 import { getInputParametersFromSwagger, getOutputParametersFromSwagger } from '../../utils/swagger/operation';
 import { convertOutputsToTokens, getBuiltInTokens, getTokenNodeIds } from '../../utils/tokens';
@@ -73,25 +73,30 @@ type AddOperationPayload = {
   isTrigger?: boolean;
   presetParameterValues?: Record<string, any>;
   actionMetadata?: Record<string, any>;
+  isAddingHandoff?: boolean;
 };
 
 export const addOperation = createAsyncThunk('addOperation', async (payload: AddOperationPayload, { dispatch, getState }) => {
   batch(() => {
-    const { operation, nodeId: actionId, presetParameterValues, actionMetadata } = payload;
+    const { operation, nodeId: actionId, presetParameterValues, actionMetadata, isAddingHandoff = false } = payload;
     if (!operation) {
       throw new Error('Operation does not exist'); // Just an optional catch, should never happen
     }
 
     const workflowState = (getState() as RootState).workflow;
-    const isAddingAgentTool = (getState() as RootState).panel.discoveryContent.isAgentTool;
+    const isAddingAgentTool = (getState() as RootState).panel.discoveryContent.isAddingAgentTool;
     const nodeId = getNonDuplicateNodeId(workflowState.nodesMetadata, actionId, workflowState.idReplacements);
     const newPayload = { ...payload, nodeId };
     const newToolGraphId = (getState() as RootState).panel.discoveryContent.relationshipIds.graphId;
+    const agentToolMetadata = (getState() as RootState).panel.discoveryContent.agentToolMetadata;
+    const newToolId = (getState() as RootState).panel.discoveryContent.relationshipIds.subgraphId;
 
     if (isAddingAgentTool) {
-      const newToolSubgraphId = (getState() as RootState).panel.discoveryContent.relationshipIds.subgraphId;
-      if (newToolSubgraphId && newToolGraphId) {
-        dispatch(addAgentTool({ toolId: newToolGraphId, nodeId: newToolSubgraphId }));
+      if (newToolId && newToolGraphId) {
+        if (agentToolMetadata?.newAdditiveSubgraphId && agentToolMetadata?.subGraphManifest) {
+          initializeSubgraphFromManifest(agentToolMetadata.newAdditiveSubgraphId, agentToolMetadata?.subGraphManifest, dispatch);
+        }
+        dispatch(addAgentTool({ toolId: newToolId, graphId: newToolGraphId }));
       }
     }
 
@@ -105,13 +110,21 @@ export const addOperation = createAsyncThunk('addOperation', async (payload: Add
     };
 
     dispatch(initializeOperationInfo({ id: nodeId, ...nodeOperationInfo }));
-    initializeOperationDetails(nodeId, nodeOperationInfo, getState as () => RootState, dispatch, presetParameterValues, actionMetadata);
+    initializeOperationDetails(
+      nodeId,
+      nodeOperationInfo,
+      getState as () => RootState,
+      dispatch,
+      presetParameterValues,
+      actionMetadata,
+      !isAddingHandoff
+    );
 
     dispatch(setFocusNode(nodeId));
-    if (isAddingAgentTool) {
+    if (isAddingAgentTool && newToolId) {
       dispatch(
         setAlternateSelectedNode({
-          nodeId: newToolGraphId,
+          nodeId: newToolId,
           updatePanelOpenState: true,
           panelPersistence: 'selected',
         })
@@ -120,13 +133,19 @@ export const addOperation = createAsyncThunk('addOperation', async (payload: Add
   });
 });
 
-const addDefaultSecureSettings = (settings: Settings, isSecureByDefault: boolean): Settings => {
+export const addDefaultSecureSettings = (settings: Settings, isSecureByDefault: boolean): Settings => {
   // Toggle secure inputs & outputs only when adding to workflow for actions that support secure data and connector sets by default
   if (isSecureByDefault) {
     const updatedSettings = {
       ...settings,
-      secureInputs: { isSupported: settings.secureInputs?.isSupported ?? false, value: true },
-      secureOutputs: { isSupported: settings.secureOutputs?.isSupported ?? false, value: true },
+      secureInputs: {
+        isSupported: settings.secureInputs?.isSupported ?? false,
+        value: true,
+      },
+      secureOutputs: {
+        isSupported: settings.secureOutputs?.isSupported ?? false,
+        value: true,
+      },
     };
     return updatedSettings;
   }
@@ -139,18 +158,21 @@ export const initializeOperationDetails = async (
   getState: () => RootState,
   dispatch: Dispatch,
   presetParameterValues?: Record<string, any>,
-  actionMetadata?: Record<string, any>
+  actionMetadata?: Record<string, any>,
+  openPanel = true
 ): Promise<void> => {
   const state = getState();
-  const isTrigger = isRootNodeInGraph(nodeId, 'root', state.workflow.nodesMetadata);
+  const isTrigger = isTriggerNode(nodeId, state.workflow.nodesMetadata);
   const { type, kind, connectorId, operationId } = operationInfo;
   let isConnectionRequired = true;
   let connector: Connector | undefined;
   const operationManifestService = OperationManifestService();
   const staticResultService = StaticResultService();
 
-  dispatch(setIsPanelLoading(true));
-  dispatch(changePanelNode(nodeId));
+  if (openPanel) {
+    dispatch(setIsPanelLoading(true));
+    dispatch(changePanelNode(nodeId));
+  }
 
   let initData: NodeData;
   let manifest: OperationManifest | undefined = undefined;
@@ -184,7 +206,10 @@ export const initializeOperationDetails = async (
     );
     parsedManifest = new ManifestParser(manifest, operationManifestService.isAliasingSupported(type, kind));
 
-    const nodeDependencies = { inputs: inputDependencies, outputs: outputDependencies };
+    const nodeDependencies = {
+      inputs: inputDependencies,
+      outputs: outputDependencies,
+    };
     let settings = getOperationSettings(
       isTrigger,
       operationInfo,
@@ -240,7 +265,10 @@ export const initializeOperationDetails = async (
       operationInfo,
       nodeInputs
     );
-    const nodeDependencies = { inputs: inputDependencies, outputs: outputDependencies };
+    const nodeDependencies = {
+      inputs: inputDependencies,
+      outputs: outputDependencies,
+    };
     let settings = getOperationSettings(
       isTrigger,
       operationInfo,
@@ -292,14 +320,33 @@ export const initializeOperationDetails = async (
       );
     }
   } else {
-    updateDynamicDataInNode(nodeId, isTrigger, operationInfo, undefined, initData.nodeDependencies, dispatch, getState);
+    const {
+      tokens: { variables },
+      workflowParameters: { definitions },
+    } = getState() as RootState;
+    updateDynamicDataInNode(
+      nodeId,
+      isTrigger,
+      operationInfo,
+      undefined,
+      initData.nodeDependencies,
+      dispatch,
+      getState,
+      variables,
+      definitions
+    );
   }
 
   dispatch(setIsPanelLoading(false));
 
   staticResultService.getOperationResultSchema(connectorId, operationId, swagger || parsedManifest).then((schema) => {
     if (schema) {
-      dispatch(addResultSchema({ id: `${connectorId}-${operationId}`, schema: schema }));
+      dispatch(
+        addResultSchema({
+          id: `${connectorId}-${operationId}`,
+          schema: schema,
+        })
+      );
     }
   });
 
@@ -314,7 +361,7 @@ export const initializeOperationDetails = async (
   updateAllUpstreamNodes(getState() as RootState, dispatch);
 };
 
-export const initializeSwitchCaseFromManifest = async (id: string, manifest: OperationManifest, dispatch: Dispatch): Promise<void> => {
+export const initializeSubgraphFromManifest = async (id: string, manifest: OperationManifest, dispatch: Dispatch): Promise<void> => {
   const { inputs: nodeInputs, dependencies: inputDependencies } = getInputParametersFromManifest(
     id,
     { type: '', kind: '', connectorId: '', operationId: '' },
@@ -329,13 +376,19 @@ export const initializeSwitchCaseFromManifest = async (id: string, manifest: Ope
     dispatch,
     /* splitOnValue */ undefined
   );
-  const nodeDependencies = { inputs: inputDependencies, outputs: outputDependencies };
+  const nodeDependencies = {
+    inputs: inputDependencies,
+    outputs: outputDependencies,
+  };
   const initData = {
     id,
     nodeInputs,
     nodeOutputs,
     nodeDependencies,
-    operationMetadata: { iconUri: manifest.properties.iconUri ?? '', brandColor: '' },
+    operationMetadata: {
+      iconUri: manifest.properties.iconUri ?? '',
+      brandColor: '',
+    },
   };
   dispatch(initializeNodes({ nodes: [initData] }));
 };
@@ -353,11 +406,14 @@ export const trySetDefaultConnectionForNode = async (
     await ConnectionService().setupConnectionIfNeeded(connection);
     dispatch(updateNodeConnection({ nodeId, connection, connector }));
   } else if (isConnectionRequired) {
-    // these connectors use inline connections
-    if (connectorId !== Constants.CONNECTION_IDS.AGENT) {
-      dispatch(initEmptyConnectionMap(nodeId));
-      dispatch(openPanel({ nodeId, panelMode: 'Connection', referencePanelMode: 'Operation' }));
-    }
+    dispatch(initEmptyConnectionMap([nodeId]));
+    dispatch(
+      openPanel({
+        nodeId,
+        panelMode: 'Connection',
+        referencePanelMode: 'Operation',
+      })
+    );
   }
 };
 
@@ -400,7 +456,7 @@ export const addTokensAndVariables = (
   outputTokens.push(...getBuiltInTokens(manifest));
   outputTokens.push(
     ...convertOutputsToTokens(
-      isRootNodeInGraph(nodeId, 'root', nodesMetadata) ? undefined : nodeId,
+      isTriggerNode(nodeId, nodesMetadata) ? undefined : nodeId,
       operationType,
       nodeOutputs.outputs ?? {},
       { iconUri, brandColor },

@@ -66,7 +66,7 @@ export async function pickCustomCodeNetHostProcess(
   context.telemetry.properties.lastStep = 'pickNetHostChildProcess';
   let customCodeNetHostProcess: string | undefined;
   for (let i = 0; i < maxRetries; i++) {
-    customCodeNetHostProcess = await pickNetHostChildProcess(taskInfo);
+    customCodeNetHostProcess = await pickNetHostChildProcess(taskInfo, debugConfig.isCodeless);
     if (customCodeNetHostProcess) {
       break;
     }
@@ -93,7 +93,8 @@ export async function pickCustomCodeNetHostProcess(
 export async function pickCustomCodeNetHostProcessInternal(
   context: IActionContext,
   workspaceFolder: vscode.WorkspaceFolder,
-  projectPath: string
+  projectPath: string,
+  isCodeless = true
 ): Promise<string | undefined> {
   const logicAppName = path.basename(projectPath);
 
@@ -108,7 +109,7 @@ export async function pickCustomCodeNetHostProcessInternal(
   }
 
   context.telemetry.properties.lastStep = 'pickNetHostChildProcess';
-  const customCodeNetHostProcess = await pickNetHostChildProcess(taskInfo);
+  const customCodeNetHostProcess = await pickNetHostChildProcess(taskInfo, isCodeless);
   if (!customCodeNetHostProcess) {
     const errorMessage = 'Failed to find the .NET host child process for the functions project for logic app "{0}".';
     context.telemetry.properties.result = 'Failed';
@@ -120,7 +121,7 @@ export async function pickCustomCodeNetHostProcessInternal(
   return customCodeNetHostProcess;
 }
 
-async function pickNetHostChildProcess(taskInfo: IRunningFuncTask): Promise<string | undefined> {
+export async function pickNetHostChildProcess(taskInfo: IRunningFuncTask, isCodeless: boolean): Promise<string | undefined> {
   const funcPid = Number(await pickChildProcess(taskInfo));
   if (!funcPid) {
     return undefined;
@@ -128,7 +129,8 @@ async function pickNetHostChildProcess(taskInfo: IRunningFuncTask): Promise<stri
 
   const children: OSAgnosticProcess[] =
     process.platform === Platform.windows ? await getWindowsChildren(funcPid) : await getUnixChildren(funcPid);
-  let child: OSAgnosticProcess | undefined = children.reverse().find((c) => /(dotnet)(\.exe|)$/i.test(c.command || ''));
+  const childRegex = isCodeless ? /(dotnet)(\.exe|)?$/i : /(func|dotnet)(\.exe|)?$/i;
+  let child: OSAgnosticProcess | undefined = children.reverse().find((c) => childRegex.test(c.command || ''));
 
   // If child is null or undefined, look one level deeper in child processes
   if (!child) {
@@ -138,7 +140,7 @@ async function pickNetHostChildProcess(taskInfo: IRunningFuncTask): Promise<stri
           ? await getWindowsChildren(Number(possibleParent.pid))
           : await getUnixChildren(Number(possibleParent.pid));
 
-      child = childrenOfChild.reverse().find((c) => /(dotnet)(\.exe|)$/i.test(c.command || ''));
+      child = childrenOfChild.reverse().find((c) => childRegex.test(c.command || ''));
       if (child) {
         break;
       }

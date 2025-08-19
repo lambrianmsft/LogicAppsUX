@@ -6,8 +6,9 @@ import { getConnector } from '../../queries/operation';
 import type { NodeOperation } from '../../state/operation/operationMetadataSlice';
 import { getReactQueryClient } from '../../ReactQueryProvider';
 import type { WorkflowTemplateData } from '../../actions/bjsworkflow/templates';
-import { delimiter } from './helper';
+import { delimiter, getStandardLogicAppId } from './helper';
 
+export const workflowAppConnectionsKey = 'connectionsdata';
 export const getTemplateManifest = async (templateId: string): Promise<Template.TemplateManifest> => {
   const templateResource = await getTemplate(templateId);
   return (
@@ -142,18 +143,26 @@ export const useWorkflowsInApp = (
   subscriptionId: string,
   resourceGroup: string,
   logicAppName: string,
-  isConsumption: boolean
+  isConsumption: boolean,
+  filter?: (workflow: ArmResource<any>) => boolean
 ): UseQueryResult<WorkflowResource[], unknown> => {
   const queryClient = useQueryClient();
   return useQuery(
-    ['workflowsInApp', subscriptionId?.toLowerCase(), resourceGroup?.toLowerCase(), logicAppName?.toLowerCase(), isConsumption],
+    [
+      'workflowsInApp',
+      subscriptionId?.toLowerCase(),
+      resourceGroup?.toLowerCase(),
+      logicAppName?.toLowerCase(),
+      isConsumption,
+      `hasFilter:${!!filter}`,
+    ],
     async () => {
       if (isConsumption) {
         const workflow = await getConsumptionWorkflow(subscriptionId, resourceGroup, logicAppName, queryClient);
         return [{ id: workflow.id, name: workflow.name, triggerType: getTriggerFromDefinition(workflow.properties.definition.triggers) }];
       }
 
-      return ResourceService().listWorkflowsInApp(subscriptionId, resourceGroup, logicAppName, isConsumption);
+      return ResourceService().listWorkflowsInApp(subscriptionId, resourceGroup, logicAppName, filter);
     },
     {
       cacheTime: 1000 * 60 * 60 * 24,
@@ -196,16 +205,16 @@ export const getConnectionsInWorkflowApp = async (
   logicAppName: string,
   queryClient: QueryClient
 ): Promise<Record<string, any>> => {
-  const resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${logicAppName}/workflowsconfiguration/connections`;
+  const resourceId = `${getStandardLogicAppId(subscriptionId, resourceGroup, logicAppName)}/workflowsconfiguration/connections`;
   const queryParameters = {
     'api-version': '2018-11-01',
   };
-  return queryClient.fetchQuery(['connectionsdata', resourceId.toLowerCase()], async () => {
+  return queryClient.fetchQuery([workflowAppConnectionsKey, resourceId.toLowerCase()], async () => {
     try {
       const response = await ResourceService().getResource(resourceId, queryParameters);
       return response.properties.files?.['connections.json'];
     } catch (error: any) {
-      if (error?.response?.status === 404) {
+      if (error?.httpStatusCode === 404 || error?.response?.status === 404) {
         return {};
       }
       throw error;
@@ -219,7 +228,7 @@ export const getParametersInWorkflowApp = async (
   logicAppName: string,
   queryClient: QueryClient
 ): Promise<Record<string, any>> => {
-  const resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${logicAppName}/hostruntime/admin/vfs/parameters.json`;
+  const resourceId = `${getStandardLogicAppId(subscriptionId, resourceGroup, logicAppName)}/hostruntime/admin/vfs/parameters.json`;
   const queryParameters = {
     'api-version': '2018-11-01',
     relativepath: '1',
@@ -233,7 +242,7 @@ export const getParametersInWorkflowApp = async (
         return result;
       }, {});
     } catch (error: any) {
-      if (error?.response?.status === 404) {
+      if (error?.httpStatusCode === 404 || error?.response?.status === 404) {
         return {};
       }
       throw error;

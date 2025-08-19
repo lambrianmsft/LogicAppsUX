@@ -15,6 +15,7 @@ import {
   getCustomCodeAppFiles,
   listCallbackUrl,
   saveWorkflowStandard,
+  fetchAgentUrl,
   useAllCustomCodeFiles,
   useAppSettings,
   useCurrentObjectId,
@@ -35,6 +36,7 @@ import {
   BaseUserPreferenceService,
   BaseFunctionService,
   BaseGatewayService,
+  BaseRoleService,
   BaseTenantService,
   StandardConnectionService,
   StandardConnectorService,
@@ -48,6 +50,8 @@ import {
   isArmResourceId,
   optional,
   BaseCognitiveServiceService,
+  RoleService,
+  resolveConnectionsReferences,
 } from '@microsoft/logic-apps-shared';
 import type { ContentType, IHostService, IWorkflowService } from '@microsoft/logic-apps-shared';
 import type { AllCustomCodeFiles, CustomCodeFileNameMapping, Workflow } from '@microsoft/logic-apps-designer';
@@ -63,6 +67,9 @@ import {
   RunHistoryPanel,
   CombineInitializeVariableDialog,
   TriggerDescriptionDialog,
+  getMissingRoleDefinitions,
+  roleQueryKeys,
+  isAgentWorkflow,
 } from '@microsoft/logic-apps-designer';
 import axios from 'axios';
 import isEqual from 'lodash.isequal';
@@ -97,6 +104,7 @@ const DesignerEditor = () => {
     hostOptions,
     hostingPlan,
     showConnectionsPanel,
+    showEdgeDrawing,
     showPerformanceDebug,
     suppressDefaultNodeSelect,
   } = useSelector((state: RootState) => state.workflowLoader);
@@ -115,7 +123,7 @@ const DesignerEditor = () => {
     id: guid(),
   });
   const [designerView, setDesignerView] = useState(true);
-  const codeEditorRef = useRef<{ getValue: () => string | undefined }>(null);
+  const codeEditorRef = useRef<{ getValue: () => string | undefined; hasChanges: () => boolean }>(null);
   const originalConnectionsData = useMemo(() => data?.properties.files[Artifact.ConnectionsFile] ?? {}, [data?.properties.files]);
   const originalCustomCodeData = useMemo(() => Object.keys(customCodeData ?? {}), [customCodeData]);
   const parameters = useMemo(() => data?.properties.files[Artifact.ParametersFile] ?? {}, [data?.properties.files]);
@@ -123,12 +131,7 @@ const DesignerEditor = () => {
   const displayCopilotChatbot = showChatBot && designerView;
 
   const connectionsData = useMemo(
-    () =>
-      WorkflowUtility.resolveConnectionsReferences(
-        JSON.stringify(clone(originalConnectionsData ?? {})),
-        parameters,
-        settingsData?.properties ?? {}
-      ),
+    () => resolveConnectionsReferences(JSON.stringify(clone(originalConnectionsData ?? {})), parameters, settingsData?.properties ?? {}),
     [originalConnectionsData, parameters, settingsData?.properties]
   );
 
@@ -148,11 +151,7 @@ const DesignerEditor = () => {
 
     if (connectionInfo) {
       // TODO(psamband): Add new settings in this blade so that we do not resolve all the appsettings in the connectionInfo.
-      const resolvedConnectionInfo = WorkflowUtility.resolveConnectionsReferences(
-        JSON.stringify(connectionInfo),
-        {},
-        settingsData?.properties
-      );
+      const resolvedConnectionInfo = resolveConnectionsReferences(JSON.stringify(connectionInfo), {}, settingsData?.properties);
       delete resolvedConnectionInfo.displayName;
 
       return {
@@ -236,84 +235,6 @@ const DesignerEditor = () => {
     [dispatch]
   );
 
-  const workflowDefinition = useMemo(() => {
-    if (equals(workflow?.kind ?? '', 'Agentic', true)) {
-      if (workflow?.definition) {
-        const { actions, triggers, outputs, parameters } = workflow.definition;
-        if (
-          Object.keys(actions ?? {}).length === 0 &&
-          Object.keys(triggers ?? {}).length === 0 &&
-          Object.keys(outputs ?? {}).length === 0 &&
-          Object.keys(parameters ?? {}).length === 0
-        ) {
-          return {
-            ...workflow.definition,
-            actions: {
-              Default_Agent: {
-                type: 'Agent',
-                limit: {},
-                inputs: {
-                  parameters: {
-                    deploymentId: '',
-                    messages: '',
-                    agentModelType: 'AzureOpenAI',
-                    agentModelSettings: {
-                      agentHistoryReductionSettings: {
-                        agentHistoryReductionType: 'maximumTokenCountReduction',
-                        maximumTokenCount: 128000,
-                      },
-                    },
-                  },
-                  modelConfigurations: {
-                    model1: {
-                      referenceName: '',
-                    },
-                  },
-                },
-                tools: {},
-                runAfter: {},
-              },
-            },
-          };
-        }
-      } else {
-        return {
-          $schema: 'https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#',
-          contentVersion: '1.0.0.0',
-          actions: {
-            Default_Agent: {
-              type: 'Agent',
-              limit: {},
-              inputs: {
-                parameters: {
-                  deploymentId: '',
-                  messages: '',
-                  agentModelType: 'AzureOpenAI',
-                  agentModelSettings: {
-                    agentHistoryReductionSettings: {
-                      agentHistoryReductionType: 'maximumTokenCountReduction',
-                      maximumTokenCount: 128000,
-                    },
-                  },
-                },
-                modelConfigurations: {
-                  model1: {
-                    referenceName: '',
-                  },
-                },
-              },
-              tools: {},
-              runAfter: {},
-            },
-          },
-          outputs: {},
-          triggers: {},
-        };
-      }
-    }
-    return workflow?.definition;
-  }, [workflow?.definition, workflow?.kind]);
-
   if (isLoading || appLoading || settingsLoading || customCodeLoading) {
     return <></>;
   }
@@ -391,11 +312,38 @@ const DesignerEditor = () => {
         ...connectionsData?.serviceProviderConnections,
         ...newServiceProviderConnections,
       };
-      if (workflow?.kind?.toLowerCase() === 'agentic') {
+      if (isAgentWorkflow(workflow?.kind ?? '')) {
         (connectionsData as ConnectionsData).agentConnections = {
           ...connectionsData?.agentConnections,
           ...newAgentConnections,
         };
+
+        // Assign MSI roles if needed
+        /**
+         *  This is currently only for Agentic workflows,
+         *    but we should work to make this generic in the future
+         *  The issue with making it generic is that we don't have a good way of getting the required definition names for any given connection reference
+         *  The required roles are listed on connection parameters which we don't have access to here,
+         *    and would take several requests to check for each connection, when most will not need it, leading to unnecessary slowdown during save
+         *  One option is to populate that info somewhere in the connection reference for use here,
+         *    but that is unavailable at authoring time when we are populating the values that require the roles
+         */
+        for (const [_refKey, agentConnection] of Object.entries(newAgentConnections)) {
+          if (agentConnection?.authentication?.type === 'ManagedServiceIdentity') {
+            const definitionNames = ['Azure AI User', 'Azure AI Administrator', 'Cognitive Services Contributor'];
+            const missingRoleAssignments = await getMissingRoleDefinitions(agentConnection?.resourceId, definitionNames);
+            const assignmentPromises = [];
+            for (const roleDefinition of missingRoleAssignments) {
+              assignmentPromises.push(RoleService().addAppRoleAssignmentForResource(agentConnection?.resourceId, roleDefinition.id));
+            }
+            await Promise.all(assignmentPromises);
+
+            // Invalidate the cache for the role assignments
+            const cacheKey = [roleQueryKeys.appIdentityRoleAssignments, agentConnection?.resourceId];
+            const queryClient = getReactQueryClient();
+            queryClient.invalidateQueries(cacheKey);
+          }
+        }
       }
     }
 
@@ -459,7 +407,9 @@ const DesignerEditor = () => {
     } else {
       try {
         const codeToConvert = JSON.parse(codeEditorRef.current?.getValue() ?? '');
-        await validateWorkflowStandard(siteResourceId, workflowName, codeToConvert);
+        if (codeEditorRef.current?.hasChanges() && !isEqual(codeToConvert, { definition: workflow?.definition, kind: workflow?.kind })) {
+          await validateWorkflowStandard(siteResourceId, workflowName, codeToConvert);
+        }
         setWorkflow((prevState) => ({
           ...prevState,
           definition: codeToConvert.definition,
@@ -494,13 +444,14 @@ const DesignerEditor = () => {
             ...getSKUDefaultHostOptions(Constants.SKU.STANDARD),
           },
           showConnectionsPanel,
+          showEdgeDrawing,
           showPerformanceDebug,
         }}
       >
         {workflow?.definition ? (
           <BJSWorkflowProvider
             workflow={{
-              definition: workflowDefinition,
+              definition: workflow?.definition,
               connectionReferences,
               parameters,
               kind: workflow?.kind,
@@ -626,7 +577,7 @@ const getDesignerServices = (
         }
       : { appName, identity: workflowApp?.identity as any },
     readConnections: () => {
-      return WorkflowUtility.resolveConnectionsReferences(JSON.stringify(clone(connectionsData ?? {})), undefined, appSettings);
+      return resolveConnectionsReferences(JSON.stringify(clone(connectionsData ?? {})), undefined, appSettings);
     },
     writeConnection: addConnection as any,
     connectionCreationClients: {
@@ -670,7 +621,6 @@ const getDesignerServices = (
     ...defaultServiceParams,
     clientSupportedOperations: [
       ['connectionProviders/localWorkflowOperation', 'invokeWorkflow'],
-      ['connectionProviders/localWorkflowOperation', 'invokeNestedAgent'],
       ['connectionProviders/xmlOperations', 'xmlValidation'],
       ['connectionProviders/xmlOperations', 'xmlTransform'],
       ['connectionProviders/liquidOperations', 'liquidJsonToJson'],
@@ -857,6 +807,7 @@ const getDesignerServices = (
 
   const workflowService: IWorkflowService = {
     getCallbackUrl: (triggerName: string) => listCallbackUrl(workflowIdWithHostRuntime, triggerName),
+    getAgentUrl: () => fetchAgentUrl(siteResourceId, workflowName, workflowApp?.properties?.defaultHostName ?? ''),
     getAppIdentity: () => workflowApp?.identity,
     isExplicitAuthRequiredForManagedIdentity: () => true,
     isSplitOnSupported: () => !!isStateful,
@@ -910,6 +861,16 @@ const getDesignerServices = (
     httpClient,
   });
 
+  const roleService = new BaseRoleService({
+    baseUrl: armUrl,
+    httpClient,
+    apiVersion: '2022-04-01',
+    subscriptionId,
+    tenantId: tenantId ?? '',
+    userIdentityId: objectId ?? '',
+    appIdentityId: workflowApp?.identity?.principalId ?? '',
+  });
+
   const chatbotService = new BaseChatbotService({
     baseUrl: armUrl,
     apiVersion: '2024-06-01-preview',
@@ -951,6 +912,7 @@ const getDesignerServices = (
     apimService: apiManagementService,
     functionService,
     runService,
+    roleService,
     hostService,
     chatbotService,
     customCodeService,

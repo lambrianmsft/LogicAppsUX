@@ -35,6 +35,7 @@ import {
   StandardCustomCodeService,
   BaseUserPreferenceService,
   BaseCognitiveServiceService,
+  BaseRoleService,
 } from '@microsoft/logic-apps-shared';
 import type { ConnectionReferences, CustomCodeFileNameMapping, Workflow, WorkflowParameter } from '@microsoft/logic-apps-designer';
 import {
@@ -75,6 +76,7 @@ const DesignerEditorConsumption = () => {
     showRunHistory,
     hostOptions,
     showConnectionsPanel,
+    showEdgeDrawing,
     suppressDefaultNodeSelect,
     showPerformanceDebug,
     language,
@@ -115,7 +117,7 @@ const DesignerEditorConsumption = () => {
   const [definition, setDefinition] = useState<any>();
   const [workflowDefinitionId, setWorkflowDefinitionId] = useState(guid());
   const [designerView, setDesignerView] = useState(true);
-  const codeEditorRef = useRef<{ getValue: () => string | undefined }>(null);
+  const codeEditorRef = useRef<{ getValue: () => string | undefined; hasChanges: () => boolean }>(null);
 
   const discardAllChanges = () => {
     setDesignerID(guid());
@@ -220,7 +222,9 @@ const DesignerEditorConsumption = () => {
   const saveWorkflowFromCode = async (clearDirtyState: () => void) => {
     try {
       const codeToConvert = JSON.parse(codeEditorRef.current?.getValue() ?? '');
-      await validateWorkflowConsumption(workflowId, canonicalLocation, workflowAndArtifactsData, codeToConvert);
+      if (workflowAndArtifactsData && codeEditorRef.current?.hasChanges()) {
+        await validateWorkflowConsumption(workflowId, canonicalLocation, workflowAndArtifactsData, codeToConvert);
+      }
       saveWorkflowConsumption(workflowAndArtifactsData, codeToConvert, clearDirtyState, { shouldConvertToConsumption: false });
     } catch (error: any) {
       if (error.status !== 404) {
@@ -285,6 +289,7 @@ const DesignerEditorConsumption = () => {
           isMonitoringView,
           useLegacyWorkflowParameters: true,
           showConnectionsPanel,
+          showEdgeDrawing,
           suppressDefaultNodeSelectFunctionality: suppressDefaultNodeSelect,
           hostOptions: {
             ...hostOptions,
@@ -549,6 +554,16 @@ const getDesignerServices = (
     httpClient,
   });
 
+  const roleService = new BaseRoleService({
+    baseUrl,
+    apiVersion: '2022-05-01-preview',
+    httpClient,
+    subscriptionId,
+    tenantId: tenantId ?? '',
+    userIdentityId: objectId ?? '',
+    appIdentityId: workflow?.identity?.principalId ?? '',
+  });
+
   const cognitiveServiceService = new BaseCognitiveServiceService({
     apiVersion: '2023-10-01-preview',
     baseUrl,
@@ -595,6 +610,7 @@ const getDesignerServices = (
     apimService,
     functionService,
     runService,
+    roleService,
     hostService,
     chatbotService,
     customCodeService,

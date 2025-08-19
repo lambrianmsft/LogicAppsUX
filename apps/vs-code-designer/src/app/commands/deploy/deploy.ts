@@ -48,19 +48,14 @@ import type { IDeployContext } from '@microsoft/vscode-azext-azureappservice';
 import { ScmType } from '@microsoft/vscode-azext-azureappservice/out/src/ScmType';
 import type { AzExtParentTreeItem, IActionContext, IAzureQuickPickItem, ISubscriptionContext } from '@microsoft/vscode-azext-utils';
 import { AzureWizard, DialogResponses } from '@microsoft/vscode-azext-utils';
-import {
-  resolveConnectionsReferences,
-  type ConnectionsData,
-  type FuncVersion,
-  type IIdentityWizardContext,
-  type ProjectLanguage,
-} from '@microsoft/vscode-extension-logic-apps';
+import type { ConnectionsData, FuncVersion, IIdentityWizardContext, ProjectLanguage } from '@microsoft/vscode-extension-logic-apps';
 import * as fse from 'fs-extra';
 import * as path from 'path';
 import type { Uri, MessageItem, WorkspaceFolder } from 'vscode';
 import { deployHybridLogicApp, zipDeployHybridLogicApp } from './hybridLogicApp';
 import { createContainerClient } from '../../utils/azureClients';
 import { uploadAppSettings } from '../appSettings/uploadAppSettings';
+import { resolveConnectionsReferences } from '@microsoft/logic-apps-shared';
 
 export async function deployProductionSlot(
   context: IActionContext,
@@ -216,8 +211,8 @@ async function deploy(
       if (deployProjectPathForWorkflowApp !== undefined && !isHybridLogicApp) {
         await cleanAndRemoveDeployFolder(deployProjectPathForWorkflowApp);
         await node.loadAllChildren(context);
-        await uploadAppSettings(context, node.resourceTree.appSettingsTreeItem, workspaceFolder, settingsToExclude);
       }
+      await uploadAppSettings(context, node.resourceTree.appSettingsTreeItem, workspaceFolder, settingsToExclude);
     }
   });
 
@@ -407,11 +402,11 @@ async function getProjectPathToDeploy(
     for (const referenceKey of Object.keys(connectionsData.managedApiConnections)) {
       try {
         const connection = resolvedConnections.managedApiConnections[referenceKey].connection;
-        await createAclInConnectionIfNeeded(identityWizardContext, connection.id, node.site);
+        await createAclInConnectionIfNeeded(identityWizardContext, connection.id, node);
 
         if (node.site.isSlot) {
           const parentTreeItem = node.parent?.parent as SlotTreeItem;
-          await createAclInConnectionIfNeeded(identityWizardContext, connection.id, parentTreeItem.site);
+          await createAclInConnectionIfNeeded(identityWizardContext, connection.id, parentTreeItem);
         }
       } catch (error) {
         throw new Error(`Error in creating access policy for connection in reference - '${referenceKey}'. ${error}`);

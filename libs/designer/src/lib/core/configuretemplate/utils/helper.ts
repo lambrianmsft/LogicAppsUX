@@ -5,7 +5,7 @@ import type { WorkflowTemplateData } from '../../actions/bjsworkflow/templates';
 import type { OperationDetails } from '../../templates/utils/parametershelper';
 import { initializeOperationDetails } from '../../templates/utils/parametershelper';
 import { replaceAllStringInWorkflowDefinition } from '../../templates/utils/createhelper';
-import { isRootNodeInGraph } from '../../utils/graph';
+import { isTriggerNode } from '../../utils/graph';
 import type { NodeOperationInputsData } from '../../state/operation/operationMetadataSlice';
 import type { ConnectionReferences } from '../../../common/models/workflow';
 import type { Token, ValueSegment } from '@microsoft/designer-ui';
@@ -73,6 +73,10 @@ export const getLogicAppId = (subscriptionId: string, resourceGroup: string, log
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Logic/workflows/${logicAppName}`.toLowerCase();
 };
 
+export const getStandardLogicAppId = (subscriptionId: string, resourceGroup: string, logicAppName: string): string => {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${logicAppName}`.toLowerCase();
+};
+
 export const getConnectionMappingInDefinition = async (
   definition: LogicAppsV2.WorkflowDefinition,
   workflowId: string
@@ -101,12 +105,12 @@ export const getOperationDataInDefinitions = async (
 ): Promise<NodeOperationInputsData[]> => {
   const promises: Promise<OperationDetails | undefined>[] = [];
   const references = getReferencesFromConnections(connections);
-  for (const { id, workflowDefinition } of Object.values(workflows)) {
-    const deserializedWorkflow = Deserialize(workflowDefinition, /* runInstance */ null);
+  for (const { id, workflowDefinition, kind } of Object.values(workflows)) {
+    const deserializedWorkflow = Deserialize(workflowDefinition, /* runInstance */ null, true, kind);
     const { actionData: operations, nodesMetadata } = deserializedWorkflow;
 
     for (const operationId of Object.keys(operations)) {
-      const isTrigger = isRootNodeInGraph(operationId, 'root', nodesMetadata);
+      const isTrigger = isTriggerNode(operationId, nodesMetadata);
       const operation = operations[operationId];
       const nodeId = `${id.toLowerCase()}${delimiter}${operationId}`;
       promises.push(initializeOperationDetails(nodeId, operation, /* connectorId */ undefined, isTrigger, [], references));

@@ -2,7 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.md in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import * as fse from 'fs-extra';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -26,14 +26,21 @@ import { executeCommand } from './funcCoreTools/cpUtils';
 import { getGlobalSetting } from './vsCodeConfig/settings';
 
 /**
- * Saves the unit test definition for a workflow.
- * @param {string} projectPath The path of the project.
- * @param {string} workflowName The name of the workflow.
- * @param {string} unitTestName The name of the unit test.
- * @param {any} unitTestDefinition The unit test definition.
- * @returns A Promise that resolves when the unit test definition is saved.
+ * Saves a unit test definition for a workflow to the file system.
+ *
+ * Creates the necessary directory structure and writes the unit test definition as a JSON file.
+ * Displays a progress notification while saving and handles errors with user-friendly messages.
+ *
+ * @param context - The action context for telemetry and error handling
+ * @param projectPath - The absolute path to the project directory
+ * @param workflowName - The name of the workflow being tested
+ * @param unitTestName - The name of the unit test
+ * @param unitTestDefinition - The unit test definition object to be saved as JSON
+ * @returns A promise that resolves when the unit test is successfully saved
+ * @throws Will throw an error if the file cannot be written to the file system
  */
 export const saveUnitTestDefinition = async (
+  context: IActionContext,
   projectPath: string,
   workflowName: string,
   unitTestName: string,
@@ -62,10 +69,10 @@ export const saveUnitTestDefinition = async (
           { uri: testsDirectory }
         );
       } catch (error) {
-        vscode.window.showErrorMessage(
-          `${localize('saveFailure', 'Unit Test Definition not saved.')} ${error.message}`,
-          localize('OK', 'OK')
-        );
+        const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        const localizedError = localize('saveFailureUnitTest', 'Unit Test Definition not saved. ') + errorMessage;
+        context.telemetry.properties.saveUnitTestError = localizedError;
+        vscode.window.showErrorMessage(`${localizedError}`, localize('OK', 'OK'));
         throw error;
       }
     });
@@ -397,7 +404,7 @@ export async function createTestCsFile(
   const csFilePath = path.join(unitTestFolderPath, `${unitTestName}.cs`);
   await fse.writeFile(csFilePath, templateContent);
 
-  ext.outputChannel.appendLog(localize('csTestFileCreated', 'Created .cs file for unit test at: {0}', csFilePath));
+  ext.outputChannel.appendLog(localize('csTestFileCreated', 'Created unit test file at: "{0}".', csFilePath));
 }
 
 /**
@@ -414,7 +421,6 @@ export async function createTestExecutorFile(logicAppTestFolderPath: string, cle
   const csFilePath = path.join(logicAppTestFolderPath, 'TestExecutor.cs');
 
   if (await fse.pathExists(csFilePath)) {
-    ext.outputChannel.appendLog(localize('testExecutorFileExists', 'TestExecutor.cs file already exists at: {0}', csFilePath));
     return;
   }
 
@@ -422,7 +428,6 @@ export async function createTestExecutorFile(logicAppTestFolderPath: string, cle
   templateContent = templateContent.replace(/<%= LogicAppName %>/g, cleanedLogicAppName);
 
   await fse.writeFile(csFilePath, templateContent);
-  ext.outputChannel.appendLog(localize('createdTestExecutorFile', 'Created TestExecutor.cs file at: {0}', csFilePath));
 }
 
 /**
@@ -438,7 +443,6 @@ export async function createTestSettingsConfigFile(unitTestFolderPath: string, w
   const csFilePath = path.join(unitTestFolderPath, 'testSettings.config');
 
   if (await fse.pathExists(csFilePath)) {
-    ext.outputChannel.appendLog(localize('testSettingsConfigFileExists', 'testSettings.config file already exists at: {0}', csFilePath));
     return;
   }
 
@@ -449,7 +453,6 @@ export async function createTestSettingsConfigFile(unitTestFolderPath: string, w
     .replace(/%WorkflowName%/g, workflowName);
 
   await fse.writeFile(csFilePath, templateContent);
-  ext.outputChannel.appendLog(localize('createdTestSettingsConfig', 'Created testSettings.config file at: {0}', csFilePath));
 }
 
 /**
@@ -616,6 +619,8 @@ export function logTelemetry(context: IActionContext, properties: Record<string,
  */
 export function handleError(context: IActionContext, error: unknown, source: string): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
+  context.telemetry.properties.result = 'Failed';
+  context.telemetry.properties.errorMessage = errorMessage;
   context.telemetry.properties[`${source}Error`] = errorMessage;
   vscode.window.showErrorMessage(localize(`${source}Error`, 'An error occurred: {0}', errorMessage));
   ext.outputChannel.appendLog(localize(`${source}Log`, 'Error in {0}: {1}', source, errorMessage));
@@ -661,8 +666,7 @@ export function removeInvalidCharacters(str: string): string {
 export function parseErrorBeforeTelemetry(error: any): string {
   let errorMessage = '';
 
-  // eslint-disable-next-line import/no-named-as-default-member
-  if (axios.isAxiosError(error) && error.response?.data) {
+  if (isAxiosError(error) && error.response?.data) {
     try {
       const responseData = JSON.parse(new TextDecoder().decode(error.response.data));
       const { message = '', code = '' } = responseData?.error ?? {};
@@ -1189,7 +1193,7 @@ export async function getMockableOperationTypes(): Promise<void> {
     response.data.forEach((mockableOperation: string) => mockableOperationTypes.add(mockableOperation.toUpperCase()));
   } catch (apiError: any) {
     ext.telemetryReporter.sendTelemetryEvent('listMockableOperations', { ...apiError });
-    if (axios.isAxiosError(apiError)) {
+    if (isAxiosError(apiError)) {
       ext.outputChannel.appendLog(
         localize(
           'errorListMockableOperationsFailed',
@@ -1226,7 +1230,7 @@ export async function getMockableHttpOperationTypes(): Promise<void> {
     response.data.forEach((mockableOperation: string) => mockableHttpOperationTypes.add(mockableOperation.toUpperCase()));
   } catch (apiError: any) {
     ext.telemetryReporter.sendTelemetryEvent('listMockableHttpOperations', { ...apiError });
-    if (axios.isAxiosError(apiError)) {
+    if (isAxiosError(apiError)) {
       ext.outputChannel.appendLog(
         localize(
           'errorListMockableOperationsFailed',

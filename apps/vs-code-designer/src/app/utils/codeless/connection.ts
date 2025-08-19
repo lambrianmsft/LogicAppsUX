@@ -12,11 +12,12 @@ import { sendAzureRequest } from '../requestUtils';
 import { tryGetLogicAppProjectRoot } from '../verifyIsProject';
 import { getContainingWorkspace } from '../workspace';
 import { createJsonFileIfDoesNotExist, getWorkflowParameters } from './common';
-import { getAuthorizationToken } from './getAuthorizationToken';
+import { getAuthorizationToken, getAuthorizationTokenFromNode } from './getAuthorizationToken';
 import { getParametersJson, saveWorkflowParameterRecords } from './parameter';
 import { deleteCustomCode, getCustomCode, getCustomCodeAppFilesToUpdate, uploadCustomCode } from './customcode';
 import { addNewFileInCSharpProject } from './updateBuildFile';
-import { HTTP_METHODS, isString } from '@microsoft/logic-apps-shared';
+import type { ConnectionAndAppSetting } from '@microsoft/logic-apps-shared';
+import { HTTP_METHODS, isString, resolveConnectionsReferences } from '@microsoft/logic-apps-shared';
 import type { ParsedSite } from '@microsoft/vscode-azext-azureappservice';
 import { nonNullValue } from '@microsoft/vscode-azext-utils';
 import type { IActionContext } from '@microsoft/vscode-azext-utils';
@@ -27,12 +28,11 @@ import type {
   ConnectionReferenceModel,
   IIdentityWizardContext,
   ConnectionAcl,
-  ConnectionAndAppSetting,
   Parameter,
   CustomCodeFileNameMapping,
   AllCustomCodeFiles,
 } from '@microsoft/vscode-extension-logic-apps';
-import { JwtTokenHelper, JwtTokenConstants, resolveConnectionsReferences } from '@microsoft/vscode-extension-logic-apps';
+import { JwtTokenHelper, JwtTokenConstants } from '@microsoft/vscode-extension-logic-apps';
 import axios from 'axios';
 import * as fse from 'fs-extra';
 import * as path from 'path';
@@ -40,6 +40,7 @@ import * as vscode from 'vscode';
 import { parameterizeConnection } from './parameterizer';
 import { window } from 'vscode';
 import { getGlobalSetting } from '../vsCodeConfig/settings';
+import type { SlotTreeItem } from '../../tree/slotsTree/SlotTreeItem';
 
 export async function getConnectionsFromFile(context: IActionContext, workflowFilePath: string): Promise<string> {
   const projectRoot: string = await getLogicAppProjectRoot(context, workflowFilePath);
@@ -80,14 +81,14 @@ export async function getConnectionsJson(projectRoot: string): Promise<string> {
 export async function addConnectionData(
   context: IActionContext,
   filePath: string,
-  ConnectionAndAppSetting: ConnectionAndAppSetting
+  connectionAndAppSetting: ConnectionAndAppSetting<any>
 ): Promise<void> {
   const jsonParameters = await getParametersFromFile(context, filePath);
   const projectPath = await getLogicAppProjectRoot(context, filePath);
 
-  await addConnectionDataInJson(context, projectPath ?? '', ConnectionAndAppSetting, jsonParameters);
+  await addConnectionDataInJson(context, projectPath ?? '', connectionAndAppSetting, jsonParameters);
 
-  const { settings } = ConnectionAndAppSetting;
+  const { settings } = connectionAndAppSetting;
   const workflowParameterRecords = getWorkflowParameters(jsonParameters);
 
   await addOrUpdateLocalAppSettings(context, projectPath ?? '', settings);
@@ -112,7 +113,7 @@ export async function getLogicAppProjectRoot(context: IActionContext, workflowFi
 async function addConnectionDataInJson(
   context: IActionContext,
   functionAppPath: string,
-  ConnectionAndAppSetting: ConnectionAndAppSetting,
+  connectionAndAppSetting: ConnectionAndAppSetting<any>,
   parametersData: Record<string, Parameter>
 ): Promise<void> {
   const parameterizeConnectionsSetting = getGlobalSetting(parameterizeConnectionsInProjectLoadSetting);
@@ -122,7 +123,7 @@ async function addConnectionDataInJson(
   const connectionsJsonString = await getConnectionsJson(functionAppPath);
   const connectionsJson = connectionsJsonString === '' ? {} : JSON.parse(connectionsJsonString);
 
-  const { connectionData, connectionKey, pathLocation, settings } = ConnectionAndAppSetting;
+  const { connectionData, connectionKey, pathLocation, settings } = connectionAndAppSetting;
 
   let pathToSetConnectionsData = connectionsJson;
 
@@ -434,13 +435,14 @@ export function resolveSettingsInConnection(
  * Creates acknowledge connections to managed api connections.
  * @param {IIdentityWizardContext} identityWizardContext - Identity context.
  * @param {string} connectionId - Connection ID.
- * @param {ParsedSite} site - Logic app site.
+ * @param {SlotTreeItem} node - The Logic App node.
  */
 export async function createAclInConnectionIfNeeded(
   identityWizardContext: IIdentityWizardContext,
   connectionId: string,
-  site: ParsedSite
+  node: SlotTreeItem
 ): Promise<void> {
+  const site = node.site;
   if ((!site || !site.rawSite.identity || site.rawSite.identity.type !== 'SystemAssigned') && !identityWizardContext?.useAdvancedIdentity) {
     return;
   }
@@ -465,7 +467,8 @@ export async function createAclInConnectionIfNeeded(
         acl.properties?.principal.identity.tenantId === identity?.tenantId
     )
   ) {
-    return createAccessPolicyInConnection(identityWizardContext, connectionId, site, identity);
+    const accessToken = await getAuthorizationTokenFromNode(node);
+    return createAccessPolicyInConnection(identityWizardContext, connectionId, site, identity, accessToken);
   }
 }
 
@@ -473,9 +476,9 @@ async function createAccessPolicyInConnection(
   identityWizardContext: IIdentityWizardContext,
   connectionId: string,
   site: ParsedSite,
-  identity: any
+  identity: any,
+  accessToken: string
 ): Promise<void> {
-  const accessToken = await getAuthorizationToken();
   const getUrl = `${connectionId}?api-version=2018-07-01-preview`;
   let connection: any;
 

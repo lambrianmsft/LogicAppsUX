@@ -13,6 +13,7 @@ import {
   isScopeOperation,
   WORKFLOW_NODE_TYPES,
   getRecordEntry,
+  equals,
 } from '@microsoft/logic-apps-shared';
 
 export interface AddNodePayload {
@@ -30,7 +31,7 @@ export const addNodeToWorkflow = (
   state: WorkflowState
 ) => {
   const { nodeId: newNodeId, operation, isParallelBranch, relationshipIds } = payload;
-  const { graphId, parentId, childId } = relationshipIds;
+  const { graphId, subgraphId, parentId, childId } = relationshipIds;
 
   // Add Node Data
   const workflowNode: WorkflowNode = createWorkflowNode(newNodeId);
@@ -48,15 +49,16 @@ export const addNodeToWorkflow = (
   const isTrigger = !!operation.properties?.trigger;
   const isRoot = isTrigger || (parentId ? removeIdTag(parentId) === graphId : false);
   const parentNodeId = graphId !== 'root' ? graphId : undefined;
-  nodesMetadata[newNodeId] = { graphId, parentNodeId, isRoot };
+  nodesMetadata[newNodeId] = { graphId, parentNodeId, isRoot, isTrigger };
 
   state.operations[newNodeId] = { ...state.operations[newNodeId], type: operation.type };
   state.newlyAddedOperations[newNodeId] = newNodeId;
   state.isDirty = true;
 
-  const isAfterTrigger = getRecordEntry(nodesMetadata, parentId ?? '')?.isRoot && graphId === 'root';
-  const shouldAddRunAfters = !isRoot && !isAfterTrigger;
-  nodesMetadata[newNodeId] = { graphId, parentNodeId, isRoot };
+  const isAfterTrigger = getRecordEntry(nodesMetadata, parentId ?? '')?.isTrigger;
+  const allowRunAfterTrigger = equals(state.workflowKind, 'agent');
+  const shouldAddRunAfters = allowRunAfterTrigger || (!isRoot && !isAfterTrigger);
+  nodesMetadata[newNodeId] = { graphId: subgraphId ?? graphId, parentNodeId, isRoot, isTrigger };
   state.operations[newNodeId] = { ...state.operations[newNodeId], type: operation.type };
   state.newlyAddedOperations[newNodeId] = newNodeId;
 

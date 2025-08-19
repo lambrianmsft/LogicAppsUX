@@ -4,7 +4,7 @@ import { deleteOperation, deleteGraphNode } from '../../../core/actions/bjsworkf
 import { useShowDeleteModalNodeId } from '../../../core/state/designerView/designerViewSelectors';
 import { setShowDeleteModalNodeId } from '../../../core/state/designerView/designerViewSlice';
 import { useWorkflowNode } from '../../../core/state/workflow/workflowSelectors';
-import { deleteSwitchCase } from '../../../core/state/workflow/workflowSlice';
+import { deleteAgentTool, deleteSwitchCase } from '../../../core/state/workflow/workflowSlice';
 import { DeleteNodeModal } from '@microsoft/designer-ui';
 import { WORKFLOW_NODE_TYPES } from '@microsoft/logic-apps-shared';
 import { useCallback, useMemo } from 'react';
@@ -19,7 +19,7 @@ const DeleteModal = () => {
   const metadata = useNodeMetadata(nodeId);
   const graphId = useMemo(() => metadata?.graphId ?? '', [metadata]);
 
-  const isTrigger = useMemo(() => !!(metadata?.graphId === 'root' && metadata?.isRoot), [metadata]);
+  const isTrigger = useMemo(() => metadata?.isTrigger ?? false, [metadata]);
 
   const onDismiss = useCallback(() => dispatch(setShowDeleteModalNodeId(undefined)), [dispatch]);
 
@@ -27,7 +27,7 @@ const DeleteModal = () => {
     if (!nodeId || !nodeData) {
       return;
     }
-    const { type } = nodeData;
+    const { type, subGraphLocation } = nodeData;
 
     if (type === WORKFLOW_NODE_TYPES.OPERATION_NODE) {
       dispatch(storeStateToUndoRedoHistory({ type: deleteOperation.pending }));
@@ -48,12 +48,22 @@ const DeleteModal = () => {
           graphNode: nodeData,
         })
       );
-      dispatch(
-        deleteSwitchCase({
-          caseId: nodeId,
-          nodeId: graphId,
-        })
-      );
+
+      if (subGraphLocation === 'tools') {
+        dispatch(
+          deleteAgentTool({
+            toolId: nodeId,
+            agentId: graphId,
+          })
+        );
+      } else if (subGraphLocation === 'cases') {
+        dispatch(
+          deleteSwitchCase({
+            caseId: nodeId,
+            nodeId: graphId,
+          })
+        );
+      }
     }
 
     onDismiss();

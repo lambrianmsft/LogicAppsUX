@@ -9,12 +9,14 @@ import { css } from '@fluentui/utilities';
 import { ArrayEditor, ArrayType } from '../arrayeditor';
 import { Label } from '../label';
 import { useAgentInstructionStyles } from './agentinstruction.styles';
+import constants from '../constants';
 
 export const NavigateIcon = bundleIcon(Open12Regular, Open12Filled);
 
 interface AgentInstructionEditorProps extends BaseEditorProps {
   serializeValue?: ChangeHandler;
   onCastParameter: CastHandler;
+  hideUserInstructions?: boolean;
 }
 
 export const AgentInstructionEditor = ({
@@ -22,6 +24,7 @@ export const AgentInstructionEditor = ({
   className,
   onCastParameter,
   serializeValue,
+  hideUserInstructions = false,
   ...props
 }: AgentInstructionEditorProps): JSX.Element => {
   const intl = useIntl();
@@ -89,27 +92,29 @@ export const AgentInstructionEditor = ({
           placeholder={systemPlaceholder}
           initialValue={systemMessage}
           editorBlur={(newState: ChangeState) => handleValueChange(newState, AGENT_INSTRUCTION_TYPES.SYSTEM)}
+          valueType={constants.SWAGGER.TYPE.STRING}
+          spellCheck={true}
         />
-        <Label text={userItemLabel} />
-        <ArrayEditor
-          {...props}
-          isRequired={false}
-          label={userItemLabel}
-          placeholder={userPlaceholder}
-          itemSchema={{ key: 'userMessage', type: 'string' }}
-          arrayType={ArrayType.SIMPLE}
-          castParameter={onCastParameter}
-          initialValue={userMessage}
-          getTokenPicker={props.getTokenPicker as GetTokenPickerHandler}
-          onChange={(newState: ChangeState) => handleValueChange(newState, AGENT_INSTRUCTION_TYPES.USER)}
-        />
+        {!hideUserInstructions && (
+          <>
+            <Label text={userItemLabel} />
+            <ArrayEditor
+              {...props}
+              isRequired={false}
+              label={userItemLabel}
+              placeholder={userPlaceholder}
+              itemSchema={{ key: 'userMessage', type: 'string' }}
+              arrayType={ArrayType.SIMPLE}
+              castParameter={onCastParameter}
+              initialValue={userMessage}
+              getTokenPicker={props.getTokenPicker as GetTokenPickerHandler}
+              onChange={(newState: ChangeState) => handleValueChange(newState, AGENT_INSTRUCTION_TYPES.USER)}
+            />
+          </>
+        )}
       </div>
       {errorMessage ? (
-        <MessageBar
-          key={'warning'}
-          intent={'warning'}
-          className={mergeClasses(styles.editorWarning, 'msla-agent-instruction-editor-warning')}
-        >
+        <MessageBar key={'warning'} intent={'warning'} className={styles.editorWarning}>
           <MessageBarBody>
             <MessageBarTitle>{errorMessage}</MessageBarTitle>
             {warningInstructionBody}

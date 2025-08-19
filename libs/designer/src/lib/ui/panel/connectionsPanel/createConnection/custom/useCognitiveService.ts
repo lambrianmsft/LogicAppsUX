@@ -1,6 +1,8 @@
+import type { Connection } from '@microsoft/logic-apps-shared';
 import { CognitiveServiceService, foundryServiceConnectionRegex } from '@microsoft/logic-apps-shared';
 import { useQuery } from '@tanstack/react-query';
 import { useSelectedConnection } from '../../../../../core/state/connection/connectionSelector';
+import { getReactQueryClient } from '../../../../../core';
 
 const queryOpts = {
   cacheTime: 1000 * 60 * 60 * 24,
@@ -16,7 +18,7 @@ export const queryKeys = {
   allBuiltInRoleDefinitions: 'allBuiltInRoleDefinitions',
 };
 
-export const useAllCognitiveServiceAccounts = (subscriptionId: string) => {
+export const useAllCognitiveServiceAccounts = (subscriptionId: string, enabled = true) => {
   return useQuery(
     [queryKeys.allCognitiveServiceAccounts, { subscriptionId }],
     async () => {
@@ -26,16 +28,44 @@ export const useAllCognitiveServiceAccounts = (subscriptionId: string) => {
     {
       ...queryOpts,
       retryOnMount: true,
-      enabled: !!subscriptionId,
+      enabled: !!subscriptionId && enabled,
     }
   );
+};
+
+const getServiceAccountId = (resourceId: string | undefined, isFoundryServiceConnection: boolean) => {
+  if (!resourceId) {
+    return undefined;
+  }
+
+  if (isFoundryServiceConnection) {
+    const parts = resourceId.split('/');
+    return parts.length >= 2 ? parts.slice(0, -2).join('/') : resourceId;
+  }
+
+  return resourceId;
+};
+
+export const getCognitiveServiceAccountDeploymentsForConnection = async (connection: Connection) => {
+  const queryClient = getReactQueryClient();
+  const resourceId = connection?.properties?.connectionParameters?.cognitiveServiceAccountId?.metadata?.value;
+  const isFoundryServiceConnection = foundryServiceConnectionRegex.test(resourceId ?? '');
+  const serviceAccountId = getServiceAccountId(resourceId, isFoundryServiceConnection);
+
+  return queryClient.fetchQuery([queryKeys.allCognitiveServiceAccountsDeployments, { serviceAccountId }], async () => {
+    if (serviceAccountId) {
+      return await CognitiveServiceService().fetchAllCognitiveServiceAccountDeployments(serviceAccountId);
+    }
+
+    return [];
+  });
 };
 
 export const useCognitiveServiceAccountId = (nodeId: string, _connectorId?: string) => {
   const selectedConnection = useSelectedConnection(nodeId);
   const resourceId = selectedConnection?.properties?.connectionParameters?.cognitiveServiceAccountId?.metadata?.value;
   const isFoundryServiceConnection = foundryServiceConnectionRegex.test(resourceId ?? '');
-  return resourceId ? (isFoundryServiceConnection ? resourceId?.split('/').slice(0, -2).join('/') : resourceId) : undefined;
+  return getServiceAccountId(resourceId, isFoundryServiceConnection);
 };
 
 export const useCognitiveServiceAccountDeploymentsForNode = (nodeId: string, connectorId?: string) => {
@@ -59,17 +89,17 @@ export const useCognitiveServiceAccountDeploymentsForNode = (nodeId: string, con
   );
 };
 
-export const useAllCognitiveServiceProjects = (serviceAccountId: string) => {
+export const useAllCognitiveServiceProjects = (subscriptionId: string, enabled = true) => {
   return useQuery(
-    [queryKeys.allCognitiveServiceAccounts, { serviceAccountId }],
+    [queryKeys.allCognitiveServiceAccounts, { subscriptionId }],
     async () => {
-      const allCognitiveServiceAccounts = await CognitiveServiceService().fetchAllCognitiveServiceProjects(serviceAccountId);
-      return allCognitiveServiceAccounts?.value ?? [];
+      const allCognitiveServiceAccounts = await CognitiveServiceService().fetchAllCognitiveServiceProjects(subscriptionId);
+      return allCognitiveServiceAccounts ?? [];
     },
     {
       ...queryOpts,
       retryOnMount: true,
-      enabled: !!serviceAccountId,
+      enabled: !!subscriptionId && enabled,
     }
   );
 };
