@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { VSCodeExportWrapper } from './components/VSCodeExportWrapper';
 import { VSCodeOverviewWrapper } from './components/VSCodeOverviewWrapper';
 import { VSCodeNavigationWrapper } from './components/VSCodeNavigationWrapper';
+import { VSCodeCreateWorkspaceWrapper } from './components/VSCodeCreateWorkspaceWrapper';
 
 export const VSCodeWrapper = () => {
   return (
@@ -12,6 +13,7 @@ export const VSCodeWrapper = () => {
           <Route path="/" element={<Navigate to="/vscode/export" replace />} />
           <Route path="/export/*" element={<VSCodeExportWrapper />} />
           <Route path="/overview" element={<VSCodeOverviewWrapper />} />
+          <Route path="/createWorkspace" element={<VSCodeCreateWorkspaceWrapper />} />
           <Route path="*" element={<Navigate to="/vscode/export" replace />} />
         </Routes>
       </div>

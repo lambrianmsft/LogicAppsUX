@@ -152,6 +152,7 @@ export const RouteName = {
   designer: 'designer',
   dataMapper: 'dataMapper',
   unitTest: 'unitTest',
+  createWorkspace: 'createWorkspace',
 };
 
 export type RouteNameType = (typeof RouteName)[keyof typeof RouteName];

@@ -31,7 +31,7 @@ export const Router: React.FC = () => {
         <Route path={`/${RouteName.dataMapper}`} element={<DataMapperApp />} />
         <Route path={`/${RouteName.designer}`} element={<DesignerApp />} />
         <Route path={`/${RouteName.unitTest}`} element={<UnitTestResults />} />
-        <Route path={`${RouteName.createWorkspace}`} element={<CreateWorkspace />}></Route>
+        <Route path={`/${RouteName.createWorkspace}`} element={<CreateWorkspace />} />
       </Routes>
     </MemoryRouter>
   );
