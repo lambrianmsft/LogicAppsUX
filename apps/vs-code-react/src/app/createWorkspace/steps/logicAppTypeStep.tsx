@@ -29,25 +29,35 @@ export const LogicAppTypeStep: React.FC = () => {
       id: '7yXXiY',
       description: 'Logic app type step description',
     }),
-    STATEFUL_LABEL: intl.formatMessage({
-      defaultMessage: 'Stateful',
-      id: 'P3L+ba',
-      description: 'Stateful logic app option',
+    STANDARD_LABEL: intl.formatMessage({
+      defaultMessage: 'Logic App (Standard)',
+      id: 'xnJNZH',
+      description: 'Standard logic app option',
     }),
-    STATEFUL_DESCRIPTION: intl.formatMessage({
-      defaultMessage: 'Stateful workflows maintain state information between runs',
-      id: 'OrLQ/7',
-      description: 'Stateful logic app description',
+    STANDARD_DESCRIPTION: intl.formatMessage({
+      defaultMessage: 'Standard logic app with built-in connectors and triggers',
+      id: 'CfXSvL',
+      description: 'Standard logic app description',
     }),
-    STATELESS_LABEL: intl.formatMessage({
-      defaultMessage: 'Stateless',
-      id: 'zi+FBg',
-      description: 'Stateless logic app option',
+    CUSTOM_CODE_LABEL: intl.formatMessage({
+      defaultMessage: 'Logic App with Custom Code',
+      id: '2ivADw',
+      description: 'Logic app with custom code option',
     }),
-    STATELESS_DESCRIPTION: intl.formatMessage({
-      defaultMessage: 'Stateless workflows do not maintain state information between runs',
-      id: '56TfrA',
-      description: 'Stateless logic app description',
+    CUSTOM_CODE_DESCRIPTION: intl.formatMessage({
+      defaultMessage: 'Logic app that allows custom code integration and advanced scenarios',
+      id: 'kkKTEH',
+      description: 'Logic app with custom code description',
+    }),
+    RULES_ENGINE_LABEL: intl.formatMessage({
+      defaultMessage: 'Logic App with Rules Engine',
+      id: 'yoH8Yw',
+      description: 'Logic app with rules engine option',
+    }),
+    RULES_ENGINE_DESCRIPTION: intl.formatMessage({
+      defaultMessage: 'Logic app with built-in business rules engine for complex decision logic',
+      id: 'Fsc9ZE',
+      description: 'Logic app with rules engine description',
     }),
   };
 
@@ -58,18 +68,26 @@ export const LogicAppTypeStep: React.FC = () => {
   return (
     <div className={styles.formSection}>
       <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
+      <Text className={styles.stepDescription}>{intlText.DESCRIPTION}</Text>
+
       <div className={styles.radioGroupContainer}>
         <RadioGroup value={logicAppType} onChange={handleLogicAppTypeChange} className={styles.radioGroup}>
           <div className={styles.radioOption}>
-            <Radio value="Stateful" label={intlText.STATEFUL_LABEL} />
+            <Radio value="standard" label={intlText.STANDARD_LABEL} />
             <Text size={200} style={{ marginLeft: '24px', color: 'var(--colorNeutralForeground2)' }}>
-              {intlText.STATEFUL_DESCRIPTION}
+              {intlText.STANDARD_DESCRIPTION}
             </Text>
           </div>
           <div className={styles.radioOption}>
-            <Radio value="Stateless" label={intlText.STATELESS_LABEL} />
+            <Radio value="customCode" label={intlText.CUSTOM_CODE_LABEL} />
             <Text size={200} style={{ marginLeft: '24px', color: 'var(--colorNeutralForeground2)' }}>
-              {intlText.STATELESS_DESCRIPTION}
+              {intlText.CUSTOM_CODE_DESCRIPTION}
+            </Text>
+          </div>
+          <div className={styles.radioOption}>
+            <Radio value="rulesEngine" label={intlText.RULES_ENGINE_LABEL} />
+            <Text size={200} style={{ marginLeft: '24px', color: 'var(--colorNeutralForeground2)' }}>
+              {intlText.RULES_ENGINE_DESCRIPTION}
             </Text>
           </div>
         </RadioGroup>

@@ -5,6 +5,8 @@
 export { FolderStep } from './folderStep';
 export { WorkspaceNameStep } from './workspaceNameStep';
 export { LogicAppTypeStep } from './logicAppTypeStep';
+export { DotNetFrameworkStep } from './dotNetFrameworkStep';
+export { WorkflowTypeStep } from './workflowTypeStep';
 export { TargetFrameworkStep } from './targetFrameworkStep';
 export { LogicAppNameStep } from './logicAppNameStep';
 export { ProjectTypeStep } from './projectTypeStep';

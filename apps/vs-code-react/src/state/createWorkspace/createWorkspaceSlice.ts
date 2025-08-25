@@ -9,6 +9,10 @@ export interface CreateWorkspaceState {
   projectPath: string;
   workspaceName: string;
   logicAppType: string;
+  dotNetFramework: string;
+  functionWorkspace: string;
+  functionName: string;
+  workflowType: string;
   targetFramework: string;
   logicAppName: string;
   projectType: string;
@@ -23,6 +27,10 @@ const initialState: CreateWorkspaceState = {
   projectPath: '',
   workspaceName: '',
   logicAppType: '',
+  dotNetFramework: '',
+  functionWorkspace: '',
+  functionName: '',
+  workflowType: '',
   targetFramework: '',
   logicAppName: '',
   projectType: '',
@@ -47,6 +55,18 @@ export const createWorkspaceSlice = createSlice({
     setLogicAppType: (state, action: PayloadAction<string>) => {
       state.logicAppType = action.payload;
     },
+    setDotNetFramework: (state, action: PayloadAction<string>) => {
+      state.dotNetFramework = action.payload;
+    },
+    setFunctionWorkspace: (state, action: PayloadAction<string>) => {
+      state.functionWorkspace = action.payload;
+    },
+    setFunctionName: (state, action: PayloadAction<string>) => {
+      state.functionName = action.payload;
+    },
+    setWorkflowType: (state, action: PayloadAction<string>) => {
+      state.workflowType = action.payload;
+    },
     setTargetFramework: (state, action: PayloadAction<string>) => {
       state.targetFramework = action.payload;
     },
@@ -70,8 +90,8 @@ export const createWorkspaceSlice = createSlice({
     },
     resetState: () => initialState,
     nextStep: (state) => {
-      if (state.currentStep < 6) {
-        // Total of 7 steps (0-6)
+      if (state.currentStep < 7) {
+        // Maximum of 8 steps (0-7) for custom code, 7 steps (0-6) for others
         state.currentStep += 1;
       }
     },
@@ -88,6 +108,10 @@ export const {
   setProjectPath,
   setWorkspaceName,
   setLogicAppType,
+  setDotNetFramework,
+  setFunctionWorkspace,
+  setFunctionName,
+  setWorkflowType,
   setTargetFramework,
   setLogicAppName,
   setProjectType,

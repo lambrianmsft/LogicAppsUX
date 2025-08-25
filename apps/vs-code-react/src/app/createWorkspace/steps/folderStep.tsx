@@ -69,7 +69,12 @@ export const FolderStep: React.FC = () => {
               value={projectPath}
               onChange={handleProjectPathChange}
               className={styles.inputControl}
-              style={{ flex: 1 }}
+              style={{
+                flex: 1,
+                minWidth: '300px', // Ensure minimum width for readability
+                fontFamily: 'monospace', // Use monospace for better path readability
+              }}
+              title={projectPath} // Show full path on hover
             />
             <Button appearance="secondary" onClick={handleBrowseFolder}>
               {intlText.BROWSE_BUTTON}

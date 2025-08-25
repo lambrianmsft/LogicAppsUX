@@ -17,8 +17,19 @@ export const WorkspaceNameStep: React.FC = () => {
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { workspaceName } = createWorkspaceState;
+  const { workspaceName, projectPath } = createWorkspaceState;
   const inputId = useId();
+
+  // Compute the full path to the .code-workspace file
+  const workspaceFilePath =
+    projectPath && workspaceName
+      ? (() => {
+          // Ensure proper path separator based on the existing path
+          const separator = projectPath.includes('/') ? '/' : '\\';
+          const normalizedPath = projectPath.endsWith(separator) ? projectPath : `${projectPath}${separator}`;
+          return `${normalizedPath}${workspaceName}.code-workspace`;
+        })()
+      : '';
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -36,6 +47,11 @@ export const WorkspaceNameStep: React.FC = () => {
       id: 'uNvoPg',
       description: 'Workspace name input label',
     }),
+    WORKSPACE_FILE_LABEL: intl.formatMessage({
+      defaultMessage: 'Workspace File Location',
+      id: 'ObsExh',
+      description: 'Workspace file location label',
+    }),
   };
 
   const handleWorkspaceNameChange = (event: React.FormEvent<HTMLInputElement>, data: InputOnChangeData) => {
@@ -50,6 +66,12 @@ export const WorkspaceNameStep: React.FC = () => {
           <Label htmlFor={inputId}>{intlText.WORKSPACE_NAME_LABEL}</Label>
           <Input id={inputId} value={workspaceName} onChange={handleWorkspaceNameChange} className={styles.inputControl} />
         </Field>
+        {workspaceFilePath && (
+          <div style={{ marginTop: '12px' }}>
+            <Label>{intlText.WORKSPACE_FILE_LABEL}</Label>
+            <div className={styles.pathDisplay}>{workspaceFilePath}</div>
+          </div>
+        )}
       </div>
     </div>
   );
