@@ -25,19 +25,19 @@ export const FolderStep: React.FC = () => {
 
   const intlText = {
     TITLE: intl.formatMessage({
-      defaultMessage: 'Select Project Folder',
-      id: 'e5SSTH',
-      description: 'Folder step title',
+      defaultMessage: 'Select Workspace Parent Folder',
+      id: 'o2Bopk',
+      description: 'Workspace Parent Folder step title',
     }),
     DESCRIPTION: intl.formatMessage({
-      defaultMessage: 'Select the folder that will contain your logic app workspace',
-      id: 'VsuK34',
+      defaultMessage: 'Select the folder that will contain your logic app workspace folder',
+      id: 'F7To5U',
       description: 'Folder step description',
     }),
     PROJECT_PATH_LABEL: intl.formatMessage({
-      defaultMessage: 'Project Path',
-      id: 'GrozSg',
-      description: 'Project path input label',
+      defaultMessage: 'Workspace Parent Folder Path',
+      id: '3KYXwl',
+      description: 'Workspace Parent Folder path input label',
     }),
     BROWSE_BUTTON: intl.formatMessage({
       defaultMessage: 'Browse...',

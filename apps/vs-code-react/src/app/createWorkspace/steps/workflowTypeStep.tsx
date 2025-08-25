@@ -6,7 +6,7 @@ import { Radio, Field, Input } from '@fluentui/react-components';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
-import { setWorkflowType, setLogicAppName } from '../../../state/createWorkspace/createWorkspaceSlice';
+import { setWorkflowType, setWorkflowName } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
 import { XLargeText } from '@microsoft/designer-ui';
@@ -16,7 +16,7 @@ export const WorkflowTypeStep: React.FC = () => {
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { workflowType, logicAppName } = createWorkspaceState;
+  const { workflowType, workflowName } = createWorkspaceState;
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -25,8 +25,8 @@ export const WorkflowTypeStep: React.FC = () => {
       description: 'Workflow configuration step title',
     }),
     WORKFLOW_NAME_LABEL: intl.formatMessage({
-      defaultMessage: 'Workflow name',
-      id: 'zTdffa',
+      defaultMessage: 'Workflow Name',
+      id: 'OwjR0o',
       description: 'Workflow name field label',
     }),
     WORKFLOW_NAME_PLACEHOLDER: intl.formatMessage({
@@ -71,7 +71,7 @@ export const WorkflowTypeStep: React.FC = () => {
   };
 
   const handleWorkflowNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setLogicAppName(event.target.value));
+    dispatch(setWorkflowName(event.target.value));
   };
 
   return (
@@ -80,7 +80,7 @@ export const WorkflowTypeStep: React.FC = () => {
 
       <Field label={intlText.WORKFLOW_NAME_LABEL} className={styles.workflowNameField}>
         <Input
-          value={logicAppName}
+          value={workflowName}
           onChange={handleWorkflowNameChange}
           placeholder={intlText.WORKFLOW_NAME_PLACEHOLDER}
           className={styles.inputControl}

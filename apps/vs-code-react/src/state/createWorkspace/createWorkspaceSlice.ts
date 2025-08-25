@@ -13,6 +13,7 @@ export interface CreateWorkspaceState {
   functionWorkspace: string;
   functionName: string;
   workflowType: string;
+  workflowName: string;
   targetFramework: string;
   logicAppName: string;
   projectType: string;
@@ -31,6 +32,7 @@ const initialState: CreateWorkspaceState = {
   functionWorkspace: '',
   functionName: '',
   workflowType: '',
+  workflowName: '',
   targetFramework: '',
   logicAppName: '',
   projectType: '',
@@ -39,7 +41,7 @@ const initialState: CreateWorkspaceState = {
   isComplete: false,
 };
 
-export const createWorkspaceSlice = createSlice({
+export const createWorkspaceSlice: any = createSlice({
   name: 'createWorkspace',
   initialState,
   reducers: {
@@ -66,6 +68,9 @@ export const createWorkspaceSlice = createSlice({
     },
     setWorkflowType: (state, action: PayloadAction<string>) => {
       state.workflowType = action.payload;
+    },
+    setWorkflowName: (state, action: PayloadAction<string>) => {
+      state.workflowName = action.payload;
     },
     setTargetFramework: (state, action: PayloadAction<string>) => {
       state.targetFramework = action.payload;
@@ -112,6 +117,7 @@ export const {
   setFunctionWorkspace,
   setFunctionName,
   setWorkflowType,
+  setWorkflowName,
   setTargetFramework,
   setLogicAppName,
   setProjectType,

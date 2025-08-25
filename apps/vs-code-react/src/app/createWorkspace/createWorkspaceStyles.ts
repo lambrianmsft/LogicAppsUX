@@ -14,6 +14,95 @@ export const useCreateWorkspaceStyles = makeStyles({
     padding: '15px 0',
   },
 
+  stepNavigation: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM,
+    padding: `${tokens.spacingVerticalL} 0`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    marginBottom: tokens.spacingVerticalL,
+  },
+
+  stepItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    cursor: 'pointer',
+    padding: tokens.spacingVerticalS,
+    borderRadius: tokens.borderRadiusMedium,
+    minWidth: '80px',
+    transition: 'background-color 0.2s ease',
+    '&:hover': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+  },
+
+  stepItemActive: {
+    backgroundColor: tokens.colorBrandBackground2,
+    color: tokens.colorBrandForeground2,
+    '&:hover': {
+      backgroundColor: tokens.colorBrandBackground2Hover,
+    },
+  },
+
+  stepItemCompleted: {
+    backgroundColor: tokens.colorPaletteGreenBackground2,
+    color: tokens.colorPaletteGreenForeground2,
+    '&:hover': {
+      backgroundColor: tokens.colorPaletteGreenBackground2,
+    },
+  },
+
+  stepItemDisabled: {
+    cursor: 'not-allowed',
+    opacity: 0.6,
+    '&:hover': {
+      backgroundColor: 'transparent',
+    },
+  },
+
+  stepNumber: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
+    backgroundColor: tokens.colorNeutralBackground3,
+    color: tokens.colorNeutralForeground1,
+    marginBottom: tokens.spacingVerticalXS,
+  },
+
+  stepNumberActive: {
+    backgroundColor: tokens.colorBrandBackground,
+    color: tokens.colorNeutralForegroundOnBrand,
+  },
+
+  stepNumberCompleted: {
+    backgroundColor: tokens.colorPaletteGreenBackground1,
+    color: tokens.colorNeutralForegroundOnBrand,
+  },
+
+  stepLabel: {
+    fontSize: tokens.fontSizeBase200,
+    textAlign: 'center',
+    lineHeight: '1.2',
+  },
+
+  stepConnector: {
+    width: '40px',
+    height: '2px',
+    backgroundColor: tokens.colorNeutralStroke2,
+    marginTop: '12px',
+  },
+
+  stepConnectorCompleted: {
+    backgroundColor: tokens.colorPaletteGreenBorder1,
+  },
+
   createWorkspaceContent: {
     flex: 1,
     display: 'flex',
@@ -117,7 +206,10 @@ export const useCreateWorkspaceStyles = makeStyles({
   },
 
   radioOption: {
-    marginBottom: tokens.spacingVerticalXS,
+    marginBottom: tokens.spacingVerticalS,
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
   browseButton: {
@@ -269,5 +361,65 @@ export const useCreateWorkspaceStyles = makeStyles({
 
   workflowNameField: {
     marginBottom: tokens.spacingVerticalL,
+  },
+
+  reviewContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalL,
+    maxWidth: '800px',
+    width: '100%',
+  },
+
+  reviewSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalS,
+    padding: tokens.spacingVerticalM,
+    backgroundColor: tokens.colorNeutralBackground2,
+    borderRadius: tokens.borderRadiusMedium,
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+
+  reviewSectionTitle: {
+    fontSize: tokens.fontSizeBase400,
+    fontWeight: tokens.fontWeightSemibold,
+    color: tokens.colorNeutralForeground1,
+    marginBottom: tokens.spacingVerticalS,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    paddingBottom: tokens.spacingVerticalXS,
+  },
+
+  reviewRow: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: `${tokens.spacingVerticalXS} 0`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke3}`,
+    gap: tokens.spacingHorizontalM,
+    '&:last-child': {
+      borderBottom: 'none',
+    },
+  },
+
+  reviewLabel: {
+    fontSize: tokens.fontSizeBase300,
+    fontWeight: tokens.fontWeightMedium,
+    color: tokens.colorNeutralForeground2,
+    minWidth: '150px',
+    textAlign: 'left',
+    flexShrink: 0,
+  },
+
+  reviewValue: {
+    fontSize: tokens.fontSizeBase300,
+    color: tokens.colorNeutralForeground1,
+    textAlign: 'right',
+    wordBreak: 'break-word',
+    flex: 1,
+  },
+
+  reviewValueMissing: {
+    color: tokens.colorPaletteRedForeground1,
+    fontStyle: 'italic',
   },
 });

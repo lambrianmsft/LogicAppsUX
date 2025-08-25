@@ -11,3 +11,4 @@ export { TargetFrameworkStep } from './targetFrameworkStep';
 export { LogicAppNameStep } from './logicAppNameStep';
 export { ProjectTypeStep } from './projectTypeStep';
 export { OpenBehaviorStep } from './openBehaviorStep';
+export { ReviewCreateStep } from './reviewCreateStep';

@@ -20,6 +20,17 @@ export const WorkspaceNameStep: React.FC = () => {
   const { workspaceName, projectPath } = createWorkspaceState;
   const inputId = useId();
 
+  // Compute the full path to the .code-workspace folder
+  const workspaceFolderPath =
+    projectPath && workspaceName
+      ? (() => {
+          // Ensure proper path separator based on the existing path
+          const separator = projectPath.includes('/') ? '/' : '\\';
+          const normalizedPath = projectPath.endsWith(separator) ? projectPath : `${projectPath}${separator}`;
+          return `${normalizedPath}${workspaceName}`;
+        })()
+      : '';
+
   // Compute the full path to the .code-workspace file
   const workspaceFilePath =
     projectPath && workspaceName
@@ -27,7 +38,7 @@ export const WorkspaceNameStep: React.FC = () => {
           // Ensure proper path separator based on the existing path
           const separator = projectPath.includes('/') ? '/' : '\\';
           const normalizedPath = projectPath.endsWith(separator) ? projectPath : `${projectPath}${separator}`;
-          return `${normalizedPath}${workspaceName}.code-workspace`;
+          return `${normalizedPath}${workspaceName}${separator}${workspaceName}.code-workspace`;
         })()
       : '';
 
@@ -46,6 +57,11 @@ export const WorkspaceNameStep: React.FC = () => {
       defaultMessage: 'Workspace Name',
       id: 'uNvoPg',
       description: 'Workspace name input label',
+    }),
+    WORKSPACE_FOLDER_LABEL: intl.formatMessage({
+      defaultMessage: 'Workspace Folder Location',
+      id: 'gis0SV',
+      description: 'Workspace folder location label',
     }),
     WORKSPACE_FILE_LABEL: intl.formatMessage({
       defaultMessage: 'Workspace File Location',
@@ -66,6 +82,12 @@ export const WorkspaceNameStep: React.FC = () => {
           <Label htmlFor={inputId}>{intlText.WORKSPACE_NAME_LABEL}</Label>
           <Input id={inputId} value={workspaceName} onChange={handleWorkspaceNameChange} className={styles.inputControl} />
         </Field>
+        {workspaceFolderPath && (
+          <div style={{ marginTop: '12px' }}>
+            <Label>{intlText.WORKSPACE_FOLDER_LABEL}</Label>
+            <div className={styles.pathDisplay}>{workspaceFolderPath}</div>
+          </div>
+        )}
         {workspaceFilePath && (
           <div style={{ marginTop: '12px' }}>
             <Label>{intlText.WORKSPACE_FILE_LABEL}</Label>

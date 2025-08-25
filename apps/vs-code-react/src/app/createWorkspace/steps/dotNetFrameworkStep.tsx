@@ -24,14 +24,14 @@ export const DotNetFrameworkStep: React.FC = () => {
 
   const intlText = {
     TITLE: intl.formatMessage({
-      defaultMessage: '.NET Framework',
-      id: 'B4epUM',
-      description: '.NET framework step title',
+      defaultMessage: 'Custom Code Configuration',
+      id: 'um0VMI',
+      description: 'Custom code configuration step title',
     }),
     DESCRIPTION: intl.formatMessage({
-      defaultMessage: 'Select the .NET framework version for your custom code logic app',
-      id: '00lxxX',
-      description: '.NET framework step description',
+      defaultMessage: 'Configure the settings for your custom code logic app',
+      id: 'esTnYd',
+      description: 'Custom code configuration step description',
     }),
     NET_FRAMEWORK_LABEL: intl.formatMessage({
       defaultMessage: '.NET Framework',
@@ -85,16 +85,20 @@ export const DotNetFrameworkStep: React.FC = () => {
       <div className={styles.radioGroupContainer}>
         <RadioGroup value={dotNetFramework} onChange={handleDotNetFrameworkChange} className={styles.radioGroup}>
           <div className={styles.radioOption}>
-            <Radio value="netFramework" label={intlText.NET_FRAMEWORK_LABEL} />
-            <Text size={200} style={{ marginLeft: '24px', color: 'var(--colorNeutralForeground2)' }}>
-              {intlText.NET_FRAMEWORK_DESCRIPTION}
-            </Text>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <Radio value="netFramework" label={intlText.NET_FRAMEWORK_LABEL} />
+              <Text size={200} style={{ color: 'var(--colorNeutralForeground2)', margin: '0', padding: '0', lineHeight: '20px' }}>
+                {intlText.NET_FRAMEWORK_DESCRIPTION}
+              </Text>
+            </div>
           </div>
           <div className={styles.radioOption}>
-            <Radio value="net8" label={intlText.NET_8_LABEL} />
-            <Text size={200} style={{ marginLeft: '24px', color: 'var(--colorNeutralForeground2)' }}>
-              {intlText.NET_8_DESCRIPTION}
-            </Text>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <Radio value="net8" label={intlText.NET_8_LABEL} />
+              <Text size={200} style={{ color: 'var(--colorNeutralForeground2)', margin: '0', padding: '0', lineHeight: '20px' }}>
+                {intlText.NET_8_DESCRIPTION}
+              </Text>
+            </div>
           </div>
         </RadioGroup>
       </div>

@@ -2,11 +2,11 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Text, RadioGroup, Radio } from '@fluentui/react-components';
+import { Text, RadioGroup, Radio, Field, Input } from '@fluentui/react-components';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
-import { setLogicAppType } from '../../../state/createWorkspace/createWorkspaceSlice';
+import { setLogicAppType, setLogicAppName } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
 import { XLargeText } from '@microsoft/designer-ui';
@@ -16,18 +16,28 @@ export const LogicAppTypeStep: React.FC = () => {
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { logicAppType } = createWorkspaceState;
+  const { logicAppType, logicAppName } = createWorkspaceState;
 
   const intlText = {
     TITLE: intl.formatMessage({
-      defaultMessage: 'Logic App Type',
-      id: '0Y1k/0',
-      description: 'Logic app type step title',
+      defaultMessage: 'Logic App Details',
+      id: 'XJ1S7E',
+      description: 'Logic app details step title',
     }),
     DESCRIPTION: intl.formatMessage({
-      defaultMessage: 'Select the type of logic app to create',
-      id: '7yXXiY',
-      description: 'Logic app type step description',
+      defaultMessage: 'Enter the logic app name and select the type of logic app to create',
+      id: 'VPcN7p',
+      description: 'Logic app details step description',
+    }),
+    LOGIC_APP_NAME_LABEL: intl.formatMessage({
+      defaultMessage: 'Logic App Name',
+      id: 'JS7xBY',
+      description: 'Logic app name field label',
+    }),
+    LOGIC_APP_NAME_PLACEHOLDER: intl.formatMessage({
+      defaultMessage: 'Enter logic app name',
+      id: 'ceM0tn',
+      description: 'Logic app name field placeholder',
     }),
     STANDARD_LABEL: intl.formatMessage({
       defaultMessage: 'Logic App (Standard)',
@@ -65,12 +75,27 @@ export const LogicAppTypeStep: React.FC = () => {
     dispatch(setLogicAppType(data.value));
   };
 
+  const handleLogicAppNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(setLogicAppName(event.target.value));
+  };
+
   return (
     <div className={styles.formSection}>
       <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
       <Text className={styles.stepDescription}>{intlText.DESCRIPTION}</Text>
 
-      <div className={styles.radioGroupContainer}>
+      <div className={styles.inputField}>
+        <Field label={intlText.LOGIC_APP_NAME_LABEL} required>
+          <Input
+            value={logicAppName}
+            onChange={handleLogicAppNameChange}
+            placeholder={intlText.LOGIC_APP_NAME_PLACEHOLDER}
+            className={styles.inputControl}
+          />
+        </Field>
+      </div>
+
+      <div>
         <RadioGroup value={logicAppType} onChange={handleLogicAppTypeChange} className={styles.radioGroup}>
           <div className={styles.radioOption}>
             <Radio value="standard" label={intlText.STANDARD_LABEL} />
