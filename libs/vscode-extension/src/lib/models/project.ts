@@ -13,6 +13,7 @@ export const ProjectName = {
   designer: 'designer',
   dataMapper: 'dataMapper',
   unitTest: 'unitTest',
+  createWorkspace: 'createWorkspace',
 } as const;
 export type ProjectNameType = (typeof ProjectName)[keyof typeof ProjectName];
 
@@ -87,6 +88,19 @@ export interface IProjectWizardContext extends IActionContext {
   deploymentScriptType?: DeploymentScriptType;
 }
 
+export interface IWebviewProjectContext extends IActionContext {
+  workspaceProjectPath: ITargetDirectory;
+  workspaceName: string;
+  logicAppName: string;
+  logicAppType: string;
+  projectType: string;
+  targetFramework: string;
+  workflowName: string;
+  workflowType: string;
+  functionName?: string;
+  functionWorkspace?: string;
+}
+
 export const OpenBehavior = {
   addToWorkspace: 'AddToWorkspace',
   openInNewWindow: 'OpenInNewWindow',
@@ -108,3 +122,8 @@ export const DeploymentScriptType = {
   azureDeploymentCenter: 'azureDeploymentCenter',
 } as const;
 export type DeploymentScriptType = (typeof DeploymentScriptType)[keyof typeof DeploymentScriptType];
+
+export interface ITargetDirectory {
+  fsPath: string;
+  path: string;
+}

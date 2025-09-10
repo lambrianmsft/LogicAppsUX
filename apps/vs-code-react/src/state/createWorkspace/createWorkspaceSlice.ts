@@ -3,13 +3,13 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { ITargetDirectory } from 'run-service';
 
 export interface CreateWorkspaceState {
   currentStep: number;
-  projectPath: string;
+  workspaceProjectPath: ITargetDirectory;
   workspaceName: string;
   logicAppType: string;
-  dotNetFramework: string;
   functionWorkspace: string;
   functionName: string;
   workflowType: string;
@@ -25,10 +25,12 @@ export interface CreateWorkspaceState {
 
 const initialState: CreateWorkspaceState = {
   currentStep: 0,
-  projectPath: '',
+  workspaceProjectPath: {
+    fsPath: '',
+    path: '',
+  },
   workspaceName: '',
   logicAppType: '',
-  dotNetFramework: '',
   functionWorkspace: '',
   functionName: '',
   workflowType: '',
@@ -48,17 +50,24 @@ export const createWorkspaceSlice: any = createSlice({
     setCurrentStep: (state, action: PayloadAction<number>) => {
       state.currentStep = action.payload;
     },
-    setProjectPath: (state, action: PayloadAction<string>) => {
-      state.projectPath = action.payload;
+    setProjectPathAlt: (state, action: PayloadAction<ITargetDirectory | string>) => {
+      if (typeof action.payload === 'string') {
+        state.workspaceProjectPath = { path: action.payload, fsPath: action.payload };
+      } else if (action.payload && typeof action.payload === 'object' && 'path' in action.payload && 'fsPath' in action.payload) {
+        state.workspaceProjectPath = action.payload;
+      } else {
+        state.workspaceProjectPath = { path: '', fsPath: '' };
+      }
+    },
+    setProjectPath: (state, action: PayloadAction<{ targetDirectory: ITargetDirectory }>) => {
+      const { targetDirectory } = action.payload;
+      state.workspaceProjectPath = targetDirectory;
     },
     setWorkspaceName: (state, action: PayloadAction<string>) => {
       state.workspaceName = action.payload;
     },
     setLogicAppType: (state, action: PayloadAction<string>) => {
       state.logicAppType = action.payload;
-    },
-    setDotNetFramework: (state, action: PayloadAction<string>) => {
-      state.dotNetFramework = action.payload;
     },
     setFunctionWorkspace: (state, action: PayloadAction<string>) => {
       state.functionWorkspace = action.payload;
@@ -111,9 +120,9 @@ export const createWorkspaceSlice: any = createSlice({
 export const {
   setCurrentStep,
   setProjectPath,
+  setProjectPathAlt,
   setWorkspaceName,
   setLogicAppType,
-  setDotNetFramework,
   setFunctionWorkspace,
   setFunctionName,
   setWorkflowType,

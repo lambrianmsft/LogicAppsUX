@@ -6,17 +6,16 @@ import { Text, RadioGroup, Radio, Field, Input } from '@fluentui/react-component
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
-import { setLogicAppType, setLogicAppName } from '../../../state/createWorkspace/createWorkspaceSlice';
+import { setLogicAppType, setLogicAppName, setTargetFramework } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
-import { XLargeText } from '@microsoft/designer-ui';
 
 export const LogicAppTypeStep: React.FC = () => {
   const dispatch = useDispatch();
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { logicAppType, logicAppName } = createWorkspaceState;
+  const { logicAppType, logicAppName, workspaceName, workspaceProjectPath } = createWorkspaceState;
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -73,6 +72,9 @@ export const LogicAppTypeStep: React.FC = () => {
 
   const handleLogicAppTypeChange = (event: React.FormEvent<HTMLDivElement>, data: { value: string }) => {
     dispatch(setLogicAppType(data.value));
+    if (data.value === 'rulesEngine') {
+      dispatch(setTargetFramework('net472'));
+    }
   };
 
   const handleLogicAppNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +83,9 @@ export const LogicAppTypeStep: React.FC = () => {
 
   return (
     <div className={styles.formSection}>
-      <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
+      <Text className={styles.sectionTitle} style={{ display: 'block' }}>
+        {intlText.TITLE}
+      </Text>
       <Text className={styles.stepDescription}>{intlText.DESCRIPTION}</Text>
 
       <div className={styles.inputField}>
@@ -92,13 +96,27 @@ export const LogicAppTypeStep: React.FC = () => {
             placeholder={intlText.LOGIC_APP_NAME_PLACEHOLDER}
             className={styles.inputControl}
           />
+          {logicAppName && workspaceName && workspaceProjectPath.path && (
+            <Text
+              size={200}
+              style={{
+                color: 'var(--colorNeutralForeground2)',
+                fontFamily: 'monospace',
+                marginTop: '4px',
+                display: 'block',
+                wordBreak: 'break-all',
+              }}
+            >
+              {`${workspaceProjectPath.path}\\${workspaceName}\\${logicAppName}`}
+            </Text>
+          )}
         </Field>
       </div>
 
       <div>
         <RadioGroup value={logicAppType} onChange={handleLogicAppTypeChange} className={styles.radioGroup}>
           <div className={styles.radioOption}>
-            <Radio value="standard" label={intlText.STANDARD_LABEL} />
+            <Radio value="logicApp" label={intlText.STANDARD_LABEL} />
             <Text size={200} style={{ marginLeft: '24px', color: 'var(--colorNeutralForeground2)' }}>
               {intlText.STANDARD_DESCRIPTION}
             </Text>

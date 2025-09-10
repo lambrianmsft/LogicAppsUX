@@ -3,27 +3,12 @@ import type { OutletContext } from '../../run-service';
 import { useCreateWorkspaceStyles } from './createWorkspaceStyles';
 import { useIntl } from 'react-intl';
 import { useOutletContext } from 'react-router-dom';
-import {
-  FolderStep,
-  WorkspaceNameStep,
-  LogicAppTypeStep,
-  DotNetFrameworkStep,
-  WorkflowTypeStep,
-  OpenBehaviorStep,
-  ReviewCreateStep,
-} from './steps/';
+import { ProjectSetupStep, ReviewCreateStep } from './steps/';
 import { Button, Spinner } from '@fluentui/react-components';
 import { VSCodeContext } from '../../webviewCommunication';
 import type { RootState } from '../../state/store';
 import type { CreateWorkspaceState } from '../../state/createWorkspace/createWorkspaceSlice';
-import {
-  // setLoading,
-  // setError,
-  // setComplete,
-  nextStep,
-  previousStep,
-  setCurrentStep,
-} from '../../state/createWorkspace/createWorkspaceSlice';
+import { nextStep, previousStep, setCurrentStep } from '../../state/createWorkspace/createWorkspaceSlice';
 import { useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 
@@ -39,10 +24,9 @@ export const CreateWorkspace: React.FC = () => {
     isLoading,
     isComplete,
     error,
-    projectPath,
+    workspaceProjectPath,
     workspaceName,
     logicAppType,
-    dotNetFramework,
     functionWorkspace,
     functionName,
     workflowType,
@@ -50,14 +34,10 @@ export const CreateWorkspace: React.FC = () => {
     targetFramework,
     logicAppName,
     projectType,
-    openBehavior,
   } = createWorkspaceState;
 
-  // Determine if we need the .NET Framework step (only for custom code)
-  const needsDotNetFrameworkStep = logicAppType === 'customCode';
-
-  // Calculate total steps dynamically based on logic app type
-  const totalSteps = needsDotNetFrameworkStep ? 6 : 5; // Added review step
+  // Calculate total steps - now just 2: Project Setup and Review + Create
+  const totalSteps = 2;
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
 
@@ -108,31 +88,11 @@ export const CreateWorkspace: React.FC = () => {
       id: 'OdrYKo',
       description: 'Workspace creation success description',
     }),
-    // Step labels
+    // Step labels - only 2 steps now
     STEP_PROJECT_SETUP: intl.formatMessage({
       defaultMessage: 'Project Setup',
       id: '1d8W/S',
       description: 'Project setup step label',
-    }),
-    STEP_LOGIC_APP_TYPE: intl.formatMessage({
-      defaultMessage: 'Logic App Details',
-      id: 'IQ6azH',
-      description: 'Logic app type and name step label',
-    }),
-    STEP_DOTNET_CONFIG: intl.formatMessage({
-      defaultMessage: 'Custom Code Config',
-      id: 'AeB9BS',
-      description: 'Custom code configuration step label',
-    }),
-    STEP_WORKFLOW_CONFIG: intl.formatMessage({
-      defaultMessage: 'Workflow Config',
-      id: 'YzQPvP',
-      description: 'Workflow configuration step label',
-    }),
-    STEP_FINAL_SETTINGS: intl.formatMessage({
-      defaultMessage: 'Final Settings',
-      id: 'pdL/41',
-      description: 'Final settings step label',
     }),
     STEP_REVIEW_CREATE: intl.formatMessage({
       defaultMessage: 'Review + Create',
@@ -143,149 +103,63 @@ export const CreateWorkspace: React.FC = () => {
 
   const canProceed = () => {
     switch (currentStep) {
-      case 0: // Folder and Workspace Name (combined)
-        return projectPath.trim() !== '' && workspaceName.trim() !== '';
-      case 1: // Logic App Type and Logic App Name
-        return logicAppType !== '' && logicAppName.trim() !== '';
-      case 2: {
-        // If custom code is selected, validate .NET Framework step
-        // Otherwise, validate WorkflowTypeStep (workflow type and workflow name)
-        if (needsDotNetFrameworkStep) {
-          return dotNetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
-        }
-        return workflowType !== '' && workflowName.trim() !== '';
-      }
-      case 3: {
-        // If custom code is selected, validate WorkflowTypeStep here (workflow type and workflow name)
-        // Otherwise, validate OpenBehaviorStep
-        if (needsDotNetFrameworkStep) {
-          return workflowType !== '' && workflowName.trim() !== '';
-        }
-        return openBehavior !== '';
-      }
-      case 4: {
-        if (needsDotNetFrameworkStep) {
-          // For custom code - validate OpenBehaviorStep
-          return openBehavior !== '';
-        }
-        // For standard - this is the review step, validate all fields
-        return (
-          projectPath.trim() !== '' &&
+      case 0: {
+        // Project Setup - validate all required fields
+        const baseFieldsValid =
+          workspaceProjectPath.path !== '' &&
           workspaceName.trim() !== '' &&
           logicAppType !== '' &&
-          workflowType !== '' &&
-          workflowName.trim() !== '' &&
           logicAppName.trim() !== '' &&
-          openBehavior !== ''
-        );
+          workflowType !== '' &&
+          workflowName.trim() !== '';
+
+        // If custom code is selected, also validate custom code fields
+        if (logicAppType === 'customCode') {
+          return baseFieldsValid && targetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+        }
+
+        // If rules engine is selected, validate function fields but not .NET framework
+        if (logicAppType === 'rulesEngine') {
+          return baseFieldsValid && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+        }
+
+        return baseFieldsValid;
       }
-      case 5: // Review step for custom code - validate all fields
-        return (
-          projectPath.trim() !== '' &&
-          workspaceName.trim() !== '' &&
-          logicAppType !== '' &&
-          dotNetFramework !== '' &&
-          functionWorkspace.trim() !== '' &&
-          functionName.trim() !== '' &&
-          workflowType !== '' &&
-          workflowName.trim() !== '' &&
-          logicAppName.trim() !== '' &&
-          openBehavior !== ''
-        );
+      case 1: {
+        // Review + Create - all fields should already be validated
+        return true;
+      }
       default:
         return false;
     }
   };
 
-  // const canCreate = () => {
-  //   const baseValidation = (
-  //     projectPath.trim() !== '' &&
-  //     workspaceName.trim() !== '' &&
-  //     logicAppType !== '' &&
-  //     workflowType !== '' &&
-  //     targetFramework !== '' &&
-  //     logicAppName.trim() !== '' &&
-  //     projectType !== '' &&
-  //     openBehavior !== ''
-  //   );
-
-  //   // If custom code is selected, also validate .NET Framework fields
-  //   if (needsDotNetFrameworkStep) {
-  //     return baseValidation &&
-  //       dotNetFramework !== '' &&
-  //       functionWorkspace.trim() !== '' &&
-  //       functionName.trim() !== '';
-  //   }
-
-  //   return baseValidation;
-  // };
-
   const getStepLabels = () => {
-    if (needsDotNetFrameworkStep) {
-      return [
-        intlText.STEP_PROJECT_SETUP,
-        intlText.STEP_LOGIC_APP_TYPE,
-        intlText.STEP_DOTNET_CONFIG,
-        intlText.STEP_WORKFLOW_CONFIG,
-        intlText.STEP_FINAL_SETTINGS,
-        intlText.STEP_REVIEW_CREATE,
-      ];
-    }
-    return [
-      intlText.STEP_PROJECT_SETUP,
-      intlText.STEP_LOGIC_APP_TYPE,
-      intlText.STEP_WORKFLOW_CONFIG,
-      intlText.STEP_FINAL_SETTINGS,
-      intlText.STEP_REVIEW_CREATE,
-    ];
+    return [intlText.STEP_PROJECT_SETUP, intlText.STEP_REVIEW_CREATE];
   };
 
   const isStepCompleted = (stepIndex: number) => {
     switch (stepIndex) {
-      case 0:
-        return projectPath.trim() !== '' && workspaceName.trim() !== '';
+      case 0: {
+        // Project Setup step - validate all required fields
+        const baseFieldsValid =
+          workspaceProjectPath.path !== '' &&
+          workspaceName.trim() !== '' &&
+          logicAppType !== '' &&
+          logicAppName.trim() !== '' &&
+          workflowType !== '' &&
+          workflowName.trim() !== '';
+
+        // If custom code is selected, also validate custom code fields
+        if (logicAppType === 'customCode') {
+          return baseFieldsValid && targetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+        }
+
+        return baseFieldsValid;
+      }
       case 1:
-        return logicAppType !== '' && logicAppName.trim() !== '';
-      case 2: {
-        if (needsDotNetFrameworkStep) {
-          return dotNetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
-        }
-        return workflowType !== '' && workflowName.trim() !== '';
-      }
-      case 3: {
-        if (needsDotNetFrameworkStep) {
-          return workflowType !== '' && workflowName.trim() !== '';
-        }
-        return openBehavior !== '';
-      }
-      case 4: {
-        if (needsDotNetFrameworkStep) {
-          return openBehavior !== '';
-        }
-        // For standard - this is the review step, validate all required fields
-        return (
-          projectPath.trim() !== '' &&
-          workspaceName.trim() !== '' &&
-          logicAppType !== '' &&
-          workflowType !== '' &&
-          workflowName.trim() !== '' &&
-          logicAppName.trim() !== '' &&
-          openBehavior !== ''
-        );
-      }
-      case 5: // Review step for custom code
-        return (
-          projectPath.trim() !== '' &&
-          workspaceName.trim() !== '' &&
-          logicAppType !== '' &&
-          dotNetFramework !== '' &&
-          functionWorkspace.trim() !== '' &&
-          functionName.trim() !== '' &&
-          workflowType !== '' &&
-          workflowName.trim() !== '' &&
-          logicAppName.trim() !== '' &&
-          openBehavior !== ''
-        );
+        // Review + Create step - considered complete if we can create
+        return isStepCompleted(0); // Depends on previous step being complete
       default:
         return false;
     }
@@ -358,16 +232,19 @@ export const CreateWorkspace: React.FC = () => {
 
   const handleCreate = () => {
     const data = {
-      projectPath,
+      workspaceProjectPath,
       workspaceName,
       logicAppType,
-      workflowType,
-      targetFramework,
       logicAppName,
+      workflowType,
+      workflowName,
+      targetFramework,
       projectType,
-      openBehavior,
-      ...(needsDotNetFrameworkStep && {
-        dotNetFramework,
+      ...(logicAppType === 'customCode' && {
+        functionWorkspace,
+        functionName,
+      }),
+      ...(logicAppType === 'rulesEngine' && {
         functionWorkspace,
         functionName,
       }),
@@ -378,45 +255,11 @@ export const CreateWorkspace: React.FC = () => {
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 0:
-        return (
-          <div>
-            <FolderStep />
-            <WorkspaceNameStep />
-          </div>
-        );
+        return <ProjectSetupStep />;
       case 1:
-        return <LogicAppTypeStep />;
-      case 2: {
-        // If custom code is selected, show .NET Framework step
-        // Otherwise, show WorkflowTypeStep
-        if (needsDotNetFrameworkStep) {
-          return <DotNetFrameworkStep />;
-        }
-        return <WorkflowTypeStep />;
-      }
-      case 3: {
-        // If custom code is selected, show WorkflowTypeStep here
-        // Otherwise, show OpenBehaviorStep
-        if (needsDotNetFrameworkStep) {
-          return <WorkflowTypeStep />;
-        }
-        return <OpenBehaviorStep />;
-      }
-      case 4: {
-        if (needsDotNetFrameworkStep) {
-          return <OpenBehaviorStep />;
-        }
-        return <ReviewCreateStep />;
-      }
-      case 5:
         return <ReviewCreateStep />;
       default:
-        return (
-          <div>
-            <FolderStep />
-            <WorkspaceNameStep />
-          </div>
-        );
+        return <ProjectSetupStep />;
     }
   };
 

@@ -52,6 +52,8 @@ export const ExtensionCommand = {
   fileABug: 'fileABug',
   resetDesignerDirtyState: 'resetDesignerDirtyState',
   switchToDataMapperV2: 'switchToDataMapperV2',
+  createWorkspace: 'createWorkspace',
+  update_workspace_path: 'update-workspace-path',
 } as const;
 export type ExtensionCommand = (typeof ExtensionCommand)[keyof typeof ExtensionCommand];
 

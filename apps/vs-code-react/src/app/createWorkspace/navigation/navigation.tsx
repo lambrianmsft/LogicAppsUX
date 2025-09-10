@@ -19,8 +19,17 @@ export const Navigation: React.FC = () => {
   const styles = useCreateWorkspaceStyles();
 
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { currentStep, isLoading, projectPath, workspaceName, logicAppType, targetFramework, logicAppName, projectType, openBehavior } =
-    createWorkspaceState;
+  const {
+    currentStep,
+    isLoading,
+    workspaceProjectPath,
+    workspaceName,
+    logicAppType,
+    targetFramework,
+    logicAppName,
+    projectType,
+    openBehavior,
+  } = createWorkspaceState;
 
   const totalSteps = 7;
 
@@ -64,7 +73,7 @@ export const Navigation: React.FC = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 0: // Project Path
-        return projectPath.trim() !== '';
+        return workspaceProjectPath.path !== '';
       case 1: // Workspace Name
         return workspaceName.trim() !== '';
       case 2: // Logic App Type
@@ -105,7 +114,7 @@ export const Navigation: React.FC = () => {
     try {
       // Send the create workspace command to the extension
       const createWorkspaceData = {
-        projectPath,
+        workspaceProjectPath,
         workspaceName,
         logicAppType,
         targetFramework,

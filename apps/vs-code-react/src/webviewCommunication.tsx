@@ -19,6 +19,7 @@ import type {
   GetTestFeatureEnablementStatus,
   GetAvailableCustomXsltPathsMessageV2,
   ResetDesignerDirtyStateMessage,
+  UpdateWorkspacePathMessage,
 } from './run-service';
 import {
   changeCustomXsltPathList,
@@ -59,6 +60,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { WebviewApi } from 'vscode-webview';
 import { store as DesignerStore, resetDesignerDirtyState } from '@microsoft/logic-apps-designer';
+import { setProjectPath } from './state/createWorkspace/createWorkspaceSlice';
 
 const vscode: WebviewApi<unknown> = acquireVsCodeApi();
 export const VSCodeContext = React.createContext(vscode);
@@ -80,7 +82,12 @@ type DataMapperMessageType =
   | GetConfigurationSettingMessage
   | GetDataMapperVersionMessage
   | GetTestFeatureEnablementStatus;
-type WorkflowMessageType = UpdateAccessTokenMessage | UpdateExportPathMessage | AddStatusMessage | SetFinalStatusMessage;
+type WorkflowMessageType =
+  | UpdateAccessTokenMessage
+  | UpdateExportPathMessage
+  | UpdateWorkspacePathMessage
+  | AddStatusMessage
+  | SetFinalStatusMessage;
 type MessageType = InjectValuesMessage | DesignerMessageType | DataMapperMessageType | WorkflowMessageType;
 
 export const WebViewCommunication: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -234,6 +241,10 @@ export const WebViewCommunication: React.FC<{ children: ReactNode }> = ({ childr
           }
           case ExtensionCommand.update_export_path: {
             dispatch(updateTargetDirectory(message.data));
+            break;
+          }
+          case ExtensionCommand.update_workspace_path: {
+            dispatch(setProjectPath(message.data));
             break;
           }
           case ExtensionCommand.add_status: {

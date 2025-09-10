@@ -94,6 +94,30 @@ export abstract class InitCodeProject extends AzureWizardExecuteStep<IProjectWiz
     };
   }
 
+  protected sgetDebugConfiguration(
+    version: FuncVersion,
+    logicAppName: string,
+    customCodeTargetFramework?: TargetFramework
+  ): DebugConfiguration {
+    if (customCodeTargetFramework) {
+      return {
+        name: localize('debugLogicApp', `Run/Debug logic app with local function ${logicAppName}`),
+        type: 'logicapp',
+        request: 'launch',
+        funcRuntime: 'coreclr',
+        customCodeRuntime: customCodeTargetFramework === TargetFramework.Net8 ? 'coreclr' : 'clr',
+        isCodeless: true,
+      };
+    }
+
+    return {
+      name: localize('attachToNetFunc', `Run/debug logic app ${logicAppName}`),
+      type: 'coreclr',
+      request: 'attach',
+      processId: `\${command:${extensionCommand.pickProcess}}`,
+    };
+  }
+
   protected getRecommendedExtensions?(language: ProjectLanguage): string[];
 
   public async execute(context: IProjectWizardContext): Promise<void> {

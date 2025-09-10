@@ -7,11 +7,15 @@ import { makeStyles, tokens } from '@fluentui/react-components';
 export const useCreateWorkspaceStyles = makeStyles({
   createWorkspaceContainer: {
     height: '100vh',
-    padding: ` 0 ${tokens.spacingVerticalXL}`,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden', // Prevent container from scrolling
   },
 
   createWorkspaceTitle: {
-    padding: '15px 0',
+    padding: '15px 24px',
+    flexShrink: 0, // Prevent title from shrinking
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
   },
 
   stepNavigation: {
@@ -21,7 +25,8 @@ export const useCreateWorkspaceStyles = makeStyles({
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalL} 0`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    marginBottom: tokens.spacingVerticalL,
+    flexShrink: 0, // Prevent step navigation from shrinking
+    backgroundColor: tokens.colorNeutralBackground1,
   },
 
   stepItem: {
@@ -107,18 +112,15 @@ export const useCreateWorkspaceStyles = makeStyles({
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    overflow: 'auto',
-    marginBottom: tokens.spacingVerticalL,
-    width: '100%',
-    padding: tokens.spacingVerticalL,
-    alignItems: 'flex-start',
+    overflow: 'auto', // Only the content area scrolls
+    minHeight: 0, // Allow flexbox to shrink properly
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingVerticalXL}`,
   },
 
   stepContainer: {
     maxWidth: '800px',
     width: '100%',
     margin: '0',
-    padding: tokens.spacingVerticalL,
     display: 'flex',
     flexDirection: 'column',
     gap: tokens.spacingVerticalL,
@@ -152,12 +154,13 @@ export const useCreateWorkspaceStyles = makeStyles({
 
   navigationContainer: {
     display: 'flex',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingVerticalXL}`,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
-    marginTop: 'auto',
     backgroundColor: tokens.colorNeutralBackground1,
+    flexShrink: 0, // Prevent navigation from shrinking
+    minHeight: '72px', // Ensure consistent height
   },
 
   navigationLeft: {
@@ -213,7 +216,6 @@ export const useCreateWorkspaceStyles = makeStyles({
   },
 
   browseButton: {
-    marginTop: tokens.spacingVerticalM,
     alignSelf: 'flex-start',
   },
 
@@ -421,5 +423,12 @@ export const useCreateWorkspaceStyles = makeStyles({
   reviewValueMissing: {
     color: tokens.colorPaletteRedForeground1,
     fontStyle: 'italic',
+  },
+
+  sectionDivider: {
+    marginTop: tokens.spacingVerticalXL,
+    marginBottom: tokens.spacingVerticalM,
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    paddingTop: tokens.spacingVerticalM,
   },
 });

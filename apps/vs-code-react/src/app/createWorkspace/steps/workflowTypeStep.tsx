@@ -2,14 +2,13 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Radio, Field, Input } from '@fluentui/react-components';
+import { Radio, Text, Field, Input } from '@fluentui/react-components';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { setWorkflowType, setWorkflowName } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
-import { XLargeText } from '@microsoft/designer-ui';
 
 export const WorkflowTypeStep: React.FC = () => {
   const dispatch = useDispatch();
@@ -76,7 +75,9 @@ export const WorkflowTypeStep: React.FC = () => {
 
   return (
     <div className={styles.formSection}>
-      <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
+      <Text className={styles.sectionTitle} style={{ display: 'block' }}>
+        {intlText.TITLE}
+      </Text>
 
       <Field label={intlText.WORKFLOW_NAME_LABEL} className={styles.workflowNameField}>
         <Input
@@ -96,11 +97,11 @@ export const WorkflowTypeStep: React.FC = () => {
             <th
               className={styles.workflowTableHeader}
               style={{ textAlign: 'center', cursor: 'pointer' }}
-              onClick={() => dispatch(setWorkflowType('AutonomousAgents'))}
+              onClick={() => dispatch(setWorkflowType('Agentic-Codeless'))}
             >
               <div className={styles.workflowColumnHeader}>
                 <div className={styles.workflowRadioContainer}>
-                  <Radio value="AutonomousAgents" checked={workflowType === 'AutonomousAgents'} onChange={handleWorkflowTypeChange} />
+                  <Radio value="AutonomousAgents" checked={workflowType === 'Agentic-Codeless'} onChange={handleWorkflowTypeChange} />
                 </div>
                 <div className={styles.workflowTypeContent}>
                   <div className={styles.workflowTypeTitle}>{intlText.AUTONOMOUS_TITLE}</div>
@@ -113,11 +114,11 @@ export const WorkflowTypeStep: React.FC = () => {
             <th
               className={styles.workflowTableHeader}
               style={{ textAlign: 'center', cursor: 'pointer' }}
-              onClick={() => dispatch(setWorkflowType('Stateful'))}
+              onClick={() => dispatch(setWorkflowType('Stateful-Codeless'))}
             >
               <div className={styles.workflowColumnHeader}>
                 <div className={styles.workflowRadioContainer}>
-                  <Radio value="Stateful" checked={workflowType === 'Stateful'} onChange={handleWorkflowTypeChange} />
+                  <Radio value="Stateful" checked={workflowType === 'Stateful-Codeless'} onChange={handleWorkflowTypeChange} />
                 </div>
                 <div className={styles.workflowTypeContent}>
                   <div className={styles.workflowTypeTitle}>{intlText.STATEFUL_TITLE}</div>
@@ -130,11 +131,11 @@ export const WorkflowTypeStep: React.FC = () => {
             <th
               className={styles.workflowTableHeader}
               style={{ textAlign: 'center', cursor: 'pointer' }}
-              onClick={() => dispatch(setWorkflowType('Stateless'))}
+              onClick={() => dispatch(setWorkflowType('Stateless-Codeless'))}
             >
               <div className={styles.workflowColumnHeader}>
                 <div className={styles.workflowRadioContainer}>
-                  <Radio value="Stateless" checked={workflowType === 'Stateless'} onChange={handleWorkflowTypeChange} />
+                  <Radio value="Stateless" checked={workflowType === 'Stateless-Codeless'} onChange={handleWorkflowTypeChange} />
                 </div>
                 <div className={styles.workflowTypeContent}>
                   <div className={styles.workflowTypeTitle}>{intlText.STATELESS_TITLE}</div>

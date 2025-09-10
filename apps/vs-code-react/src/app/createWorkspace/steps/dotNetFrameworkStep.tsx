@@ -2,22 +2,21 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Text, RadioGroup, Radio, Field, Input, Label, useId } from '@fluentui/react-components';
-import type { InputOnChangeData } from '@fluentui/react-components';
+import { Text, Dropdown, Option, Field, Input, Label, useId } from '@fluentui/react-components';
+import type { InputOnChangeData, DropdownProps } from '@fluentui/react-components';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
-import { setDotNetFramework, setFunctionWorkspace, setFunctionName } from '../../../state/createWorkspace/createWorkspaceSlice';
+import { setTargetFramework, setFunctionWorkspace, setFunctionName } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
-import { XLargeText } from '@microsoft/designer-ui';
 
 export const DotNetFrameworkStep: React.FC = () => {
   const dispatch = useDispatch();
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { dotNetFramework, functionWorkspace, functionName } = createWorkspaceState;
+  const { targetFramework, functionWorkspace, functionName, logicAppType } = createWorkspaceState;
 
   const functionWorkspaceId = useId();
   const functionNameId = useId();
@@ -32,6 +31,11 @@ export const DotNetFrameworkStep: React.FC = () => {
       defaultMessage: 'Configure the settings for your custom code logic app',
       id: 'esTnYd',
       description: 'Custom code configuration step description',
+    }),
+    NET_VERSION_LABEL: intl.formatMessage({
+      defaultMessage: '.NET Version',
+      id: 'Sc6upt',
+      description: '.NET version dropdown label',
     }),
     NET_FRAMEWORK_LABEL: intl.formatMessage({
       defaultMessage: '.NET Framework',
@@ -65,10 +69,11 @@ export const DotNetFrameworkStep: React.FC = () => {
     }),
   };
 
-  const handleDotNetFrameworkChange = (event: React.FormEvent<HTMLDivElement>, data: { value: string }) => {
-    dispatch(setDotNetFramework(data.value));
+  const handleDotNetFrameworkChange: DropdownProps['onOptionSelect'] = (event, data) => {
+    if (data.optionValue) {
+      dispatch(setTargetFramework(data.optionValue));
+    }
   };
-
   const handleFunctionWorkspaceChange = (event: React.FormEvent<HTMLInputElement>, data: InputOnChangeData) => {
     dispatch(setFunctionWorkspace(data.value));
   };
@@ -77,50 +82,94 @@ export const DotNetFrameworkStep: React.FC = () => {
     dispatch(setFunctionName(data.value));
   };
 
-  return (
-    <div className={styles.formSection}>
-      <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
-      <Text className={styles.stepDescription}>{intlText.DESCRIPTION}</Text>
+  if (logicAppType === 'customCode') {
+    return (
+      <div className={styles.formSection}>
+        <Text className={styles.sectionTitle} style={{ display: 'block' }}>
+          {intlText.TITLE}
+        </Text>
 
-      <div className={styles.radioGroupContainer}>
-        <RadioGroup value={dotNetFramework} onChange={handleDotNetFrameworkChange} className={styles.radioGroup}>
-          <div className={styles.radioOption}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <Radio value="netFramework" label={intlText.NET_FRAMEWORK_LABEL} />
-              <Text size={200} style={{ color: 'var(--colorNeutralForeground2)', margin: '0', padding: '0', lineHeight: '20px' }}>
-                {intlText.NET_FRAMEWORK_DESCRIPTION}
+        <div className={styles.fieldContainer}>
+          <Field required>
+            <Label>{intlText.NET_VERSION_LABEL}</Label>
+            <Dropdown
+              value={targetFramework === 'net472' ? '.NET Framework' : targetFramework === 'net8' ? '.NET 8' : ''}
+              selectedOptions={targetFramework ? [targetFramework] : []}
+              onOptionSelect={handleDotNetFrameworkChange}
+              placeholder="Select .NET version"
+              className={styles.inputControl}
+            >
+              <Option value="net472" text=".NET Framework">
+                .NET Framework
+              </Option>
+              <Option value="net8" text=".NET 8">
+                .NET 8
+              </Option>
+            </Dropdown>
+            {targetFramework && (
+              <Text
+                size={200}
+                style={{
+                  color: 'var(--colorNeutralForeground2)',
+                  marginTop: '4px',
+                  display: 'block',
+                }}
+              >
+                {targetFramework === 'net472' && intlText.NET_FRAMEWORK_DESCRIPTION}
+                {targetFramework === 'net8' && intlText.NET_8_DESCRIPTION}
               </Text>
-            </div>
-          </div>
-          <div className={styles.radioOption}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <Radio value="net8" label={intlText.NET_8_LABEL} />
-              <Text size={200} style={{ color: 'var(--colorNeutralForeground2)', margin: '0', padding: '0', lineHeight: '20px' }}>
-                {intlText.NET_8_DESCRIPTION}
-              </Text>
-            </div>
-          </div>
-        </RadioGroup>
-      </div>
+            )}
+          </Field>
+        </div>
 
-      <div className={styles.fieldContainer} style={{ marginTop: '24px' }}>
-        <Field required>
-          <Label htmlFor={functionWorkspaceId}>{intlText.FUNCTION_WORKSPACE_LABEL}</Label>
-          <Input
-            id={functionWorkspaceId}
-            value={functionWorkspace}
-            onChange={handleFunctionWorkspaceChange}
-            className={styles.inputControl}
-          />
-        </Field>
-      </div>
+        <div className={styles.fieldContainer}>
+          <Field required>
+            <Label htmlFor={functionWorkspaceId}>{intlText.FUNCTION_WORKSPACE_LABEL}</Label>
+            <Input
+              id={functionWorkspaceId}
+              value={functionWorkspace}
+              onChange={handleFunctionWorkspaceChange}
+              className={styles.inputControl}
+            />
+          </Field>
+        </div>
 
-      <div className={styles.fieldContainer}>
-        <Field required>
-          <Label htmlFor={functionNameId}>{intlText.FUNCTION_NAME_LABEL}</Label>
-          <Input id={functionNameId} value={functionName} onChange={handleFunctionNameChange} className={styles.inputControl} />
-        </Field>
+        <div className={styles.fieldContainer}>
+          <Field required>
+            <Label htmlFor={functionNameId}>{intlText.FUNCTION_NAME_LABEL}</Label>
+            <Input id={functionNameId} value={functionName} onChange={handleFunctionNameChange} className={styles.inputControl} />
+          </Field>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  if (logicAppType === 'rulesEngine') {
+    return (
+      <div className={styles.formSection}>
+        <Text className={styles.sectionTitle} style={{ display: 'block' }}>
+          {'Function Configuration'}
+        </Text>
+
+        <div className={styles.fieldContainer}>
+          <Field required>
+            <Label htmlFor={functionWorkspaceId}>{intlText.FUNCTION_WORKSPACE_LABEL}</Label>
+            <Input
+              id={functionWorkspaceId}
+              value={functionWorkspace}
+              onChange={handleFunctionWorkspaceChange}
+              className={styles.inputControl}
+            />
+          </Field>
+        </div>
+
+        <div className={styles.fieldContainer}>
+          <Field required>
+            <Label htmlFor={functionNameId}>{intlText.FUNCTION_NAME_LABEL}</Label>
+            <Input id={functionNameId} value={functionName} onChange={handleFunctionNameChange} className={styles.inputControl} />
+          </Field>
+        </div>
+      </div>
+    );
+  }
+  return null;
 };

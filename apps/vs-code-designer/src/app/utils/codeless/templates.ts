@@ -11,6 +11,13 @@ import type { IAzureQuickPickItem } from '@microsoft/vscode-azext-utils';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
+export const getCombinedWorkflowTemplate = (methodName: string, workflowType: WorkflowType, projectType: string) => {
+  if (projectType === ProjectType.logicApp) {
+    return getCodelessWorkflowTemplate(workflowType);
+  }
+  const isStateful = workflowType === WorkflowType.stateful;
+  return getWorkflowTemplate(methodName, isStateful, projectType);
+};
 /**
  * Returns the workflow template based on the provided parameters.
  * @param {string} methodName - The name of the method to be invoked.

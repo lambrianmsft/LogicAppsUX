@@ -308,6 +308,13 @@ export interface UpdateExportPathMessage {
   };
 }
 
+export interface UpdateWorkspacePathMessage {
+  command: typeof ExtensionCommand.update_workspace_path;
+  data: {
+    targetDirectory: ITargetDirectory;
+  };
+}
+
 export interface AddStatusMessage {
   command: typeof ExtensionCommand.add_status;
   data: {

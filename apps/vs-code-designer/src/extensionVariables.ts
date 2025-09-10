@@ -91,6 +91,7 @@ export namespace ext {
     export: 'export',
     overview: 'overview',
     unitTest: 'unitTest',
+    createWorkspace: 'createWorkspace',
   } as const;
   export type webViewKey = keyof typeof webViewKey;
 
@@ -99,6 +100,7 @@ export namespace ext {
     [webViewKey.designerAzure]: {},
     [webViewKey.monitoring]: {},
     [webViewKey.export]: {},
+    [webViewKey.createWorkspace]: {},
     [webViewKey.overview]: {},
   };
 
@@ -146,6 +148,7 @@ export const ExtensionCommand = {
   initialize_frame: 'initialize-frame',
   update_access_token: 'update-access-token',
   update_export_path: 'update-export-path',
+  update_workspace_path: 'update-workspace-path',
   export_package: 'export-package',
   add_status: 'add-status',
   set_final_status: 'set-final-status',
