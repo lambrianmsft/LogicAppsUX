@@ -5,7 +5,6 @@
 import type React from 'react';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import { LogicAppTypeStep } from './logicAppTypeStep';
-import { WorkflowTypeStep } from './workflowTypeStep';
 import { WorkflowTypeStepAlt } from './workflowTypeStepAlt';
 import { DotNetFrameworkStep } from './dotNetFrameworkStep';
 import { WorkspaceNameStep } from './workspaceNameStep';
@@ -18,7 +17,6 @@ export const ProjectSetupStep: React.FC = () => {
       <WorkspaceNameStep />
       <LogicAppTypeStep />
       <DotNetFrameworkStep />
-      <WorkflowTypeStep />
       <WorkflowTypeStepAlt />
     </div>
   );

@@ -13,6 +13,7 @@ export const useCreateWorkspaceStyles = makeStyles({
   },
 
   createWorkspaceTitle: {
+    fontSize: tokens.fontSizeBase600,
     padding: '15px 24px',
     flexShrink: 0, // Prevent title from shrinking
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,

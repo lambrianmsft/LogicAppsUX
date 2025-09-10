@@ -2,14 +2,13 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { RadioGroup, Radio } from '@fluentui/react-components';
+import { RadioGroup, Radio, Text } from '@fluentui/react-components';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { setProjectType } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
-import { XLargeText } from '@microsoft/designer-ui';
 
 export const ProjectTypeStep: React.FC = () => {
   const dispatch = useDispatch();
@@ -47,7 +46,9 @@ export const ProjectTypeStep: React.FC = () => {
 
   return (
     <div className={styles.formSection}>
-      <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
+      <Text className={styles.sectionTitle} style={{ display: 'block' }}>
+        {intlText.TITLE}
+      </Text>
       <div className={styles.radioGroupContainer}>
         <RadioGroup value={projectType} onChange={handleProjectTypeChange} className={styles.radioGroup}>
           <Radio value="nuget" label={intlText.NUGET_LABEL} className={styles.radioOption} />

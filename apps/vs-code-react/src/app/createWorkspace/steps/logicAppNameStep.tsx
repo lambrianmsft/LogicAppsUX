@@ -2,7 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Field, Input, Label, useId } from '@fluentui/react-components';
+import { Field, Input, Label, Text, useId } from '@fluentui/react-components';
 import type { InputOnChangeData } from '@fluentui/react-components';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
@@ -10,7 +10,6 @@ import type { CreateWorkspaceState } from '../../../state/createWorkspace/create
 import { setLogicAppName } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
-import { XLargeText } from '@microsoft/designer-ui';
 
 export const LogicAppNameStep: React.FC = () => {
   const dispatch = useDispatch();
@@ -44,7 +43,9 @@ export const LogicAppNameStep: React.FC = () => {
 
   return (
     <div className={styles.formSection}>
-      <XLargeText text={intlText.TITLE} className={styles.sectionTitle} style={{ display: 'block' }} />
+      <Text className={styles.sectionTitle} style={{ display: 'block' }}>
+        {intlText.TITLE}
+      </Text>
       <div className={styles.fieldContainer}>
         <Field required>
           <Label htmlFor={inputId}>{intlText.LOGIC_APP_NAME_LABEL}</Label>

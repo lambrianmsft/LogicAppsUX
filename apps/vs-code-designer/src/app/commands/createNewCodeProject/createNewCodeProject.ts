@@ -9,9 +9,7 @@ import * as vscode from 'vscode';
 import { cacheWebviewPanel, removeWebviewPanelFromCache, tryGetWebviewPanel } from '../../utils/codeless/common';
 import path from 'path';
 import { getWebViewHTML } from '../../utils/codeless/getWebViewHTML';
-import { getAuthorizationToken } from '../../utils/codeless/getAuthorizationToken';
 import { localize } from '../../../localize';
-import { getSubscriptionContext } from '../../utils/subscription';
 import { createLogicAppWorkspace } from './CodeProjectBase/CreateLogicAppWorkspace';
 // import { createNewProjectInternalBase } from './CodeProjectBase/CreateNewProjectInternal';
 
@@ -58,14 +56,11 @@ const workspaceParentDialogOptions: vscode.OpenDialogOptions = {
   canSelectFolders: true,
 };
 
-export async function createNewCodeProjectFromCommand(context: IActionContext): Promise<void> {
+export async function createNewCodeProjectFromCommand(): Promise<void> {
   const panelName: string = localize('createWorkspace', 'Create Workspace');
   const panelGroupKey = ext.webViewKey.createWorkspace;
   const apiVersion = '2021-03-01';
   const existingPanel: vscode.WebviewPanel | undefined = tryGetWebviewPanel(panelGroupKey, panelName);
-  let accessToken: string;
-  const selectedSubscription = await getSubscriptionContext(context);
-  accessToken = await getAuthorizationToken(selectedSubscription?.tenantId);
 
   if (existingPanel) {
     if (!existingPanel.active) {
@@ -96,23 +91,10 @@ export async function createNewCodeProjectFromCommand(context: IActionContext): 
           command: ExtensionCommand.initialize_frame,
           data: {
             apiVersion,
-            accessToken,
             project: ProjectName.createWorkspace,
             hostVersion: ext.extensionVersion,
           },
         });
-        interval = setInterval(async () => {
-          const updatedAccessToken = await getAuthorizationToken(selectedSubscription?.tenantId);
-          if (updatedAccessToken !== accessToken) {
-            accessToken = updatedAccessToken;
-            panel.webview.postMessage({
-              command: ExtensionCommand.update_access_token,
-              data: {
-                accessToken,
-              },
-            });
-          }
-        }, 5000);
         break;
       }
       case ExtensionCommand.createWorkspace: {

@@ -1,10 +1,9 @@
-import { XXLargeText, XLargeText, LargeText } from '@microsoft/designer-ui';
 import type { OutletContext } from '../../run-service';
 import { useCreateWorkspaceStyles } from './createWorkspaceStyles';
 import { useIntl } from 'react-intl';
 import { useOutletContext } from 'react-router-dom';
 import { ProjectSetupStep, ReviewCreateStep } from './steps/';
-import { Button, Spinner } from '@fluentui/react-components';
+import { Button, Spinner, Text } from '@fluentui/react-components';
 import { VSCodeContext } from '../../webviewCommunication';
 import type { RootState } from '../../state/store';
 import type { CreateWorkspaceState } from '../../state/createWorkspace/createWorkspaceSlice';
@@ -267,8 +266,8 @@ export const CreateWorkspace: React.FC = () => {
     return (
       <div className={styles.createWorkspaceContainer}>
         <div className={styles.completionMessage}>
-          <XLargeText text={intlText.WORKSPACE_CREATED} style={{ display: 'block' }} />
-          <LargeText text={intlText.WORKSPACE_CREATED_DESCRIPTION} style={{ display: 'block' }} />
+          <Text style={{ display: 'block' }}>{intlText.WORKSPACE_CREATED}</Text>
+          <Text style={{ display: 'block' }}>{intlText.WORKSPACE_CREATED_DESCRIPTION}</Text>
         </div>
       </div>
     );
@@ -276,7 +275,9 @@ export const CreateWorkspace: React.FC = () => {
 
   return (
     <div className={styles.createWorkspaceContainer}>
-      <XXLargeText text={intlText.CREATE_WORKSPACE} className={styles.createWorkspaceTitle} style={{ display: 'block' }} />
+      <Text className={styles.createWorkspaceTitle} style={{ display: 'block' }}>
+        {intlText.CREATE_WORKSPACE}
+      </Text>
 
       {renderStepNavigation()}
 
