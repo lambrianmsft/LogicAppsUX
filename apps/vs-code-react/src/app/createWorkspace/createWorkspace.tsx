@@ -10,6 +10,11 @@ import type { CreateWorkspaceState } from '../../state/createWorkspace/createWor
 import { nextStep, previousStep, setCurrentStep } from '../../state/createWorkspace/createWorkspaceSlice';
 import { useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+// Import validation patterns and functions for navigation blocking
+import { workspaceNameValidation } from './steps/workspaceNameStep';
+import { logicAppNameValidation } from './steps/logicAppTypeStep';
+import { workflowNameValidation } from './steps/workflowTypeStepAlt';
+import { functionNameValidation, namespaceValidation } from './steps/dotNetFrameworkStep';
 
 export const CreateWorkspace: React.FC = () => {
   const intl = useIntl();
@@ -103,23 +108,32 @@ export const CreateWorkspace: React.FC = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 0: {
-        // Project Setup - validate all required fields
+        // Project Setup - validate all required fields are present AND properly formatted
+        const workspacePathValid = workspaceProjectPath.path !== '';
+        const workspaceNameValid = workspaceName.trim() !== '' && workspaceNameValidation.test(workspaceName.trim());
+        const logicAppTypeValid = logicAppType !== '';
+        const logicAppNameValid = logicAppName.trim() !== '' && logicAppNameValidation.test(logicAppName.trim());
+        const workflowTypeValid = workflowType !== '';
+        const workflowNameValid = workflowName.trim() !== '' && workflowNameValidation.test(workflowName.trim());
+
         const baseFieldsValid =
-          workspaceProjectPath.path !== '' &&
-          workspaceName.trim() !== '' &&
-          logicAppType !== '' &&
-          logicAppName.trim() !== '' &&
-          workflowType !== '' &&
-          workflowName.trim() !== '';
+          workspacePathValid && workspaceNameValid && logicAppTypeValid && logicAppNameValid && workflowTypeValid && workflowNameValid;
 
         // If custom code is selected, also validate custom code fields
         if (logicAppType === 'customCode') {
-          return baseFieldsValid && targetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+          const targetFrameworkValid = targetFramework !== '';
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
         }
 
         // If rules engine is selected, validate function fields but not .NET framework
         if (logicAppType === 'rulesEngine') {
-          return baseFieldsValid && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && functionWorkspaceValid && functionNameValid;
         }
 
         return baseFieldsValid;
@@ -140,18 +154,32 @@ export const CreateWorkspace: React.FC = () => {
   const isStepCompleted = (stepIndex: number) => {
     switch (stepIndex) {
       case 0: {
-        // Project Setup step - validate all required fields
+        // Project Setup step - validate all required fields with regex validation
+        const workspacePathValid = workspaceProjectPath.path !== '';
+        const workspaceNameValid = workspaceName.trim() !== '' && workspaceNameValidation.test(workspaceName.trim());
+        const logicAppTypeValid = logicAppType !== '';
+        const logicAppNameValid = logicAppName.trim() !== '' && logicAppNameValidation.test(logicAppName.trim());
+        const workflowTypeValid = workflowType !== '';
+        const workflowNameValid = workflowName.trim() !== '' && workflowNameValidation.test(workflowName.trim());
+
         const baseFieldsValid =
-          workspaceProjectPath.path !== '' &&
-          workspaceName.trim() !== '' &&
-          logicAppType !== '' &&
-          logicAppName.trim() !== '' &&
-          workflowType !== '' &&
-          workflowName.trim() !== '';
+          workspacePathValid && workspaceNameValid && logicAppTypeValid && logicAppNameValid && workflowTypeValid && workflowNameValid;
 
         // If custom code is selected, also validate custom code fields
         if (logicAppType === 'customCode') {
-          return baseFieldsValid && targetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+          const targetFrameworkValid = targetFramework !== '';
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
+        }
+
+        // If rules engine is selected, validate function fields but not .NET framework
+        if (logicAppType === 'rulesEngine') {
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && functionWorkspaceValid && functionNameValid;
         }
 
         return baseFieldsValid;

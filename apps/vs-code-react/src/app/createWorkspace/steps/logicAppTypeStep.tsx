@@ -3,12 +3,16 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { Text, RadioGroup, Radio, Field, Input } from '@fluentui/react-components';
+import { useState } from 'react';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { setLogicAppType, setLogicAppName, setTargetFramework } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
+
+// Logic App name validation regex
+export const logicAppNameValidation = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)*$/i;
 
 export const LogicAppTypeStep: React.FC = () => {
   const dispatch = useDispatch();
@@ -17,6 +21,9 @@ export const LogicAppTypeStep: React.FC = () => {
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
   const { logicAppType, logicAppName, workspaceName, workspaceProjectPath } = createWorkspaceState;
   const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
+
+  // Validation state
+  const [logicAppNameError, setLogicAppNameError] = useState<string | undefined>(undefined);
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -78,8 +85,19 @@ export const LogicAppTypeStep: React.FC = () => {
     }
   };
 
+  const validateLogicAppName = (name: string) => {
+    if (!name) {
+      return 'Logic app name cannot be empty.';
+    }
+    if (!logicAppNameValidation.test(name)) {
+      return 'Logic app name must start with a letter and can only contain letters, digits, "_" and "-".';
+    }
+    return undefined;
+  };
+
   const handleLogicAppNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setLogicAppName(event.target.value));
+    setLogicAppNameError(validateLogicAppName(event.target.value));
   };
 
   return (
@@ -90,7 +108,12 @@ export const LogicAppTypeStep: React.FC = () => {
       <Text className={styles.stepDescription}>{intlText.DESCRIPTION}</Text>
 
       <div className={styles.inputField}>
-        <Field label={intlText.LOGIC_APP_NAME_LABEL} required>
+        <Field
+          label={intlText.LOGIC_APP_NAME_LABEL}
+          required
+          validationState={logicAppNameError ? 'error' : undefined}
+          validationMessage={logicAppNameError}
+        >
           <Input
             value={logicAppName}
             onChange={handleLogicAppNameChange}

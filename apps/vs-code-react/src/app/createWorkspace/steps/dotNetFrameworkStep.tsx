@@ -4,12 +4,17 @@
  *--------------------------------------------------------------------------------------------*/
 import { Text, Dropdown, Option, Field, Input, Label, useId } from '@fluentui/react-components';
 import type { InputOnChangeData, DropdownProps } from '@fluentui/react-components';
+import { useState } from 'react';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { setTargetFramework, setFunctionWorkspace, setFunctionName } from '../../../state/createWorkspace/createWorkspaceSlice';
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
+
+// Function name validation regex (similar to logic app name)
+export const functionNameValidation = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)*$/i;
+export const namespaceValidation = /^([A-Za-z_][A-Za-z0-9_]*)(\.[A-Za-z_][A-Za-z0-9_]*)*$/;
 
 export const DotNetFrameworkStep: React.FC = () => {
   const dispatch = useDispatch();
@@ -20,6 +25,10 @@ export const DotNetFrameworkStep: React.FC = () => {
 
   const functionWorkspaceId = useId();
   const functionNameId = useId();
+
+  // Validation state
+  const [functionWorkspaceError, setFunctionWorkspaceError] = useState<string | undefined>(undefined);
+  const [functionNameError, setFunctionNameError] = useState<string | undefined>(undefined);
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -74,12 +83,35 @@ export const DotNetFrameworkStep: React.FC = () => {
       dispatch(setTargetFramework(data.optionValue));
     }
   };
+
+  const validateFunctionWorkspace = (workspace: string) => {
+    if (!workspace) {
+      return 'Function workspace cannot be empty.';
+    }
+    if (!namespaceValidation.test(workspace)) {
+      return 'The namespace must start with a letter or underscore, contain only letters, digits, underscores, and periods, and must not end with a period.';
+    }
+    return undefined;
+  };
+
+  const validateFunctionName = (name: string) => {
+    if (!name) {
+      return 'Function name cannot be empty.';
+    }
+    if (!functionNameValidation.test(name)) {
+      return 'Function name must start with a letter and can only contain letters, digits, "_" and "-".';
+    }
+    return undefined;
+  };
+
   const handleFunctionWorkspaceChange = (event: React.FormEvent<HTMLInputElement>, data: InputOnChangeData) => {
     dispatch(setFunctionWorkspace(data.value));
+    setFunctionWorkspaceError(validateFunctionWorkspace(data.value));
   };
 
   const handleFunctionNameChange = (event: React.FormEvent<HTMLInputElement>, data: InputOnChangeData) => {
     dispatch(setFunctionName(data.value));
+    setFunctionNameError(validateFunctionName(data.value));
   };
 
   if (logicAppType === 'customCode') {
@@ -123,7 +155,7 @@ export const DotNetFrameworkStep: React.FC = () => {
         </div>
 
         <div className={styles.fieldContainer}>
-          <Field required>
+          <Field required validationState={functionWorkspaceError ? 'error' : undefined} validationMessage={functionWorkspaceError}>
             <Label htmlFor={functionWorkspaceId}>{intlText.FUNCTION_WORKSPACE_LABEL}</Label>
             <Input
               id={functionWorkspaceId}
@@ -135,7 +167,7 @@ export const DotNetFrameworkStep: React.FC = () => {
         </div>
 
         <div className={styles.fieldContainer}>
-          <Field required>
+          <Field required validationState={functionNameError ? 'error' : undefined} validationMessage={functionNameError}>
             <Label htmlFor={functionNameId}>{intlText.FUNCTION_NAME_LABEL}</Label>
             <Input id={functionNameId} value={functionName} onChange={handleFunctionNameChange} className={styles.inputControl} />
           </Field>
@@ -151,7 +183,7 @@ export const DotNetFrameworkStep: React.FC = () => {
         </Text>
 
         <div className={styles.fieldContainer}>
-          <Field required>
+          <Field required validationState={functionWorkspaceError ? 'error' : undefined} validationMessage={functionWorkspaceError}>
             <Label htmlFor={functionWorkspaceId}>{intlText.FUNCTION_WORKSPACE_LABEL}</Label>
             <Input
               id={functionWorkspaceId}
@@ -163,7 +195,7 @@ export const DotNetFrameworkStep: React.FC = () => {
         </div>
 
         <div className={styles.fieldContainer}>
-          <Field required>
+          <Field required validationState={functionNameError ? 'error' : undefined} validationMessage={functionNameError}>
             <Label htmlFor={functionNameId}>{intlText.FUNCTION_NAME_LABEL}</Label>
             <Input id={functionNameId} value={functionName} onChange={handleFunctionNameChange} className={styles.inputControl} />
           </Field>

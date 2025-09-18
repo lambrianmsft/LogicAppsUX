@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 import { Option, Text, Field, Input, Label, Dropdown } from '@fluentui/react-components';
 import type { DropdownProps } from '@fluentui/react-components';
+import { useState } from 'react';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
@@ -11,12 +12,18 @@ import { setWorkflowType, setWorkflowName } from '../../../state/createWorkspace
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
 
+// Workflow name validation regex
+export const workflowNameValidation = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)*$/i;
+
 export const WorkflowTypeStepAlt: React.FC = () => {
   const dispatch = useDispatch();
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
   const { workflowType, workflowName } = createWorkspaceState;
+
+  // Validation state
+  const [workflowNameError, setWorkflowNameError] = useState<string | undefined>(undefined);
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -77,8 +84,19 @@ export const WorkflowTypeStepAlt: React.FC = () => {
     }
   };
 
+  const validateWorkflowName = (name: string) => {
+    if (!name) {
+      return 'The workflow name cannot be empty.';
+    }
+    if (!workflowNameValidation.test(name)) {
+      return 'Workflow name must start with a letter and can only contain letters, digits, "_" and "-".';
+    }
+    return undefined;
+  };
+
   const handleWorkflowNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setWorkflowName(event.target.value));
+    setWorkflowNameError(validateWorkflowName(event.target.value));
   };
 
   return (
@@ -87,7 +105,13 @@ export const WorkflowTypeStepAlt: React.FC = () => {
         {intlText.TITLE}
       </Text>
 
-      <Field label={intlText.WORKFLOW_NAME_LABEL} className={styles.workflowNameField}>
+      <Field
+        label={intlText.WORKFLOW_NAME_LABEL}
+        className={styles.workflowNameField}
+        required
+        validationState={workflowNameError ? 'error' : undefined}
+        validationMessage={workflowNameError}
+      >
         <Input
           value={workflowName}
           onChange={handleWorkflowNameChange}

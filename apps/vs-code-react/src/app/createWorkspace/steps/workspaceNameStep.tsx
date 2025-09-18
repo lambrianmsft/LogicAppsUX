@@ -11,8 +11,11 @@ import { setProjectPathAlt, setWorkspaceName } from '../../../state/createWorksp
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
 import { VSCodeContext } from '../../../webviewCommunication';
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { ExtensionCommand } from '@microsoft/vscode-extension-logic-apps';
+
+// Regex validation constants
+export const workspaceNameValidation = /^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)*$/i;
 
 export const WorkspaceNameStep: React.FC = () => {
   const dispatch = useDispatch();
@@ -23,6 +26,11 @@ export const WorkspaceNameStep: React.FC = () => {
   const { workspaceName, workspaceProjectPath } = createWorkspaceState;
   const projectPathInputId = useId();
   const workspaceNameId = useId();
+
+  // Validation state
+  const [workspaceNameError, setWorkspaceNameError] = useState<string | undefined>(undefined);
+  const [projectPathError, setProjectPathError] = useState<string | undefined>(undefined);
+
   const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
 
   // const inputId = useId();
@@ -88,12 +96,31 @@ export const WorkspaceNameStep: React.FC = () => {
     }),
   };
 
+  const validateWorkspaceName = (name: string) => {
+    if (!name) {
+      return 'The workspace name cannot be empty.';
+    }
+    if (!workspaceNameValidation.test(name)) {
+      return 'Workspace name must start with a letter and can only contain letters, digits, "_" and "-".';
+    }
+    return undefined;
+  };
+
+  const validateProjectPath = (path: string) => {
+    if (!path) {
+      return 'Workspace parent folder path cannot be empty.';
+    }
+    return undefined;
+  };
+
   const handleProjectPathChange = (event: React.FormEvent<HTMLInputElement>, data: InputOnChangeData) => {
     dispatch(setProjectPathAlt(data.value));
+    setProjectPathError(validateProjectPath(data.value));
   };
 
   const handleWorkspaceNameChange = (event: React.FormEvent<HTMLInputElement>, data: InputOnChangeData) => {
     dispatch(setWorkspaceName(data.value));
+    setWorkspaceNameError(validateWorkspaceName(data.value));
   };
 
   const onOpenExplorer = () => {
@@ -112,7 +139,7 @@ export const WorkspaceNameStep: React.FC = () => {
       </Text>
 
       <div className={styles.fieldContainer}>
-        <Field required>
+        <Field required validationState={projectPathError ? 'error' : undefined} validationMessage={projectPathError}>
           <Label htmlFor={projectPathInputId}>{intlText.PROJECT_PATH_LABEL}</Label>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Input
@@ -143,7 +170,7 @@ export const WorkspaceNameStep: React.FC = () => {
         </Field>
       </div>
       <div className={styles.fieldContainer}>
-        <Field required>
+        <Field required validationState={workspaceNameError ? 'error' : undefined} validationMessage={workspaceNameError}>
           <Label htmlFor={workspaceNameId}>{intlText.WORKSPACE_NAME_LABEL}</Label>
           <Input id={workspaceNameId} value={workspaceName} onChange={handleWorkspaceNameChange} className={styles.inputControl} />
           {workspaceName && workspaceProjectPath.path && (

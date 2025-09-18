@@ -11,6 +11,9 @@ import { nextStep, previousStep, setCurrentStep } from '../../state/createWorksp
 import { useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { CreateWorkspaceStructSetupStep } from './createWorkspaceStructSetupStep';
+// Import validation patterns for navigation blocking
+import { workspaceNameValidation } from '../createWorkspace/steps/workspaceNameStep';
+import { functionNameValidation, namespaceValidation } from '../createWorkspace/steps/dotNetFrameworkStep';
 
 export const CreateWorkspaceStructure: React.FC = () => {
   const intl = useIntl();
@@ -104,17 +107,27 @@ export const CreateWorkspaceStructure: React.FC = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 0: {
-        // Project Setup - validate all required fields
-        const baseFieldsValid = workspaceProjectPath.path !== '' && workspaceName.trim() !== '';
+        // Project Setup - validate all required fields are present AND properly formatted
+        const workspacePathValid = workspaceProjectPath.path !== '';
+        const workspaceNameValid = workspaceName.trim() !== '' && workspaceNameValidation.test(workspaceName.trim());
+
+        const baseFieldsValid = workspacePathValid && workspaceNameValid;
 
         // If custom code is selected, also validate custom code fields
         if (logicAppType === 'customCode') {
-          return baseFieldsValid && targetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+          const targetFrameworkValid = targetFramework !== '';
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
         }
 
         // If rules engine is selected, validate function fields but not .NET framework
         if (logicAppType === 'rulesEngine') {
-          return baseFieldsValid && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && functionWorkspaceValid && functionNameValid;
         }
 
         return baseFieldsValid;
@@ -135,12 +148,27 @@ export const CreateWorkspaceStructure: React.FC = () => {
   const isStepCompleted = (stepIndex: number) => {
     switch (stepIndex) {
       case 0: {
-        // Project Setup step - validate all required fields
-        const baseFieldsValid = workspaceProjectPath.path !== '' && workspaceName.trim() !== '';
+        // Project Setup step - validate all required fields with regex validation
+        const workspacePathValid = workspaceProjectPath.path !== '';
+        const workspaceNameValid = workspaceName.trim() !== '' && workspaceNameValidation.test(workspaceName.trim());
+
+        const baseFieldsValid = workspacePathValid && workspaceNameValid;
 
         // If custom code is selected, also validate custom code fields
         if (logicAppType === 'customCode') {
-          return baseFieldsValid && targetFramework !== '' && functionWorkspace.trim() !== '' && functionName.trim() !== '';
+          const targetFrameworkValid = targetFramework !== '';
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
+        }
+
+        // If rules engine is selected, validate function fields but not .NET framework
+        if (logicAppType === 'rulesEngine') {
+          const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
+          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+
+          return baseFieldsValid && functionWorkspaceValid && functionNameValid;
         }
 
         return baseFieldsValid;

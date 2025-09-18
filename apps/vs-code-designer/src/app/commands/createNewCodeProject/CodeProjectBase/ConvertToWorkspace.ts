@@ -170,62 +170,67 @@ export async function convertToWorkspace2(context: IActionContext): Promise<bool
         panel.webview.html = await getWebViewHTML('vs-code-react', panel);
 
         let interval: NodeJS.Timeout;
-
-        panel.webview.onDidReceiveMessage(async (message) => {
-          switch (message.command) {
-            case ExtensionCommand.initialize: {
-              panel.webview.postMessage({
-                command: ExtensionCommand.initialize_frame,
-                data: {
-                  apiVersion,
-                  project: ProjectName.createWorkspaceStructure,
-                  hostVersion: ext.extensionVersion,
-                },
-              });
-              break;
-            }
-            case ExtensionCommand.createWorkspaceStructure: {
-              await callWithTelemetryAndErrorHandling('CreateWorkspaceStructure', async (activateContext: IActionContext) => {
-                await createWorkspaceFile(activateContext, message.data);
-              });
-              break;
-            }
-            case ExtensionCommand.select_folder: {
-              vscode.window.showOpenDialog(workspaceParentDialogOptions).then((fileUri) => {
-                if (fileUri && fileUri[0]) {
-                  panel.webview.postMessage({
-                    command: ExtensionCommand.update_workspace_path,
-                    data: {
-                      targetDirectory: {
-                        fsPath: fileUri[0].fsPath,
-                        path: fileUri[0].path,
+        return new Promise<boolean>((resolve) => {
+          panel.webview.onDidReceiveMessage(async (message) => {
+            switch (message.command) {
+              case ExtensionCommand.initialize: {
+                panel.webview.postMessage({
+                  command: ExtensionCommand.initialize_frame,
+                  data: {
+                    apiVersion,
+                    project: ProjectName.createWorkspaceStructure,
+                    hostVersion: ext.extensionVersion,
+                  },
+                });
+                break;
+              }
+              case ExtensionCommand.createWorkspaceStructure: {
+                await callWithTelemetryAndErrorHandling('CreateWorkspaceStructure', async (activateContext: IActionContext) => {
+                  await createWorkspaceFile(activateContext, message.data);
+                });
+                context.telemetry.properties.createContainingWorkspace = 'true';
+                window.showInformationMessage(localize('finishedConvertingWorkspace', 'Finished converting to workspace.'));
+                resolve(true); // Only resolve after workspace creation is done
+                break;
+              }
+              case ExtensionCommand.select_folder: {
+                vscode.window.showOpenDialog(workspaceParentDialogOptions).then((fileUri) => {
+                  if (fileUri && fileUri[0]) {
+                    panel.webview.postMessage({
+                      command: ExtensionCommand.update_workspace_path,
+                      data: {
+                        targetDirectory: {
+                          fsPath: fileUri[0].fsPath,
+                          path: fileUri[0].path,
+                        },
                       },
-                    },
-                  });
-                }
-              });
-              break;
+                    });
+                  }
+                });
+                break;
+              }
+              // case ExtensionCommand.logTelemetry: {
+              //   const eventName = message.key;
+              //   ext.telemetryReporter.sendTelemetryEvent(eventName, { value: message.value });
+              //   ext.logTelemetry(context, eventName, message.value);
+              //   break;
+              // }
+              default:
+                break;
             }
-            // case ExtensionCommand.logTelemetry: {
-            //   const eventName = message.key;
-            //   ext.telemetryReporter.sendTelemetryEvent(eventName, { value: message.value });
-            //   ext.logTelemetry(context, eventName, message.value);
-            //   break;
-            // }
-            default:
-              break;
-          }
-        }, ext.context.subscriptions);
+          }, ext.context.subscriptions);
 
-        panel.onDidDispose(
-          () => {
-            removeWebviewPanelFromCache(panelGroupKey, panelName);
-            clearInterval(interval);
-          },
-          null,
-          ext.context.subscriptions
-        );
-        cacheWebviewPanel(panelGroupKey, panelName, panel);
+          panel.onDidDispose(
+            () => {
+              removeWebviewPanelFromCache(panelGroupKey, panelName);
+              clearInterval(interval);
+              resolve(false); // If panel is closed before workspace creation, resolve as false
+            },
+            null,
+            ext.context.subscriptions
+          );
+          cacheWebviewPanel(panelGroupKey, panelName, panel);
+        });
 
         // const workspaceWizard: AzureWizard<IFunctionWizardContext> = new AzureWizard(wizardContext, {
         //   title: localize('convertToWorkspace', 'Convert to workspace'),
@@ -236,9 +241,9 @@ export async function convertToWorkspace2(context: IActionContext): Promise<bool
         // await workspaceWizard.prompt();
         // await workspaceWizard.execute();
 
-        context.telemetry.properties.createContainingWorkspace = 'true';
-        window.showInformationMessage(localize('finishedConvertingWorkspace', 'Finished converting to workspace.'));
-        return true;
+        // context.telemetry.properties.createContainingWorkspace = 'true';
+        // window.showInformationMessage(localize('finishedConvertingWorkspace', 'Finished converting to workspace.'));
+        // return true;
       }
       context.telemetry.properties.createContainingWorkspace = 'false';
       return false;
