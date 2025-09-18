@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect } from 'react';
-import { CreateWorkspace } from '../../../../vs-code-react/src/app/createWorkspace/createWorkspace';
+import { CreateLogicApp } from '../../../../vs-code-react/src/app/createLogicApp/createLogicApp';
 import { useDispatch } from 'react-redux';
 import { initializeWorkflow } from '../../../../vs-code-react/src/state/WorkflowSlice';
 import type { AppDispatch } from '../../../../vs-code-react/src/state/store';
@@ -21,7 +21,7 @@ const mockInitialData = {
   isLocal: true,
 };
 
-export const VSCodeCreateWorkspaceWrapper: React.FC = () => {
+export const VSCodeCreateLogicAppWrapper: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export const VSCodeCreateWorkspaceWrapper: React.FC = () => {
     >
       <ReactQueryProvider>
         <VSCodeContextProvider>
-          <CreateWorkspace />
+          <CreateLogicApp />
         </VSCodeContextProvider>
       </ReactQueryProvider>
     </IntlProvider>

@@ -2,7 +2,7 @@ import type { OutletContext } from '../../run-service';
 import { useCreateWorkspaceStyles } from '../createWorkspace/createWorkspaceStyles';
 import { useIntl } from 'react-intl';
 import { useOutletContext } from 'react-router-dom';
-import { ReviewCreateStep } from '../createWorkspace/steps/';
+import { ReviewCreateStep } from '../createWorkspace/steps';
 import { Button, Spinner, Text } from '@fluentui/react-components';
 import { VSCodeContext } from '../../webviewCommunication';
 import type { RootState } from '../../state/store';
@@ -10,9 +10,9 @@ import type { CreateWorkspaceState } from '../../state/createWorkspace/createWor
 import { nextStep, previousStep, setCurrentStep } from '../../state/createWorkspace/createWorkspaceSlice';
 import { useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { CreateLogicAppSetupStep } from './createLogicAppSetupStep';
+import { CreateWorkspaceStructSetupStep } from './createWorkspaceStructSetupStep';
 
-export const CreateLogicApp: React.FC = () => {
+export const CreateWorkspaceStructure: React.FC = () => {
   const intl = useIntl();
   const vscode = useContext(VSCodeContext);
   const dispatch = useDispatch();
@@ -105,7 +105,7 @@ export const CreateLogicApp: React.FC = () => {
     switch (currentStep) {
       case 0: {
         // Project Setup - validate all required fields
-        const baseFieldsValid = logicAppType !== '' && logicAppName.trim() !== '' && workflowType !== '' && workflowName.trim() !== '';
+        const baseFieldsValid = workspaceProjectPath.path !== '' && workspaceName.trim() !== '';
 
         // If custom code is selected, also validate custom code fields
         if (logicAppType === 'customCode') {
@@ -136,7 +136,7 @@ export const CreateLogicApp: React.FC = () => {
     switch (stepIndex) {
       case 0: {
         // Project Setup step - validate all required fields
-        const baseFieldsValid = logicAppType !== '' && logicAppName.trim() !== '' && workflowType !== '' && workflowName.trim() !== '';
+        const baseFieldsValid = workspaceProjectPath.path !== '' && workspaceName.trim() !== '';
 
         // If custom code is selected, also validate custom code fields
         if (logicAppType === 'customCode') {
@@ -237,17 +237,17 @@ export const CreateLogicApp: React.FC = () => {
         functionName,
       }),
     };
-    vscode.postMessage({ command: 'createLogicApp', data });
+    vscode.postMessage({ command: 'createWorkspaceStructure', data });
   };
 
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 0:
-        return <CreateLogicAppSetupStep />;
+        return <CreateWorkspaceStructSetupStep />;
       case 1:
         return <ReviewCreateStep />;
       default:
-        return <CreateLogicAppSetupStep />;
+        return <CreateWorkspaceStructSetupStep />;
     }
   };
 

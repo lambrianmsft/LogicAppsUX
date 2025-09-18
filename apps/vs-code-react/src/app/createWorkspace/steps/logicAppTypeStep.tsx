@@ -16,6 +16,7 @@ export const LogicAppTypeStep: React.FC = () => {
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
   const { logicAppType, logicAppName, workspaceName, workspaceProjectPath } = createWorkspaceState;
+  const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -107,7 +108,7 @@ export const LogicAppTypeStep: React.FC = () => {
                 wordBreak: 'break-all',
               }}
             >
-              {`${workspaceProjectPath.path}\\${workspaceName}\\${logicAppName}`}
+              {`${workspaceProjectPath.fsPath}${separator}${workspaceName}${separator}${logicAppName}`}
             </Text>
           )}
         </Field>

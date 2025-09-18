@@ -23,6 +23,7 @@ export const WorkspaceNameStep: React.FC = () => {
   const { workspaceName, workspaceProjectPath } = createWorkspaceState;
   const projectPathInputId = useId();
   const workspaceNameId = useId();
+  const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
 
   // const inputId = useId();
 
@@ -156,7 +157,7 @@ export const WorkspaceNameStep: React.FC = () => {
                 wordBreak: 'break-all',
               }}
             >
-              {`${workspaceProjectPath.path}\\${workspaceName}\\${workspaceName}.code-workspace`}
+              {`${workspaceProjectPath.fsPath}${separator}${workspaceName}${separator}${workspaceName}.code-workspace`}
             </Text>
           )}
         </Field>

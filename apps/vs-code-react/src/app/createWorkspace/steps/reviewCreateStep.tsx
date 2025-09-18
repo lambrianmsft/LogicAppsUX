@@ -28,6 +28,7 @@ export const ReviewCreateStep: React.FC = () => {
 
   const needsDotNetFrameworkStep = logicAppType === 'customCode';
   const needsFunctionConfiguration = logicAppType === 'rulesEngine';
+  const separator = workspaceProjectPath.path?.includes('/') ? '/' : '\\';
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -116,21 +117,21 @@ export const ReviewCreateStep: React.FC = () => {
     if (!workspaceProjectPath.path || !workspaceName) {
       return '';
     }
-    return `${workspaceProjectPath.path}\\${workspaceName}\\${workspaceName}.code-workspace`;
+    return `${workspaceProjectPath.fsPath}${separator}${workspaceName}${separator}${workspaceName}.code-workspace`;
   };
 
   const getWorkspaceFolderPath = () => {
     if (!workspaceProjectPath.path || !workspaceName) {
       return '';
     }
-    return `${workspaceProjectPath.path}\\${workspaceName}`;
+    return `${workspaceProjectPath.fsPath}${separator}${workspaceName}`;
   };
 
   const getLogicAppLocationPath = () => {
     if (!workspaceProjectPath.path || !workspaceName || !logicAppName) {
       return '';
     }
-    return `${workspaceProjectPath.path}\\${workspaceName}\\${logicAppName}`;
+    return `${workspaceProjectPath.fsPath}${separator}${workspaceName}${separator}${logicAppName}`;
   };
 
   const getDotNetFrameworkDisplay = (framework: string) => {

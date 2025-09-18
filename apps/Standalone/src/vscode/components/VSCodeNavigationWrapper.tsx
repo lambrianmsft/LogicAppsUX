@@ -46,6 +46,15 @@ export const VSCodeNavigationWrapper = () => {
       <Link to="/vscode/createWorkspace" className={`${styles.navLink} ${isActiveLink('/createWorkspace') ? styles.activeLink : ''}`}>
         Create Workspace
       </Link>
+      <Link to="/vscode/createLogicApp" className={`${styles.navLink} ${isActiveLink('/createLogicApp') ? styles.activeLink : ''}`}>
+        Create Logic App
+      </Link>
+      <Link
+        to="/vscode/createWorkspaceStructure"
+        className={`${styles.navLink} ${isActiveLink('/createWorkspaceStructure') ? styles.activeLink : ''}`}
+      >
+        Create Workspace
+      </Link>
       <Link to="/vscode/overview" className={`${styles.navLink} ${isActiveLink('/overview') ? styles.activeLink : ''}`}>
         Overview
       </Link>

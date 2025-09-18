@@ -82,7 +82,7 @@ export const FolderStep: React.FC = () => {
             </Button>
           </div>
         </Field>
-        {workspaceProjectPath.path && <div className={styles.pathDisplay}>{workspaceProjectPath.path.toString()}</div>}
+        {workspaceProjectPath.path && <div className={styles.pathDisplay}>{workspaceProjectPath.fsPath.toString()}</div>}
       </div>
     </div>
   );

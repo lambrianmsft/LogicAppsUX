@@ -54,6 +54,9 @@ export const ExtensionCommand = {
   switchToDataMapperV2: 'switchToDataMapperV2',
   createWorkspace: 'createWorkspace',
   update_workspace_path: 'update-workspace-path',
+  // createLogicAppProject: 'createLogicAppProject',
+  createLogicApp: 'createLogicApp',
+  createWorkspaceStructure: 'createWorkspaceStructure',
 } as const;
 export type ExtensionCommand = (typeof ExtensionCommand)[keyof typeof ExtensionCommand];
 

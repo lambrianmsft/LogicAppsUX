@@ -14,6 +14,8 @@ export const ProjectName = {
   dataMapper: 'dataMapper',
   unitTest: 'unitTest',
   createWorkspace: 'createWorkspace',
+  createLogicApp: 'createLogicApp',
+  createWorkspaceStructure: 'createWorkspaceStructure',
 } as const;
 export type ProjectNameType = (typeof ProjectName)[keyof typeof ProjectName];
 
@@ -89,6 +91,7 @@ export interface IProjectWizardContext extends IActionContext {
 }
 
 export interface IWebviewProjectContext extends IActionContext {
+  workspaceFilePath: string;
   workspaceProjectPath: ITargetDirectory;
   workspaceName: string;
   logicAppName: string;
@@ -99,6 +102,7 @@ export interface IWebviewProjectContext extends IActionContext {
   workflowType: string;
   functionName?: string;
   functionWorkspace?: string;
+  shouldCreateLogicAppProject: boolean;
 }
 
 export const OpenBehavior = {
