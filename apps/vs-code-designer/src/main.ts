@@ -36,6 +36,8 @@ import { createVSCodeAzureSubscriptionProvider } from './app/utils/services/VSCo
 import { logExtensionSettings, logSubscriptions } from './app/utils/telemetry';
 import { registerAzureUtilsExtensionVariables } from '@microsoft/vscode-azext-azureutils';
 import { getAzExtResourceType, getAzureResourcesExtensionApi } from '@microsoft/vscode-azureresources-api';
+import { getWorkspaceFolder2 } from './app/utils/workspace';
+import { isLogicAppProjectInRoot } from './app/utils/verifyIsProject';
 
 const perfStats = {
   loadStartTime: Date.now(),
@@ -45,6 +47,12 @@ const perfStats = {
 const telemetryString = 'setInGitHubBuild';
 
 export async function activate(context: vscode.ExtensionContext) {
+  await updateLogicAppsContext();
+  const workspaceWatcher = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    updateLogicAppsContext();
+  });
+  context.subscriptions.push(workspaceWatcher);
+
   // Data Mapper context
   vscode.commands.executeCommand(
     'setContext',
@@ -159,4 +167,10 @@ export function deactivate(): Promise<any> {
   ext.unitTestController?.dispose();
   ext.telemetryReporter.dispose();
   return undefined;
+}
+
+export async function updateLogicAppsContext() {
+  const workspaceFolder = await getWorkspaceFolder2();
+  const logicAppOpened = await isLogicAppProjectInRoot(workspaceFolder);
+  await vscode.commands.executeCommand('setContext', 'logicApps.hasProject', logicAppOpened);
 }
