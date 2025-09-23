@@ -21,7 +21,7 @@ export const DotNetFrameworkStep: React.FC = () => {
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { targetFramework, functionWorkspace, functionName, logicAppType } = createWorkspaceState;
+  const { targetFramework, functionWorkspace, functionName, logicAppType, workspaceFileJson } = createWorkspaceState;
 
   const functionWorkspaceId = useId();
   const functionNameId = useId();
@@ -100,6 +100,10 @@ export const DotNetFrameworkStep: React.FC = () => {
     }
     if (!functionNameValidation.test(name)) {
       return 'Function name must start with a letter and can only contain letters, digits, "_" and "-".';
+    }
+    // Check if the function name already exists in workspace folders
+    if (workspaceFileJson?.folders && workspaceFileJson.folders.some((folder: { name: string }) => folder.name === name)) {
+      return 'A project with this name already exists in the workspace.';
     }
     return undefined;
   };

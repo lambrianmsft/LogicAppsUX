@@ -11,7 +11,7 @@ import { setProjectPathAlt, setWorkspaceName } from '../../../state/createWorksp
 import { useIntl } from 'react-intl';
 import { useSelector, useDispatch } from 'react-redux';
 import { VSCodeContext } from '../../../webviewCommunication';
-import { useContext, useState } from 'react';
+import { useContext, useState, useCallback, useEffect } from 'react';
 import { ExtensionCommand } from '@microsoft/vscode-extension-logic-apps';
 
 // Regex validation constants
@@ -23,13 +23,14 @@ export const WorkspaceNameStep: React.FC = () => {
   const vscode = useContext(VSCodeContext);
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { workspaceName, workspaceProjectPath } = createWorkspaceState;
+  const { workspaceName, workspaceProjectPath, pathValidationResults } = createWorkspaceState;
   const projectPathInputId = useId();
   const workspaceNameId = useId();
 
   // Validation state
   const [workspaceNameError, setWorkspaceNameError] = useState<string | undefined>(undefined);
   const [projectPathError, setProjectPathError] = useState<string | undefined>(undefined);
+  const [isValidatingPath, setIsValidatingPath] = useState<boolean>(false);
 
   const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
 
@@ -96,19 +97,61 @@ export const WorkspaceNameStep: React.FC = () => {
     }),
   };
 
+  const validateProjectPath = useCallback(
+    (path: string) => {
+      if (!path) {
+        return 'Workspace parent folder path cannot be empty.';
+      }
+
+      // Check if we have a validation result for this path
+      const isPathValid = pathValidationResults[path];
+      if (isPathValid === false) {
+        return 'The specified path does not exist or is not accessible.';
+      }
+
+      return undefined;
+    },
+    [pathValidationResults]
+  );
+
+  // Debounced path validation function
+  const validatePathWithExtension = useCallback(
+    (path: string, validationResults: Record<string, boolean>) => {
+      if (path && path.trim() !== '') {
+        if (path in validationResults) {
+          setIsValidatingPath(false);
+          const validationError = validateProjectPath(path);
+          setProjectPathError(validationError);
+          return; // Don't trigger new validation if we already have results
+        }
+        setIsValidatingPath(true);
+        vscode.postMessage({
+          command: ExtensionCommand.validatePath,
+          data: { path: path.trim() },
+        });
+      }
+    },
+    [vscode, validateProjectPath]
+  );
+
+  // Effect to trigger path validation when path changes
+  useEffect(() => {
+    if (workspaceProjectPath.fsPath && workspaceProjectPath.fsPath.trim() !== '') {
+      const timeoutId = setTimeout(() => {
+        validatePathWithExtension(workspaceProjectPath.fsPath, pathValidationResults);
+      }, 500); // Debounce for 500ms
+
+      return () => clearTimeout(timeoutId);
+    }
+    return undefined;
+  }, [workspaceProjectPath.fsPath, pathValidationResults, validatePathWithExtension]);
+
   const validateWorkspaceName = (name: string) => {
     if (!name) {
       return 'The workspace name cannot be empty.';
     }
     if (!workspaceNameValidation.test(name)) {
       return 'Workspace name must start with a letter and can only contain letters, digits, "_" and "-".';
-    }
-    return undefined;
-  };
-
-  const validateProjectPath = (path: string) => {
-    if (!path) {
-      return 'Workspace parent folder path cannot be empty.';
     }
     return undefined;
   };
@@ -139,12 +182,16 @@ export const WorkspaceNameStep: React.FC = () => {
       </Text>
 
       <div className={styles.fieldContainer}>
-        <Field required validationState={projectPathError ? 'error' : undefined} validationMessage={projectPathError}>
+        <Field
+          required
+          validationState={projectPathError ? 'error' : isValidatingPath ? 'warning' : undefined}
+          validationMessage={projectPathError || (isValidatingPath ? 'Validating path...' : undefined)}
+        >
           <Label htmlFor={projectPathInputId}>{intlText.PROJECT_PATH_LABEL}</Label>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Input
               id={projectPathInputId}
-              value={workspaceProjectPath.path ?? ''}
+              value={workspaceProjectPath.fsPath ?? ''}
               onChange={handleProjectPathChange}
               className={styles.inputControl}
               style={{ width: '800px', fontFamily: 'monospace' }}
@@ -164,7 +211,7 @@ export const WorkspaceNameStep: React.FC = () => {
                 wordBreak: 'break-all',
               }}
             >
-              {workspaceProjectPath.path}
+              {workspaceProjectPath.fsPath}
             </Text>
           )}
         </Field>

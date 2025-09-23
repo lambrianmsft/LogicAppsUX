@@ -24,11 +24,23 @@ export const ReviewCreateStep: React.FC = () => {
     workflowType,
     workflowName,
     logicAppName,
+    flowType,
+    logicAppsWithoutCustomCode,
   } = createWorkspaceState;
 
   const needsDotNetFrameworkStep = logicAppType === 'customCode';
   const needsFunctionConfiguration = logicAppType === 'rulesEngine';
-  const separator = workspaceProjectPath.path?.includes('/') ? '/' : '\\';
+  const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
+
+  // Determine if we're using an existing logic app
+  const isUsingExistingLogicApp =
+    (logicAppType === 'customCode' || logicAppType === 'rulesEngine') &&
+    logicAppsWithoutCustomCode?.some((app: { label: string }) => app.label === logicAppName);
+
+  // Determine what sections to show based on flow type
+  const shouldShowWorkspaceSection = flowType === 'createWorkspace' || flowType === 'convertToWorkspace';
+  const shouldShowLogicAppSection = flowType === 'createWorkspace' || flowType === 'createLogicApp';
+  const shouldShowWorkflowSection = (flowType === 'createWorkspace' || flowType === 'createLogicApp') && !isUsingExistingLogicApp;
 
   const intlText = {
     TITLE: intl.formatMessage({
@@ -193,19 +205,23 @@ export const ReviewCreateStep: React.FC = () => {
       </Text>
 
       <div className={styles.reviewContainer}>
-        <div className={styles.reviewSection}>
-          <div className={styles.reviewSectionTitle}>{intlText.PROJECT_SETUP}</div>
-          {renderSettingRow(intlText.WORKSPACE_NAME_LABEL, workspaceName)}
-          {renderSettingRow(intlText.WORKSPACE_FOLDER_LABEL, getWorkspaceFolderPath())}
-          {renderSettingRow(intlText.WORKSPACE_FILE_LABEL, getWorkspaceFilePath())}
-        </div>
+        {shouldShowWorkspaceSection && (
+          <div className={styles.reviewSection}>
+            <div className={styles.reviewSectionTitle}>{intlText.PROJECT_SETUP}</div>
+            {renderSettingRow(intlText.WORKSPACE_NAME_LABEL, workspaceName)}
+            {renderSettingRow(intlText.WORKSPACE_FOLDER_LABEL, getWorkspaceFolderPath())}
+            {renderSettingRow(intlText.WORKSPACE_FILE_LABEL, getWorkspaceFilePath())}
+          </div>
+        )}
 
-        <div className={styles.reviewSection}>
-          <div className={styles.reviewSectionTitle}>Logic App Details</div>
-          {renderSettingRow(intlText.LOGIC_APP_NAME_LABEL, logicAppName)}
-          {renderSettingRow(intlText.LOGIC_APP_LOCATION_LABEL, getLogicAppLocationPath())}
-          {renderSettingRow(intlText.LOGIC_APP_TYPE_LABEL, getLogicAppTypeDisplay(logicAppType))}
-        </div>
+        {shouldShowLogicAppSection && (
+          <div className={styles.reviewSection}>
+            <div className={styles.reviewSectionTitle}>Logic App Details</div>
+            {renderSettingRow(intlText.LOGIC_APP_NAME_LABEL, logicAppName)}
+            {flowType !== 'createLogicApp' && renderSettingRow(intlText.LOGIC_APP_LOCATION_LABEL, getLogicAppLocationPath())}
+            {renderSettingRow(intlText.LOGIC_APP_TYPE_LABEL, getLogicAppTypeDisplay(logicAppType))}
+          </div>
+        )}
 
         {needsDotNetFrameworkStep && (
           <div className={styles.reviewSection}>
@@ -224,11 +240,13 @@ export const ReviewCreateStep: React.FC = () => {
           </div>
         )}
 
-        <div className={styles.reviewSection}>
-          <div className={styles.reviewSectionTitle}>Workflow Configuration</div>
-          {renderSettingRow(intlText.WORKFLOW_NAME_LABEL, workflowName)}
-          {renderSettingRow(intlText.WORKFLOW_TYPE_LABEL, getWorkflowTypeDisplay(workflowType))}
-        </div>
+        {shouldShowWorkflowSection && (
+          <div className={styles.reviewSection}>
+            <div className={styles.reviewSectionTitle}>Workflow Configuration</div>
+            {renderSettingRow(intlText.WORKFLOW_NAME_LABEL, workflowName)}
+            {renderSettingRow(intlText.WORKFLOW_TYPE_LABEL, getWorkflowTypeDisplay(workflowType))}
+          </div>
+        )}
       </div>
     </div>
   );

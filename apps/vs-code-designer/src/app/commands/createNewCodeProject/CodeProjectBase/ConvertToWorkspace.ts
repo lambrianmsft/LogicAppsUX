@@ -7,6 +7,7 @@ import { AzureWizard, callWithTelemetryAndErrorHandling, DialogResponses } from 
 import type { IActionContext } from '@microsoft/vscode-azext-utils';
 import { ExtensionCommand, ProjectName, type IFunctionWizardContext } from '@microsoft/vscode-extension-logic-apps';
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { window } from 'vscode';
 import {
   getWorkspaceFile,
@@ -190,6 +191,8 @@ export async function convertToWorkspace2(context: IActionContext): Promise<bool
                 });
                 context.telemetry.properties.createContainingWorkspace = 'true';
                 window.showInformationMessage(localize('finishedConvertingWorkspace', 'Finished converting to workspace.'));
+                // Close the webview panel after successful creation
+                panel.dispose();
                 resolve(true); // Only resolve after workspace creation is done
                 break;
               }
@@ -206,6 +209,28 @@ export async function convertToWorkspace2(context: IActionContext): Promise<bool
                       },
                     });
                   }
+                });
+                break;
+              }
+              case ExtensionCommand.validatePath: {
+                const pathToValidate = message.data?.path;
+                let isValid = false;
+                try {
+                  if (pathToValidate && typeof pathToValidate === 'string') {
+                    const stats = fs.statSync(pathToValidate);
+                    isValid = stats.isDirectory();
+                  }
+                } catch (_error) {
+                  isValid = false;
+                }
+
+                panel.webview.postMessage({
+                  command: ExtensionCommand.validatePath,
+                  data: {
+                    project: ProjectName.createWorkspaceStructure,
+                    path: pathToValidate,
+                    isValid: isValid,
+                  },
                 });
                 break;
               }

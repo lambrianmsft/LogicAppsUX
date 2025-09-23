@@ -7,8 +7,8 @@ import { Button, Spinner, Text } from '@fluentui/react-components';
 import { VSCodeContext } from '../../webviewCommunication';
 import type { RootState } from '../../state/store';
 import type { CreateWorkspaceState } from '../../state/createWorkspace/createWorkspaceSlice';
-import { nextStep, previousStep, setCurrentStep } from '../../state/createWorkspace/createWorkspaceSlice';
-import { useContext } from 'react';
+import { nextStep, previousStep, setCurrentStep, setFlowType } from '../../state/createWorkspace/createWorkspaceSlice';
+import { useContext, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { CreateWorkspaceStructSetupStep } from './createWorkspaceStructSetupStep';
 // Import validation patterns for navigation blocking
@@ -37,7 +37,14 @@ export const CreateWorkspaceStructure: React.FC = () => {
     targetFramework,
     logicAppName,
     projectType,
+    workspaceFileJson,
+    pathValidationResults,
   } = createWorkspaceState;
+
+  // Set flow type when component mounts
+  useEffect(() => {
+    dispatch(setFlowType('convertToWorkspace'));
+  }, [dispatch]);
 
   // Calculate total steps - now just 2: Project Setup and Review + Create
   const totalSteps = 2;
@@ -104,11 +111,16 @@ export const CreateWorkspaceStructure: React.FC = () => {
     }),
   };
 
+  // Helper function to check if a name already exists in workspace folders
+  const isNameAlreadyInWorkspace = (name: string): boolean => {
+    return workspaceFileJson?.folders && workspaceFileJson.folders.some((folder: { name: string }) => folder.name === name);
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0: {
         // Project Setup - validate all required fields are present AND properly formatted
-        const workspacePathValid = workspaceProjectPath.path !== '';
+        const workspacePathValid = workspaceProjectPath.path !== '' && pathValidationResults[workspaceProjectPath.path] === true;
         const workspaceNameValid = workspaceName.trim() !== '' && workspaceNameValidation.test(workspaceName.trim());
 
         const baseFieldsValid = workspacePathValid && workspaceNameValid;
@@ -117,7 +129,10 @@ export const CreateWorkspaceStructure: React.FC = () => {
         if (logicAppType === 'customCode') {
           const targetFrameworkValid = targetFramework !== '';
           const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
-          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+          const functionNameValid =
+            functionName.trim() !== '' &&
+            functionNameValidation.test(functionName.trim()) &&
+            !isNameAlreadyInWorkspace(functionName.trim());
 
           return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
         }
@@ -125,7 +140,10 @@ export const CreateWorkspaceStructure: React.FC = () => {
         // If rules engine is selected, validate function fields but not .NET framework
         if (logicAppType === 'rulesEngine') {
           const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
-          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+          const functionNameValid =
+            functionName.trim() !== '' &&
+            functionNameValidation.test(functionName.trim()) &&
+            !isNameAlreadyInWorkspace(functionName.trim());
 
           return baseFieldsValid && functionWorkspaceValid && functionNameValid;
         }
@@ -149,7 +167,7 @@ export const CreateWorkspaceStructure: React.FC = () => {
     switch (stepIndex) {
       case 0: {
         // Project Setup step - validate all required fields with regex validation
-        const workspacePathValid = workspaceProjectPath.path !== '';
+        const workspacePathValid = workspaceProjectPath.path !== '' && pathValidationResults[workspaceProjectPath.path] === true;
         const workspaceNameValid = workspaceName.trim() !== '' && workspaceNameValidation.test(workspaceName.trim());
 
         const baseFieldsValid = workspacePathValid && workspaceNameValid;

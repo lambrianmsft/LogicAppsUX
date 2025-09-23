@@ -6,6 +6,7 @@ import { callWithTelemetryAndErrorHandling, type IActionContext } from '@microso
 import { ExtensionCommand, ProjectName } from '@microsoft/vscode-extension-logic-apps';
 import { ext } from '../../../extensionVariables';
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { cacheWebviewPanel, removeWebviewPanelFromCache, tryGetWebviewPanel } from '../../utils/codeless/common';
 import path from 'path';
 import { getWebViewHTML } from '../../utils/codeless/getWebViewHTML';
@@ -101,6 +102,8 @@ export async function createNewCodeProjectFromCommand(): Promise<void> {
         await callWithTelemetryAndErrorHandling('CreateWorkspace', async (activateContext: IActionContext) => {
           await createLogicAppWorkspace(activateContext, message.data);
         });
+        // Close the webview panel after successful creation
+        panel.dispose();
         break;
       }
       case ExtensionCommand.select_folder: {
@@ -116,6 +119,28 @@ export async function createNewCodeProjectFromCommand(): Promise<void> {
               },
             });
           }
+        });
+        break;
+      }
+      case ExtensionCommand.validatePath: {
+        const pathToValidate = message.data?.path;
+        let isValid = false;
+        try {
+          if (pathToValidate && typeof pathToValidate === 'string') {
+            const stats = fs.statSync(pathToValidate);
+            isValid = stats.isDirectory();
+          }
+        } catch (_error) {
+          isValid = false;
+        }
+
+        panel.webview.postMessage({
+          command: ExtensionCommand.validatePath,
+          data: {
+            project: ProjectName.createWorkspace,
+            path: pathToValidate,
+            isValid: isValid,
+          },
         });
         break;
       }

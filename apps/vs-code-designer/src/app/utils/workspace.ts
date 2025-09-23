@@ -352,6 +352,63 @@ async function selectLogicAppWorkspaceFolderWithoutCustomCode(
   return selectedItem?.data;
 }
 
+interface FolderPicks {
+  label: any;
+  description: any;
+  data: any;
+}
+
+/**
+ * Gets user selection of either an existing logic app that isn't associated with a custom code project or new (undefined) logic app project.
+ * @param {IActionContext} context - Command context.
+ * @returns {Promise<WorkspaceFolder | string | undefined>} Returns either the selected logic app or undefined for a new logic app.
+ */
+export async function getLogicAppWithoutCustomCodeNew(context: IActionContext): Promise<FolderPicks[] | undefined> {
+  if (vscode.workspace.workspaceFolders.length === 1) {
+    const workspaceFolder = vscode.workspace.workspaceFolders[0];
+    const workspaceFolderPath = workspaceFolder.uri.fsPath;
+    if (!(await isLogicAppProject(workspaceFolderPath))) {
+      const folderContents = await fse.readdir(workspaceFolderPath, { withFileTypes: true });
+      const subFolders = folderContents
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => path.join(workspaceFolderPath, dirent.name));
+      return await selectLogicAppWorkspaceFolderWithoutCustomCodeNew(context, false, subFolders);
+    }
+  }
+
+  return await selectLogicAppWorkspaceFolderWithoutCustomCodeNew(context, true, null);
+}
+
+export async function selectLogicAppWorkspaceFolderWithoutCustomCodeNew(
+  context: IActionContext,
+  returnsWorkspaceFolder: boolean,
+  subFolders: string[]
+): Promise<FolderPicks[]> {
+  const logicAppsWorkspaces = [];
+  for (const folder of returnsWorkspaceFolder ? vscode.workspace.workspaceFolders : subFolders) {
+    const projectRoot = await tryGetLogicAppProjectRoot(context, folder);
+    if (projectRoot) {
+      logicAppsWorkspaces.push(projectRoot);
+    }
+  }
+
+  const folderPicksPromises = logicAppsWorkspaces.map(async (projectRoot) => {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.find((folder) => folder.uri.fsPath === projectRoot);
+    const logicAppCustomCodeFunctionsProjects = await tryGetLogicAppCustomCodeFunctionsProjects(projectRoot);
+    if (!logicAppCustomCodeFunctionsProjects || logicAppCustomCodeFunctionsProjects.length === 0) {
+      return {
+        label: path.basename(projectRoot),
+        description: projectRoot,
+        data: returnsWorkspaceFolder ? workspaceFolder : projectRoot,
+      };
+    }
+    return undefined;
+  });
+
+  const folderPicks = (await Promise.all(folderPicksPromises)).filter((item) => item !== undefined);
+  return folderPicks;
+}
+
 /**
  * Gets workflow node structure of JSON file if needed.
  * @param {vscode.Uri | undefined} node - Workflow node.

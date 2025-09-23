@@ -2,8 +2,8 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Text, RadioGroup, Radio, Field, Input } from '@fluentui/react-components';
-import { useState } from 'react';
+import { Text, RadioGroup, Radio, Field, Input, Combobox, Option } from '@fluentui/react-components';
+import { useState, useCallback, useEffect } from 'react';
 import { useCreateWorkspaceStyles } from '../createWorkspaceStyles';
 import type { RootState } from '../../../state/store';
 import type { CreateWorkspaceState } from '../../../state/createWorkspace/createWorkspaceSlice';
@@ -19,7 +19,8 @@ export const LogicAppTypeStep: React.FC = () => {
   const intl = useIntl();
   const styles = useCreateWorkspaceStyles();
   const createWorkspaceState = useSelector((state: RootState) => state.createWorkspace) as CreateWorkspaceState;
-  const { logicAppType, logicAppName, workspaceName, workspaceProjectPath } = createWorkspaceState;
+  const { logicAppType, logicAppName, workspaceName, workspaceProjectPath, workspaceFileJson, logicAppsWithoutCustomCode } =
+    createWorkspaceState;
   const separator = workspaceProjectPath.fsPath?.includes('/') ? '/' : '\\';
 
   // Validation state
@@ -85,20 +86,61 @@ export const LogicAppTypeStep: React.FC = () => {
     }
   };
 
-  const validateLogicAppName = (name: string) => {
-    if (!name) {
-      return 'Logic app name cannot be empty.';
+  const validateLogicAppName = useCallback(
+    (name: string) => {
+      if (!name) {
+        return 'Logic app name cannot be empty.';
+      }
+      if (!logicAppNameValidation.test(name)) {
+        return 'Logic app name must start with a letter and can only contain letters, digits, "_" and "-".';
+      }
+
+      // If custom code or rules engine is selected and the name is from the existing logic apps list, allow it
+      const isCustomCodeOrRulesEngine = logicAppType === 'customCode' || logicAppType === 'rulesEngine';
+      const isExistingLogicApp = logicAppsWithoutCustomCode?.some((app: { label: string }) => app.label === name);
+
+      if (isCustomCodeOrRulesEngine && isExistingLogicApp) {
+        return undefined; // Valid - existing logic app for custom code/rules engine
+      }
+
+      // Check if the logic app name already exists in workspace folders (for new names)
+      if (workspaceFileJson?.folders && workspaceFileJson.folders.some((folder: { name: string }) => folder.name === name)) {
+        return 'A project with this name already exists in the workspace.';
+      }
+      return undefined;
+    },
+    [logicAppType, logicAppsWithoutCustomCode, workspaceFileJson]
+  );
+
+  // Re-validate logic app name when dependencies change
+  useEffect(() => {
+    if (logicAppName) {
+      setLogicAppNameError(validateLogicAppName(logicAppName));
     }
-    if (!logicAppNameValidation.test(name)) {
-      return 'Logic app name must start with a letter and can only contain letters, digits, "_" and "-".';
-    }
-    return undefined;
-  };
+  }, [logicAppType, logicAppsWithoutCustomCode, workspaceFileJson, logicAppName, validateLogicAppName]);
 
   const handleLogicAppNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setLogicAppName(event.target.value));
     setLogicAppNameError(validateLogicAppName(event.target.value));
   };
+
+  const handleComboboxOptionSelect = (_event: any, data: any) => {
+    const value = data.optionValue || '';
+    dispatch(setLogicAppName(value));
+    setLogicAppNameError(validateLogicAppName(value));
+  };
+
+  const handleComboboxChange = (event: any) => {
+    const value = event.target.value || '';
+    dispatch(setLogicAppName(value));
+    setLogicAppNameError(validateLogicAppName(value));
+  };
+
+  // Determine if we should show combobox (when custom code or rules engine is selected and logicAppsWithoutCustomCode is available)
+  const shouldShowCombobox =
+    (logicAppType === 'customCode' || logicAppType === 'rulesEngine') &&
+    logicAppsWithoutCustomCode &&
+    logicAppsWithoutCustomCode.length > 0;
 
   return (
     <div className={styles.formSection}>
@@ -114,12 +156,29 @@ export const LogicAppTypeStep: React.FC = () => {
           validationState={logicAppNameError ? 'error' : undefined}
           validationMessage={logicAppNameError}
         >
-          <Input
-            value={logicAppName}
-            onChange={handleLogicAppNameChange}
-            placeholder={intlText.LOGIC_APP_NAME_PLACEHOLDER}
-            className={styles.inputControl}
-          />
+          {shouldShowCombobox ? (
+            <Combobox
+              value={logicAppName}
+              onOptionSelect={handleComboboxOptionSelect}
+              onChange={handleComboboxChange}
+              placeholder={intlText.LOGIC_APP_NAME_PLACEHOLDER}
+              className={styles.inputControl}
+              freeform
+            >
+              {logicAppsWithoutCustomCode.map((app: { label: string }) => (
+                <Option key={app.label} value={app.label}>
+                  {app.label}
+                </Option>
+              ))}
+            </Combobox>
+          ) : (
+            <Input
+              value={logicAppName}
+              onChange={handleLogicAppNameChange}
+              placeholder={intlText.LOGIC_APP_NAME_PLACEHOLDER}
+              className={styles.inputControl}
+            />
+          )}
           {logicAppName && workspaceName && workspaceProjectPath.path && (
             <Text
               size={200}

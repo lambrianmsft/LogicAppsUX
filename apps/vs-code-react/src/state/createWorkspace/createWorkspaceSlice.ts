@@ -21,6 +21,10 @@ export interface CreateWorkspaceState {
   isLoading: boolean;
   error?: string;
   isComplete: boolean;
+  workspaceFileJson: any;
+  logicAppsWithoutCustomCode: any | undefined;
+  flowType: 'createWorkspace' | 'createLogicApp' | 'convertToWorkspace';
+  pathValidationResults: Record<string, boolean>;
 }
 
 const initialState: CreateWorkspaceState = {
@@ -41,12 +45,21 @@ const initialState: CreateWorkspaceState = {
   openBehavior: '',
   isLoading: false,
   isComplete: false,
+  workspaceFileJson: '',
+  logicAppsWithoutCustomCode: undefined,
+  flowType: 'createWorkspace',
+  pathValidationResults: {},
 };
 
 export const createWorkspaceSlice: any = createSlice({
   name: 'createWorkspace',
   initialState,
   reducers: {
+    initializeProject: (state, action: PayloadAction<any>) => {
+      const { workspaceFileJson, logicAppsWithoutCustomCode } = action.payload;
+      state.workspaceFileJson = workspaceFileJson;
+      state.logicAppsWithoutCustomCode = logicAppsWithoutCustomCode;
+    },
     setCurrentStep: (state, action: PayloadAction<number>) => {
       state.currentStep = action.payload;
     },
@@ -93,6 +106,13 @@ export const createWorkspaceSlice: any = createSlice({
     setOpenBehavior: (state, action: PayloadAction<string>) => {
       state.openBehavior = action.payload;
     },
+    setFlowType: (state, action: PayloadAction<'createWorkspace' | 'createLogicApp' | 'convertToWorkspace'>) => {
+      state.flowType = action.payload;
+    },
+    setPathValidationResult: (state, action: PayloadAction<{ path: string; isValid: boolean }>) => {
+      const { path, isValid } = action.payload;
+      state.pathValidationResults[path] = isValid;
+    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
@@ -118,6 +138,7 @@ export const createWorkspaceSlice: any = createSlice({
 });
 
 export const {
+  initializeProject,
   setCurrentStep,
   setProjectPath,
   setProjectPathAlt,
@@ -131,6 +152,8 @@ export const {
   setLogicAppName,
   setProjectType,
   setOpenBehavior,
+  setFlowType,
+  setPathValidationResult,
   setLoading,
   setError,
   setComplete,

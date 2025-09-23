@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import path from 'path';
 import { getWebViewHTML } from '../../utils/codeless/getWebViewHTML';
 import { createLogicAppProject } from '../createNewCodeProject/CodeProjectBase/CreateLogicAppProjects';
+import { getLogicAppWithoutCustomCodeNew } from '../../utils/workspace';
 
 // export async function createNewProjectFromCommand(
 //   context: IActionContext,
@@ -80,6 +81,10 @@ export async function createNewProjectFromCommand(context: IActionContext): Prom
   const apiVersion = '2021-03-01';
   const existingPanel: vscode.WebviewPanel | undefined = tryGetWebviewPanel(panelGroupKey, panelName);
 
+  const workspaceFileContent = await vscode.workspace.fs.readFile(vscode.workspace.workspaceFile);
+  const workspaceFileJson = JSON.parse(workspaceFileContent.toString());
+  const logicAppsWithoutCustomCode = await getLogicAppWithoutCustomCodeNew(context);
+
   if (existingPanel) {
     if (!existingPanel.active) {
       existingPanel.reveal(vscode.ViewColumn.Active);
@@ -116,6 +121,8 @@ export async function createNewProjectFromCommand(context: IActionContext): Prom
             apiVersion,
             project: ProjectName.createLogicApp,
             hostVersion: ext.extensionVersion,
+            workspaceFileJson: workspaceFileJson,
+            logicAppsWithoutCustomCode: logicAppsWithoutCustomCode,
           },
         });
         break;
@@ -124,6 +131,8 @@ export async function createNewProjectFromCommand(context: IActionContext): Prom
         await callWithTelemetryAndErrorHandling('CreateLogicAppProject', async (activateContext: IActionContext) => {
           await createLogicAppProject(activateContext, message.data, workspaceRootFolder);
         });
+        // Close the webview panel after successful creation
+        panel.dispose();
         break;
       }
       case ExtensionCommand.select_folder: {

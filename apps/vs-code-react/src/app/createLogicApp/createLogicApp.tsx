@@ -7,8 +7,8 @@ import { Button, Spinner, Text } from '@fluentui/react-components';
 import { VSCodeContext } from '../../webviewCommunication';
 import type { RootState } from '../../state/store';
 import type { CreateWorkspaceState } from '../../state/createWorkspace/createWorkspaceSlice';
-import { nextStep, previousStep, setCurrentStep } from '../../state/createWorkspace/createWorkspaceSlice';
-import { useContext } from 'react';
+import { nextStep, previousStep, setCurrentStep, setFlowType } from '../../state/createWorkspace/createWorkspaceSlice';
+import { useContext, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { CreateLogicAppSetupStep } from './createLogicAppSetupStep';
 // Import validation patterns for navigation blocking
@@ -38,7 +38,14 @@ export const CreateLogicApp: React.FC = () => {
     targetFramework,
     logicAppName,
     projectType,
+    workspaceFileJson,
+    logicAppsWithoutCustomCode,
   } = createWorkspaceState;
+
+  // Set flow type when component mounts
+  useEffect(() => {
+    dispatch(setFlowType('createLogicApp'));
+  }, [dispatch]);
 
   // Calculate total steps - now just 2: Project Setup and Review + Create
   const totalSteps = 2;
@@ -105,30 +112,66 @@ export const CreateLogicApp: React.FC = () => {
     }),
   };
 
+  // Helper function to check if a name already exists in workspace folders
+  const isNameAlreadyInWorkspace = (name: string): boolean => {
+    return workspaceFileJson?.folders && workspaceFileJson.folders.some((folder: { name: string }) => folder.name === name);
+  };
+
+  // Helper function to validate logic app name with support for existing logic apps
+  const validateLogicAppNameForNavigation = (name: string): boolean => {
+    if (!name.trim() || !logicAppNameValidation.test(name.trim())) {
+      return false;
+    }
+
+    // If custom code or rules engine is selected and the name is from the existing logic apps list, it's valid
+    const isCustomCodeOrRulesEngine = logicAppType === 'customCode' || logicAppType === 'rulesEngine';
+    const isExistingLogicApp = logicAppsWithoutCustomCode?.some((app: { label: string }) => app.label === name);
+
+    if (isCustomCodeOrRulesEngine && isExistingLogicApp) {
+      return true; // Valid - existing logic app for custom code/rules engine
+    }
+
+    // Check for workspace folder collision (only if not using existing logic app)
+    return !isNameAlreadyInWorkspace(name.trim());
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0: {
         // Project Setup - validate all required fields are present AND properly formatted
         const logicAppTypeValid = logicAppType !== '';
-        const logicAppNameValid = logicAppName.trim() !== '' && logicAppNameValidation.test(logicAppName.trim());
-        const workflowTypeValid = workflowType !== '';
-        const workflowNameValid = workflowName.trim() !== '' && workflowNameValidation.test(workflowName.trim());
+        const logicAppNameValid = validateLogicAppNameForNavigation(logicAppName);
+
+        // Check if an existing logic app is selected
+        const isCustomCodeOrRulesEngine = logicAppType === 'customCode' || logicAppType === 'rulesEngine';
+        const isExistingLogicApp = logicAppsWithoutCustomCode?.some((app: { label: string }) => app.label === logicAppName);
+        const usingExistingLogicApp = isCustomCodeOrRulesEngine && isExistingLogicApp;
+
+        // If using existing logic app, don't validate workflow fields
+        const workflowTypeValid = usingExistingLogicApp || workflowType !== '';
+        const workflowNameValid = usingExistingLogicApp || (workflowName.trim() !== '' && workflowNameValidation.test(workflowName.trim()));
 
         const baseFieldsValid = logicAppTypeValid && logicAppNameValid && workflowTypeValid && workflowNameValid;
 
-        // If custom code is selected, also validate custom code fields
+        // If custom code is selected, also validate custom code fields (required even for existing logic apps)
         if (logicAppType === 'customCode') {
           const targetFrameworkValid = targetFramework !== '';
           const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
-          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+          const functionNameValid =
+            functionName.trim() !== '' &&
+            functionNameValidation.test(functionName.trim()) &&
+            !isNameAlreadyInWorkspace(functionName.trim());
 
           return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
         }
 
-        // If rules engine is selected, validate function fields but not .NET framework
+        // If rules engine is selected, validate function fields but not .NET framework (required even for existing logic apps)
         if (logicAppType === 'rulesEngine') {
           const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
-          const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());
+          const functionNameValid =
+            functionName.trim() !== '' &&
+            functionNameValidation.test(functionName.trim()) &&
+            !isNameAlreadyInWorkspace(functionName.trim());
 
           return baseFieldsValid && functionWorkspaceValid && functionNameValid;
         }
@@ -153,13 +196,20 @@ export const CreateLogicApp: React.FC = () => {
       case 0: {
         // Project Setup step - validate all required fields with regex validation
         const logicAppTypeValid = logicAppType !== '';
-        const logicAppNameValid = logicAppName.trim() !== '' && logicAppNameValidation.test(logicAppName.trim());
-        const workflowTypeValid = workflowType !== '';
-        const workflowNameValid = workflowName.trim() !== '' && workflowNameValidation.test(workflowName.trim());
+        const logicAppNameValid = validateLogicAppNameForNavigation(logicAppName);
+
+        // Check if an existing logic app is selected
+        const isCustomCodeOrRulesEngine = logicAppType === 'customCode' || logicAppType === 'rulesEngine';
+        const isExistingLogicApp = logicAppsWithoutCustomCode?.some((app: { label: string }) => app.label === logicAppName);
+        const usingExistingLogicApp = isCustomCodeOrRulesEngine && isExistingLogicApp;
+
+        // If using existing logic app, don't validate workflow fields
+        const workflowTypeValid = usingExistingLogicApp || workflowType !== '';
+        const workflowNameValid = usingExistingLogicApp || (workflowName.trim() !== '' && workflowNameValidation.test(workflowName.trim()));
 
         const baseFieldsValid = logicAppTypeValid && logicAppNameValid && workflowTypeValid && workflowNameValid;
 
-        // If custom code is selected, also validate custom code fields
+        // If custom code is selected, also validate custom code fields (required even for existing logic apps)
         if (logicAppType === 'customCode') {
           const targetFrameworkValid = targetFramework !== '';
           const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
@@ -168,7 +218,7 @@ export const CreateLogicApp: React.FC = () => {
           return baseFieldsValid && targetFrameworkValid && functionWorkspaceValid && functionNameValid;
         }
 
-        // If rules engine is selected, validate function fields but not .NET framework
+        // If rules engine is selected, validate function fields but not .NET framework (required even for existing logic apps)
         if (logicAppType === 'rulesEngine') {
           const functionWorkspaceValid = functionWorkspace.trim() !== '' && namespaceValidation.test(functionWorkspace.trim());
           const functionNameValid = functionName.trim() !== '' && functionNameValidation.test(functionName.trim());

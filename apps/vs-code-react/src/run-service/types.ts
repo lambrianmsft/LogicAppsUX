@@ -317,6 +317,14 @@ export interface UpdateWorkspacePathMessage {
   };
 }
 
+export interface ValidateWorkspacePathMessage {
+  command: typeof ExtensionCommand.validatePath;
+  data: {
+    path: any;
+    isValid: boolean;
+  };
+}
+
 export interface AddStatusMessage {
   command: typeof ExtensionCommand.add_status;
   data: {

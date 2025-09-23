@@ -251,6 +251,18 @@ export async function createLogicAppProject(context: IActionContext, options: an
   addLocalFuncTelemetry(context);
 
   const myWebviewProjectContext: IWebviewProjectContext = options;
+  // Create the workspace folder
+  const workspaceFolder = workspaceRootFolder;
+  // Path to the logic app folder
+  const logicAppFolderPath = path.join(workspaceFolder, myWebviewProjectContext.logicAppName);
+
+  // Check if the logic app directory already exists
+  const logicAppExists = await fse.pathExists(logicAppFolderPath);
+  let doesLogicAppExist = false;
+  if (logicAppExists) {
+    // Check if it's actually a Logic App project
+    doesLogicAppExist = await isLogicAppProject(logicAppFolderPath);
+  }
 
   //   await createWorkspaceStructure(myWebviewProjectContext);
   // Check if we're in a workspace and get the workspace folder
@@ -259,9 +271,9 @@ export async function createLogicAppProject(context: IActionContext, options: an
     // Get the directory containing the .code-workspace file
     const workspaceFilePath = vscode.workspace.workspaceFile.fsPath;
     myWebviewProjectContext.workspaceFilePath = workspaceFilePath;
-    myWebviewProjectContext.shouldCreateLogicAppProject = true;
+    myWebviewProjectContext.shouldCreateLogicAppProject = !doesLogicAppExist;
     // need to get logic app in projects
-    updateWorkspaceFile(myWebviewProjectContext);
+    await updateWorkspaceFile(myWebviewProjectContext);
   } else {
     // Fall back to the newly created workspace folder if not in a workspace
     vscode.window.showErrorMessage(
@@ -269,11 +281,6 @@ export async function createLogicAppProject(context: IActionContext, options: an
     );
     return;
   }
-
-  // Create the workspace folder
-  const workspaceFolder = workspaceRootFolder;
-  // Path to the logic app folder
-  const logicAppFolderPath = path.join(workspaceFolder, myWebviewProjectContext.logicAppName);
 
   const mySubContext: IFunctionWizardContext = context as IFunctionWizardContext;
   mySubContext.logicAppName = options.logicAppName;
@@ -283,14 +290,6 @@ export async function createLogicAppProject(context: IActionContext, options: an
   mySubContext.functionAppNamespace = options.functionWorkspace;
   mySubContext.targetFramework = options.targetFramework;
   mySubContext.workspacePath = workspaceFolder;
-
-  // Check if the logic app directory already exists
-  const logicAppExists = await fse.pathExists(logicAppFolderPath);
-  let doesLogicAppExist = false;
-  if (logicAppExists) {
-    // Check if it's actually a Logic App project
-    doesLogicAppExist = await isLogicAppProject(logicAppFolderPath);
-  }
 
   if (!doesLogicAppExist) {
     await createLogicAppAndWorkflow(myWebviewProjectContext, logicAppFolderPath);
