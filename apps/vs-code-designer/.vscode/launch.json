@@ -14,6 +14,21 @@
       "preLaunchTask": "npm: test:e2e-cli:compile"
     },
     {
+      "name": "Chat Tests (Extension Host)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/dist",
+        "--extensionTestsPath=${workspaceFolder}/out/test/e2e/runChatTests",
+        "${workspaceFolder}/e2e/test-workspace"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/out/test/e2e/**/*.js",
+        "${workspaceFolder}/dist/**/*.js"
+      ],
+      "preLaunchTask": "npm: test:e2e-cli:compile"
+    },
+    {
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",

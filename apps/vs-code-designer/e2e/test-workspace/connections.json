@@ -1,0 +1,18 @@
+{
+  "serviceProviderConnections": {
+    "AzureBlob": {
+      "serviceProvider": {
+        "id": "/serviceProviders/AzureBlob"
+      },
+      "parameterValues": {},
+      "displayName": "AzureBlob"
+    },
+    "serviceBus": {
+      "serviceProvider": {
+        "id": "/serviceProviders/serviceBus"
+      },
+      "parameterValues": {},
+      "displayName": "serviceBus"
+    }
+  }
+}

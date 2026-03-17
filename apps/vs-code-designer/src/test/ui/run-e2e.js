@@ -571,6 +571,9 @@ async function main() {
 
   const phase7Files = [testFile('demo.test.js'), testFile('smoke.test.js'), testFile('standalone.test.js'), testFile('dataMapper.test.js')];
 
+  // Chat tests - requires GitHub Copilot to be installed and authenticated
+  const chatPhaseFiles = [testFile('chat-help.test.js'), testFile('chat-list-get.test.js')];
+
   // Conversion tests (ADO #31054994, Steps 5-15)
   // Each gets its own session because they need different startup folders.
   const phase8aFiles = [testFile('workspaceConversionNo.test.js')];
@@ -704,6 +707,70 @@ async function main() {
       const finalExit = Math.max(...exits);
       console.log(`\n=== New tests results: ${exits.map((c, i) => `4.${i + 3}=${c}`).join(', ')} → exit ${finalExit} ===`);
       process.exit(finalExit);
+    }
+
+    if (e2eMode === 'chatonly') {
+      // Run only the chat tests - requires GitHub Copilot extension + GitHub auth.
+      //
+      // The test VS Code uses --use-mock-keychain (added by ChromeDriver automation),
+      // which prevents reading the real OS keychain. To authenticate GitHub Copilot,
+      // we inject GITHUB_TOKEN into the process environment. VS Code's built-in
+      // GitHub authentication provider reads this env var.
+      //
+      // The token is obtained from `gh auth token` (GitHub CLI).
+      await extest.downloadCode(VSCODE_VERSION);
+      await extest.downloadChromeDriver(VSCODE_VERSION);
+      const wsResources = getPhase2Resources();
+
+      // Inject GitHub token for Copilot authentication
+      if (!process.env.GITHUB_TOKEN) {
+        try {
+          const { execSync } = require('child_process');
+          const ghToken = execSync('gh auth token', { encoding: 'utf-8', timeout: 5000 }).trim();
+          if (ghToken && ghToken.length > 0) {
+            process.env.GITHUB_TOKEN = ghToken;
+            console.log(`  ✓ Injected GITHUB_TOKEN from gh CLI (${ghToken.length} chars)`);
+          } else {
+            console.warn('  ⚠ gh auth token returned empty. Chat tests may fail.');
+          }
+        } catch (e) {
+          console.warn(`  ⚠ Could not get GitHub token via gh CLI: ${e.message}`);
+          console.warn('  Set GITHUB_TOKEN env var or run `gh auth login` first.');
+          console.warn('  Chat tests require GitHub Copilot authentication.');
+        }
+      } else {
+        console.log(`  ✓ GITHUB_TOKEN already set (${process.env.GITHUB_TOKEN.length} chars)`);
+      }
+
+      await prepareFreshSession('chat-only');
+
+      // Install GitHub Copilot extensions (not in extensionDependencies)
+      const copilotExts = ['github.copilot', 'github.copilot-chat'];
+      for (const ext of copilotExts) {
+        const extLower = ext.toLowerCase();
+        const alreadyInstalled =
+          fs.existsSync(extDir) &&
+          fs.readdirSync(extDir).some((entry) => {
+            if (entry === 'extensions.json' || entry === '.obsolete') return false;
+            return entry.toLowerCase().startsWith(extLower + '-');
+          });
+        if (alreadyInstalled) {
+          console.log(`  ✓ ${ext} already installed`);
+        } else {
+          console.log(`  ⏳ Installing ${ext}...`);
+          try {
+            await extest.installFromMarketplace(ext);
+            console.log(`  ✓ ${ext} installed`);
+          } catch (e) {
+            console.warn(`  ⚠ ${ext} install failed: ${e.message}`);
+          }
+        }
+      }
+
+      const chatExit = await runPhase('Chat Tests: help & list-get', chatPhaseFiles, {
+        resources: wsResources,
+      });
+      process.exit(chatExit);
     }
 
     if (e2eMode === 'conversiononly') {
@@ -1022,4 +1089,3 @@ main().catch((err) => {
   console.error('Fatal error in E2E launcher:', err);
   process.exit(1);
 });
-

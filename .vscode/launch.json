@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "0.2.0",
   "configurations": [
     {
       "name": "Run Designer Extension in Dev Mode",
@@ -14,6 +14,21 @@
       "env": {
         "DEBUGTELEMETRY": "v"
       }
+    },
+    {
+      "name": "Chat Tests (Extension Host)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/apps/vs-code-designer/dist",
+        "--extensionTestsPath=${workspaceFolder}/apps/vs-code-designer/out/test/e2e/runChatTests",
+        "${workspaceFolder}/apps/vs-code-designer/e2e/test-workspace/test-workspace.code-workspace"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/apps/vs-code-designer/out/test/e2e/**/*.js",
+        "${workspaceFolder}/apps/vs-code-designer/dist/**/*.js"
+      ]
     }
   ]
 }

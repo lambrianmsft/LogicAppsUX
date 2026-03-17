@@ -13,6 +13,13 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "build:chat-tests",
+      "type": "shell",
+      "command": "pnpm run build:extension && cd apps/vs-code-designer && pnpm run test:e2e-cli:compile",
+      "group": "build",
+      "problemMatcher": "$tsc"
     }
   ]
 }

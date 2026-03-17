@@ -438,31 +438,40 @@ export function buildTriggerDefinition(actionType: string, configuration?: Recor
 export function buildActionDefinition(actionType: string, configuration?: Record<string, unknown>): Record<string, unknown> {
   const config = configuration ? { ...configuration } : {};
   const hasExplicitType = Object.prototype.hasOwnProperty.call(config, 'type');
+  const rawInputs = config.inputs;
   const topLevelInputs =
-    typeof config.inputs === 'object' && config.inputs !== null
-      ? ({ ...(config.inputs as Record<string, unknown>) } as Record<string, unknown>)
+    typeof rawInputs === 'object' && rawInputs !== null
+      ? ({ ...(rawInputs as Record<string, unknown>) } as Record<string, unknown>)
       : undefined;
+  // Preserve non-object inputs (strings, numbers, arrays, expressions) — used by Compose actions
+  const hasNonObjectInputs = rawInputs !== undefined && (typeof rawInputs !== 'object' || rawInputs === null);
   const topLevelRunAfter =
     typeof config.runAfter === 'object' && config.runAfter !== null
       ? ({ ...(config.runAfter as Record<string, unknown>) } as Record<string, unknown>)
       : undefined;
 
-  if (hasExplicitType || topLevelInputs || topLevelRunAfter) {
+  if (hasExplicitType || topLevelInputs || hasNonObjectInputs || topLevelRunAfter) {
     const actionDefinition: Record<string, unknown> = {
       ...config,
       type: actionType,
     };
 
-    const resolvedInputs = topLevelInputs ? { ...topLevelInputs } : {};
-    const nestedRunAfter =
-      typeof resolvedInputs.runAfter === 'object' && resolvedInputs.runAfter !== null
-        ? ({ ...(resolvedInputs.runAfter as Record<string, unknown>) } as Record<string, unknown>)
-        : undefined;
+    if (hasNonObjectInputs) {
+      // Non-object inputs (e.g., string for Compose) — preserve as-is
+      actionDefinition.inputs = rawInputs;
+      actionDefinition.runAfter = topLevelRunAfter ?? {};
+    } else {
+      const resolvedInputs = topLevelInputs ? { ...topLevelInputs } : {};
+      const nestedRunAfter =
+        typeof resolvedInputs.runAfter === 'object' && resolvedInputs.runAfter !== null
+          ? ({ ...(resolvedInputs.runAfter as Record<string, unknown>) } as Record<string, unknown>)
+          : undefined;
 
-    delete resolvedInputs.runAfter;
+      delete resolvedInputs.runAfter;
 
-    actionDefinition.inputs = resolvedInputs;
-    actionDefinition.runAfter = topLevelRunAfter ?? nestedRunAfter ?? {};
+      actionDefinition.inputs = resolvedInputs;
+      actionDefinition.runAfter = topLevelRunAfter ?? nestedRunAfter ?? {};
+    }
 
     return actionDefinition;
   }

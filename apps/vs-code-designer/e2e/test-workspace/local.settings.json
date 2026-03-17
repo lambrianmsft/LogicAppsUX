@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_INPROC_NET8_ENABLED": "1",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "APP_KIND": "workflowapp",
+    "ProjectDirectoryPath": "d:\\New folder\\testworkspace\\logicapp",
+    "WORKFLOWS_TENANT_ID": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+    "WORKFLOWS_SUBSCRIPTION_ID": "80d4fe69-c95b-4dd2-a938-9250f1c8ab03",
+    "WORKFLOWS_RESOURCE_GROUP_NAME": "lambrian_iactest",
+    "WORKFLOWS_LOCATION_NAME": "eastus2euap",
+    "WORKFLOWS_MANAGEMENT_BASE_URI": "https://management.azure.com/",
+    "WORKFLOWS_AUTHENTICATION_METHOD": "rawKeys",
+    "Workflows.DynamicConnection.DefaultAuthenticationAudience": "https://management.core.windows.net/"
+  }
+}
