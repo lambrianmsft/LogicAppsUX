@@ -1,4 +1,4 @@
-import Constants from '../../../common/constants';
+import Constants, { MCP_AUTH_PROPERTY_KEYS } from '../../../common/constants';
 import type { ConnectionReferences, Workflow, WorkflowParameter } from '../../../common/models/workflow';
 import type { WorkflowNode } from '../../parsers/models/workflowNode';
 import { getConnectorWithSwagger } from '../../queries/connections';
@@ -556,10 +556,24 @@ const serializeBuiltInMcpOperation = async (rootState: RootState, nodeId: string
   const connectionReference = referenceKey ? getRecordEntry(rootState.connections.connectionReferences, referenceKey) : undefined;
   const connectionId = connectionReference?.connection?.id;
 
+  // All auth-related property keys that can appear in parameterValues
+
   let mcpServerUrl = existingConnectionInput?.McpServerUrl ?? '';
-  let authenticationType = existingConnectionInput?.Authentication ?? 'None';
-  let authIdentity: string | undefined = existingConnectionInput?.Identity;
-  let authAudience: string | undefined = existingConnectionInput?.Audience;
+  // Authentication can be a string (e.g., 'None') or an object (e.g., { type: 'ManagedServiceIdentity', audience: '...' })
+  // Collect all auth-related params so we can rebuild the full Authentication object
+  let authenticationType = 'None';
+  let authParams: Record<string, any> = {};
+  const existingAuth = existingConnectionInput?.Authentication;
+  if (typeof existingAuth === 'object' && existingAuth !== null) {
+    authenticationType = existingAuth.type ?? 'None';
+    for (const prop of MCP_AUTH_PROPERTY_KEYS) {
+      if (existingAuth[prop] != null) {
+        authParams[prop] = existingAuth[prop];
+      }
+    }
+  } else {
+    authenticationType = existingAuth ?? 'None';
+  }
 
   if (connectionId) {
     try {
@@ -568,12 +582,13 @@ const serializeBuiltInMcpOperation = async (rootState: RootState, nodeId: string
       if (parameterValues) {
         mcpServerUrl = parameterValues.mcpServerUrl ?? mcpServerUrl;
         authenticationType = parameterValues.authenticationType ?? authenticationType;
-        authIdentity = Object.prototype.hasOwnProperty.call(parameterValues, 'identity')
-          ? (parameterValues.identity ?? undefined)
-          : undefined;
-        authAudience = Object.prototype.hasOwnProperty.call(parameterValues, 'audience')
-          ? (parameterValues.audience ?? undefined)
-          : undefined;
+        // Collect all auth-related params from parameterValues
+        authParams = {};
+        for (const prop of MCP_AUTH_PROPERTY_KEYS) {
+          if (parameterValues[prop] != null) {
+            authParams[prop] = parameterValues[prop];
+          }
+        }
       }
     } catch {
       // Keep existing values when connection lookup fails.
@@ -587,14 +602,13 @@ const serializeBuiltInMcpOperation = async (rootState: RootState, nodeId: string
   let inputs: Record<string, any> | undefined;
   if (mcpServerUrl) {
     const connectionBlock: Record<string, any> = {
-      Authentication: authenticationType,
       McpServerUrl: mcpServerUrl,
     };
-    if (authIdentity) {
-      connectionBlock.Identity = authIdentity;
-    }
-    if (authAudience) {
-      connectionBlock.Audience = authAudience;
+    // Build Authentication as an object for non-None auth types (expected by consumption backend)
+    if (authenticationType && authenticationType !== 'None') {
+      connectionBlock.Authentication = { type: authenticationType, ...authParams };
+    } else {
+      connectionBlock.Authentication = authenticationType;
     }
     inputs = {
       Connection: connectionBlock,

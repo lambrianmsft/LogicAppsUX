@@ -53,6 +53,36 @@ const VARIABLE_TYPE = {
   STRING: 'string',
 };
 
+/**
+ * Auth-related property keys that can appear in MCP connection parameterValues.
+ * Shared across serializer and deserializer to avoid drift.
+ */
+export const MCP_AUTH_PROPERTY_KEYS = [
+  'audience',
+  'identity',
+  'key',
+  'keyHeaderName',
+  'username',
+  'password',
+  'value',
+  'clientId',
+  'secret',
+  'tenant',
+  'authority',
+  'pfx',
+] as const;
+
+/**
+ * Checks whether a connector is a managed MCP connector (API Hub MCP, not built-in).
+ * Uses the connector type ('McpClient') or the managedApis path segment + 'mcp' suffix convention
+ * (e.g., a365mcp, githubmcp, stripemcp) as a fallback.
+ */
+export const isManagedMcpConnector = (connector: { id?: string; type?: string; properties?: { capabilities?: string[] } }): boolean => {
+  const id = connector.id?.toLowerCase() ?? '';
+  const isMcp = connector.type?.toLowerCase() === 'mcpclient' || /managedapis\/[^/]*mcp/.test(id);
+  return isMcp && !connector.properties?.capabilities?.includes('builtin');
+};
+
 export default {
   API_TIER: {
     PREMIUM: 'PREMIUM',
