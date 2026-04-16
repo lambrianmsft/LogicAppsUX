@@ -13,12 +13,17 @@ import {
   connectionsFileName,
   extensionCommand,
   localSettingsFileName,
+  logicAppsStandardExtensionId,
   managementApiPrefix,
+  workflowAuthenticationMethodKey,
   workflowFileName,
+  workflowLocationKey,
   workflowManagementBaseURIKey,
+  workflowResourceGroupNameKey,
   workflowTenantIdKey,
+  workflowSubscriptionIdKey,
 } from '../../../constants';
-import { getAuthorizationToken } from '../../utils/codeless/getAuthorizationToken';
+import { getAuthorizationToken, getAuthData } from '../../utils/codeless/getAuthorizationToken';
 import { HttpClient } from '@microsoft/vscode-extension-logic-apps';
 import { ext } from '../../../extensionVariables';
 
@@ -150,6 +155,25 @@ function constructManagedApiConnectorId(basePath: string, connectorShortName: st
   return `${basePath.replace(/\/+$/, '')}/${connectorShortName.toLowerCase()}`;
 }
 
+/**
+ * Construct the managedApi base path from local.settings.json values when
+ * no existing managed connections are available to extract it from.
+ *
+ * Returns e.g. `/subscriptions/{sub}/providers/Microsoft.Web/locations/{loc}/managedApis/`
+ * @internal Exported for testing
+ */
+export function constructManagedApiBasePathFromSettings(localSettingsValues?: Record<string, string>): string | undefined {
+  if (!localSettingsValues) {
+    return undefined;
+  }
+  const subscriptionId = localSettingsValues.WORKFLOWS_SUBSCRIPTION_ID;
+  const location = localSettingsValues.WORKFLOWS_LOCATION_NAME;
+  if (subscriptionId && location) {
+    return `/subscriptions/${subscriptionId}/providers/Microsoft.Web/locations/${location}/managedApis/`;
+  }
+  return undefined;
+}
+
 async function addPlaceholderManagedApiConnection(projectPath: string, referenceName: string, connectorId: string): Promise<void> {
   const connectionsPath = path.join(projectPath, connectionsFileName);
   let connectionsData: Record<string, unknown> = {};
@@ -176,6 +200,1499 @@ async function addPlaceholderManagedApiConnection(projectPath: string, reference
   console.log(`[chat-tools] Added placeholder managed API connection for "${referenceName}"`);
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Managed API Connection: reuse existing / create + OAuth
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Info about an existing Azure API connection resource
+ */
+/**
+ * Info about an existing Azure API connection resource
+ * @internal Exported for testing
+ */
+export interface ExistingApiConnection {
+  id: string;
+  name: string;
+  displayName?: string;
+  connectorId?: string;
+}
+
+/**
+ * Result of attempting to resolve a managed API connection automatically
+ * @internal Exported for testing
+ */
+export interface ManagedApiConnectionResolution {
+  /** Whether the connection was resolved (existing reused or new created) */
+  success: boolean;
+  /** The ARM resource ID of the connection, if resolved */
+  connectionId?: string;
+  /** Display name of the connection used */
+  connectionName?: string;
+  /** Message for the chat response */
+  message?: string;
+}
+
+/**
+ * Extract the short connector name from a full managedApi connector ID.
+ * e.g. `/subscriptions/.../managedApis/outlook` → `outlook`
+ * @internal Exported for testing
+ */
+export function getConnectorShortName(connectorId: string): string {
+  return connectorId.split('/').pop() ?? connectorId;
+}
+
+/**
+ * List existing API connections in a resource group that match a specific connector.
+ *
+ * ARM call: GET /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Web/connections
+ *   ?api-version=2018-07-01-preview
+ *   &$filter=ManagedApiName eq '{shortName}' and Kind eq 'V2'
+ * @internal Exported for testing
+ */
+export async function listExistingApiConnections(azureContext: AzureContext, connectorShortName: string): Promise<ExistingApiConnection[]> {
+  if (!azureContext.resourceGroup) {
+    return [];
+  }
+  try {
+    const token = await getAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+    let filterParts = `ManagedApiName eq '${connectorShortName}' and Kind eq 'V2'`;
+    if (azureContext.location) {
+      filterParts = `Location eq '${azureContext.location}' and ${filterParts}`;
+    }
+    const url = `${baseUrl}/subscriptions/${azureContext.subscriptionId}/resourceGroups/${azureContext.resourceGroup}/providers/Microsoft.Web/connections?api-version=2018-07-01-preview&$filter=${encodeURIComponent(filterParts)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      console.log(`[chat-tools] Failed to list API connections: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const data = (await response.json()) as {
+      value?: Array<{
+        id: string;
+        name: string;
+        properties?: { displayName?: string; api?: { id?: string } };
+      }>;
+    };
+    return (data.value ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      displayName: c.properties?.displayName,
+      connectorId: c.properties?.api?.id,
+    }));
+  } catch (error) {
+    console.log(`[chat-tools] Error listing existing API connections: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Result of fetching connection keys, including the runtime URL required for connections.json.
+ * @internal Exported for testing
+ */
+export interface ConnectionKeyResult {
+  connectionKey?: string;
+  connectionRuntimeUrl?: string;
+}
+
+/**
+ * Fetch connection keys and runtime URL for an existing API Hub connection.
+ *
+ * POST /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Web/connections/{name}/listConnectionKeys
+ * @internal Exported for testing
+ */
+export async function fetchConnectionKey(connectionId: string, azureContext: AzureContext): Promise<ConnectionKeyResult | undefined> {
+  try {
+    const token = await getAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}${connectionId}/listConnectionKeys?api-version=2018-07-01-preview`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ validityTimeSpan: '7' }),
+    });
+
+    if (!response.ok) {
+      console.log(`[chat-tools] Failed to fetch connection keys: ${response.status}`);
+      return undefined;
+    }
+
+    const data = (await response.json()) as { connectionKey?: string; runtimeUrls?: string[] };
+    return {
+      connectionKey: data.connectionKey,
+      connectionRuntimeUrl: data.runtimeUrls?.[0],
+    };
+  } catch (error) {
+    console.log(`[chat-tools] Error fetching connection key: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Write a fully-populated managed API connection entry (with real connection.id and key)
+ * into connections.json and local.settings.json.
+ *
+ * When useMSI is true, uses ManagedServiceIdentity authentication and skips connection key storage.
+ * @internal Exported for testing
+ */
+export async function addRealManagedApiConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  connectionResourceId: string,
+  connectionKey?: string,
+  useMSI = false,
+  connectionRuntimeUrl?: string
+): Promise<void> {
+  const connectionsPath = path.join(projectPath, connectionsFileName);
+  const localSettingsPath = path.join(projectPath, localSettingsFileName);
+
+  // Read and update connections.json
+  let connectionsData: Record<string, unknown> = {};
+  try {
+    if (await fse.pathExists(connectionsPath)) {
+      connectionsData = (await fse.readJson(connectionsPath)) as Record<string, unknown>;
+    }
+  } catch {
+    connectionsData = {};
+  }
+  if (typeof connectionsData.managedApiConnections !== 'object' || connectionsData.managedApiConnections === null) {
+    connectionsData.managedApiConnections = {};
+  }
+  const managed = connectionsData.managedApiConnections as Record<string, unknown>;
+
+  const connectionEntry: Record<string, unknown> = {
+    api: { id: connectorId },
+    connection: { id: connectionResourceId },
+  };
+
+  if (connectionRuntimeUrl) {
+    connectionEntry.connectionRuntimeUrl = connectionRuntimeUrl;
+  }
+
+  if (useMSI) {
+    connectionEntry.authentication = { type: 'ManagedServiceIdentity' };
+  } else {
+    const appSettingKey = `${referenceName}-connectionKey`;
+    connectionEntry.authentication = { type: 'Raw', scheme: 'Key', parameter: `@appsetting('${appSettingKey}')` };
+  }
+
+  managed[referenceName] = connectionEntry;
+  await fse.writeJson(connectionsPath, connectionsData, { spaces: 2 });
+
+  // Store the connection key in local.settings.json (only for Raw Keys, not MSI)
+  if (!useMSI && connectionKey) {
+    const appSettingKey = `${referenceName}-connectionKey`;
+    let localSettings: Record<string, unknown> = {};
+    try {
+      if (await fse.pathExists(localSettingsPath)) {
+        localSettings = (await fse.readJson(localSettingsPath)) as Record<string, unknown>;
+      }
+    } catch {
+      localSettings = {};
+    }
+    if (typeof localSettings.Values !== 'object' || localSettings.Values === null) {
+      localSettings.Values = {};
+    }
+    (localSettings.Values as Record<string, string>)[appSettingKey] = connectionKey;
+    await fse.writeJson(localSettingsPath, localSettings, { spaces: 2 });
+  }
+  console.log(`[chat-tools] Added real managed API connection for "${referenceName}" → ${connectionResourceId} (MSI=${useMSI})`);
+}
+
+/**
+ * Try to reuse an existing Azure API connection from the resource group.
+ * Auto-picks the first match and mentions alternatives in the result message.
+ * @internal Exported for testing
+ */
+export async function tryReuseExistingConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  azureContext: AzureContext
+): Promise<ManagedApiConnectionResolution> {
+  const shortName = getConnectorShortName(connectorId);
+  const existing = await listExistingApiConnections(azureContext, shortName);
+
+  if (existing.length === 0) {
+    return { success: false };
+  }
+
+  // Auto-pick the first connection
+  const picked = existing[0];
+  console.log(`[chat-tools] Reusing existing connection "${picked.name}" for "${referenceName}"`);
+
+  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
+
+  // Fetch connection key and runtime URL (MSI doesn't need a key)
+  const keyResult = useMSI ? undefined : await fetchConnectionKey(picked.id, azureContext);
+  await addRealManagedApiConnection(
+    projectPath,
+    referenceName,
+    connectorId,
+    picked.id,
+    keyResult?.connectionKey,
+    useMSI,
+    keyResult?.connectionRuntimeUrl
+  );
+
+  // Build response message with alternatives
+  let message = `Connected using existing connection "${picked.displayName || picked.name}" in resource group "${azureContext.resourceGroup}".`;
+  if (existing.length > 1) {
+    const others = existing
+      .slice(1)
+      .map((c) => c.displayName || c.name)
+      .join(', ');
+    message += ` (Also available: ${others})`;
+  }
+
+  return {
+    success: true,
+    connectionId: picked.id,
+    connectionName: picked.displayName || picked.name,
+    message,
+  };
+}
+
+/**
+ * Pending OAuth callback tracker. Resolves with the auth code when the
+ * `logicapps://authcomplete` URI redirect is received.
+ */
+const pendingOAuthCallbacks = new Map<string, { resolve: (code: string) => void; reject: (err: Error) => void }>();
+
+/**
+ * Register a pending OAuth callback for testing.
+ * Returns a promise that resolves when handleChatOAuthRedirect is called with the matching pid.
+ * @internal Exported for testing
+ */
+export function registerPendingOAuthCallback(pid: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    pendingOAuthCallbacks.set(pid, { resolve, reject });
+  });
+}
+
+/**
+ * Handle an OAuth redirect aimed at the chat agent (not the designer webview).
+ * Called from the UriHandler when the pid matches a pending chat OAuth request.
+ */
+export function handleChatOAuthRedirect(queryParams: Record<string, string>): boolean {
+  const pid = queryParams['pid'];
+  if (!pid || !pendingOAuthCallbacks.has(pid)) {
+    return false;
+  }
+  const pending = pendingOAuthCallbacks.get(pid)!;
+  pendingOAuthCallbacks.delete(pid);
+
+  if (queryParams['error']) {
+    pending.reject(new Error(queryParams['error']));
+  } else {
+    pending.resolve(queryParams['code'] || 'valid');
+  }
+  return true;
+}
+
+/**
+ * Create a new API connection in Azure via ARM and complete OAuth consent inline.
+ *
+ * 1. PUT connection resource to ARM
+ * 2. POST listConsentLinks → get consent URL
+ * 3. Open browser for user to authenticate
+ * 4. Wait for logicapps://authcomplete callback
+ * 5. POST confirmConsentCode
+ * 6. Fetch connection key
+ * 7. Write connections.json + local.settings.json
+ */
+async function createAndAuthManagedApiConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  azureContext: AzureContext
+): Promise<ManagedApiConnectionResolution> {
+  if (!azureContext.resourceGroup || !azureContext.location) {
+    return { success: false, message: 'Resource group and location required to create connection.' };
+  }
+
+  const token = await getAuthorizationToken(azureContext.tenantId);
+  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+  const connectionName = `${referenceName}-${Date.now().toString(36)}`;
+  const connectionResourceId =
+    `/subscriptions/${azureContext.subscriptionId}` +
+    `/resourceGroups/${azureContext.resourceGroup}` +
+    `/providers/Microsoft.Web/connections/${connectionName}`;
+
+  // Step 1: PUT to create the connection resource
+  const putUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
+  const putBody = {
+    properties: {
+      api: { id: connectorId },
+      displayName: referenceName,
+    },
+    kind: 'V2',
+    location: azureContext.location,
+  };
+
+  try {
+    const putResponse = await fetch(putUrl, {
+      method: 'PUT',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(putBody),
+    });
+
+    if (!putResponse.ok) {
+      const errorText = await putResponse.text().catch(() => '');
+      console.log(`[chat-tools] Failed to create connection resource: ${putResponse.status} ${errorText}`);
+      return { success: false, message: `Failed to create connection in Azure (${putResponse.status}).` };
+    }
+  } catch (error) {
+    console.log(`[chat-tools] Error creating connection: ${error instanceof Error ? error.message : String(error)}`);
+    return { success: false, message: 'Network error creating connection in Azure.' };
+  }
+
+  // Step 2: Get consent URL via listConsentLinks
+  const authSession = await getAuthData(azureContext.tenantId);
+  const accessToken = authSession?.accessToken;
+  if (!accessToken) {
+    return { success: false, message: 'Could not obtain Azure authentication session.' };
+  }
+
+  // Decode JWT to get objectId and tenantId
+  let userObjectId: string | undefined;
+  let userTenantId: string | undefined;
+  try {
+    const payloadBase64 = accessToken.split('.')[1];
+    const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
+    userObjectId = payload.oid;
+    userTenantId = payload.tid;
+  } catch {
+    console.log('[chat-tools] Failed to decode JWT for OAuth consent');
+  }
+  if (!userObjectId || !userTenantId) {
+    return { success: false, message: 'Could not extract user identity from auth token.' };
+  }
+
+  // Build the OAuth redirect URL
+  const pid = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const callbackUri = await (vscode.env as any).asExternalUri(
+    vscode.Uri.parse(`${vscode.env.uriScheme}://${logicAppsStandardExtensionId}/authcomplete`)
+  );
+  const redirectUrl = `${callbackUri.toString(true)}?pid=${pid}`;
+
+  const consentUrl = await fetchConsentUrl(connectionResourceId, userObjectId, userTenantId, redirectUrl, token, baseUrl);
+
+  if (!consentUrl) {
+    return { success: false, message: 'Could not obtain OAuth consent URL from Azure.' };
+  }
+
+  // Step 3+4: Open browser and wait for callback
+  const codePromise = new Promise<string>((resolve, reject) => {
+    pendingOAuthCallbacks.set(pid, { resolve, reject });
+
+    // 5-minute timeout
+    setTimeout(() => {
+      if (pendingOAuthCallbacks.has(pid)) {
+        pendingOAuthCallbacks.delete(pid);
+        reject(new Error('OAuth authentication timed out after 5 minutes.'));
+      }
+    }, 300_000);
+  });
+
+  await vscode.env.openExternal(vscode.Uri.parse(consentUrl));
+  vscode.window.showInformationMessage('Please complete authentication in your browser to connect.');
+
+  let authCode: string;
+  try {
+    authCode = await codePromise;
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'OAuth authentication failed.' };
+  }
+
+  // Step 5: Confirm consent code
+  if (authCode !== 'valid') {
+    const confirmOk = await confirmConsentCode(connectionResourceId, authCode, userObjectId, userTenantId, token, baseUrl);
+    if (!confirmOk) {
+      return { success: false, message: 'Failed to confirm OAuth authorization code.' };
+    }
+  }
+
+  // Step 6+7: Fetch connection key and write to connections.json + local.settings.json
+  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
+  const keyResult = useMSI ? undefined : await fetchConnectionKey(connectionResourceId, azureContext);
+  await addRealManagedApiConnection(
+    projectPath,
+    referenceName,
+    connectorId,
+    connectionResourceId,
+    keyResult?.connectionKey,
+    useMSI,
+    keyResult?.connectionRuntimeUrl
+  );
+
+  return {
+    success: true,
+    connectionId: connectionResourceId,
+    connectionName,
+    message: `Created and authenticated connection "${referenceName}" in resource group "${azureContext.resourceGroup}".`,
+  };
+}
+
+/**
+ * POST listConsentLinks to get OAuth consent URL for a connection.
+ */
+async function fetchConsentUrl(
+  connectionResourceId: string,
+  objectId: string,
+  tenantId: string,
+  redirectUrl: string,
+  token: string,
+  baseUrl: string
+): Promise<string | undefined> {
+  try {
+    const url = `${baseUrl}${connectionResourceId}/listConsentLinks?api-version=2018-07-01-preview`;
+    const body = {
+      parameters: [
+        {
+          objectId,
+          parameterName: 'token',
+          redirectUrl,
+          tenantId,
+        },
+      ],
+    };
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      console.log(`[chat-tools] Failed to get consent links: ${response.status}`);
+      return undefined;
+    }
+
+    const data = (await response.json()) as { value?: Array<{ link?: string }> };
+    return data.value?.[0]?.link;
+  } catch (error) {
+    console.log(`[chat-tools] Error fetching consent URL: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * POST confirmConsentCode to finalize OAuth for a connection.
+ */
+async function confirmConsentCode(
+  connectionResourceId: string,
+  code: string,
+  objectId: string,
+  tenantId: string,
+  token: string,
+  baseUrl: string
+): Promise<boolean> {
+  try {
+    const url = `${baseUrl}${connectionResourceId}/confirmConsentCode?api-version=2018-07-01-preview`;
+    const body = { code, objectId, tenantId };
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      console.log(`[chat-tools] Failed to confirm consent code: ${response.status}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.log(`[chat-tools] Error confirming consent code: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Connector Parameter Discovery & Classification
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * A single connection parameter from connector metadata.
+ * @internal Exported for testing
+ */
+export interface ConnectorConnectionParameter {
+  type: string;
+  uiDefinition?: {
+    displayName?: string;
+    description?: string;
+    tooltip?: string;
+    constraints?: {
+      required?: string;
+      hidden?: string;
+      allowedValues?: Array<{ text?: string; value?: string }>;
+    };
+  };
+  allowedValues?: Array<{ value: string }>;
+}
+
+/**
+ * Connector metadata returned from the managed API endpoint.
+ * @internal Exported for testing
+ */
+export interface ConnectorMetadata {
+  name: string;
+  displayName?: string;
+  connectionParameters?: Record<string, ConnectorConnectionParameter>;
+  connectionParameterSets?: {
+    uiDefinition?: { displayName?: string; description?: string };
+    values: Array<{
+      name: string;
+      uiDefinition?: { displayName?: string; description?: string };
+      parameters: Record<string, ConnectorConnectionParameter>;
+    }>;
+  };
+}
+
+/**
+ * Auth classification for a connector's connection requirements.
+ * - 'simple': No user-facing parameters needed (auto-create)
+ * - 'oauthOnly': Only OAuth parameters (auto-create with browser consent)
+ * - 'credential': Single-auth with user-facing credential fields (prompt user)
+ * - 'multiAuth': Multiple authentication options / parameter sets (fall back to designer)
+ * @internal Exported for testing
+ */
+export type ConnectorAuthType = 'simple' | 'oauthOnly' | 'credential' | 'multiAuth';
+
+const HIDDEN_PARAMETER_PREFIXES = ['token', 'token:'];
+
+/**
+ * Determine whether a connection parameter should be hidden from the user.
+ * Hides internal params like token, token:*, hidden-constrained, and prerequisite connection params.
+ * Note: oauthSetting is NOT hidden — it's visible for classification purposes but not promptable.
+ * @internal Exported for testing
+ */
+export function isHiddenParam(key: string, param: ConnectorConnectionParameter): boolean {
+  const lowerKey = key.toLowerCase();
+  if (HIDDEN_PARAMETER_PREFIXES.some((prefix) => lowerKey === prefix || lowerKey.startsWith(`${prefix}:`))) {
+    return true;
+  }
+  if (param.uiDefinition?.constraints?.hidden === 'true') {
+    return true;
+  }
+  if (param.type?.toLowerCase() === 'connection') {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Extract user-facing parameters from connector metadata, filtering out hidden/internal ones.
+ * Returns parameters that are visible in the connection creation UI (including OAuth).
+ * @internal Exported for testing
+ */
+export function extractUserFacingParameters(
+  connectionParameters: Record<string, ConnectorConnectionParameter>
+): Record<string, ConnectorConnectionParameter> {
+  const result: Record<string, ConnectorConnectionParameter> = {};
+  for (const [key, param] of Object.entries(connectionParameters)) {
+    if (!isHiddenParam(key, param)) {
+      result[key] = param;
+    }
+  }
+  return result;
+}
+
+/**
+ * Extract promptable (non-OAuth) parameters that the user needs to fill in.
+ * Filters out hidden params AND oauthSetting params, leaving only credential fields.
+ * @internal Exported for testing
+ */
+export function extractPromptableParameters(
+  connectionParameters: Record<string, ConnectorConnectionParameter>
+): Record<string, ConnectorConnectionParameter> {
+  const result: Record<string, ConnectorConnectionParameter> = {};
+  for (const [key, param] of Object.entries(connectionParameters)) {
+    if (!isHiddenParam(key, param) && param.type?.toLowerCase() !== 'oauthsetting') {
+      result[key] = param;
+    }
+  }
+  return result;
+}
+
+/**
+ * Classify a connector's auth requirements based on its connection parameters.
+ * @internal Exported for testing
+ */
+export function classifyConnectorAuthType(metadata: ConnectorMetadata): ConnectorAuthType {
+  // Multi-auth: has connectionParameterSets with multiple values
+  if (metadata.connectionParameterSets?.values && metadata.connectionParameterSets.values.length > 1) {
+    return 'multiAuth';
+  }
+
+  // Single parameter set: treat like flat parameters using the single set's params
+  if (metadata.connectionParameterSets?.values?.length === 1) {
+    const singleSetParams = metadata.connectionParameterSets.values[0].parameters;
+    const userFacing = extractUserFacingParameters(singleSetParams);
+    if (Object.keys(userFacing).length === 0) {
+      return 'simple';
+    }
+    const allOAuth = Object.values(userFacing).every((p) => p.type?.toLowerCase() === 'oauthsetting');
+    return allOAuth ? 'oauthOnly' : 'credential';
+  }
+
+  const connectionParameters = metadata.connectionParameters;
+  if (!connectionParameters) {
+    return 'simple';
+  }
+
+  const userFacing = extractUserFacingParameters(connectionParameters);
+  if (Object.keys(userFacing).length === 0) {
+    return 'simple';
+  }
+
+  const allOAuth = Object.values(userFacing).every((p) => p.type?.toLowerCase() === 'oauthsetting');
+  if (allOAuth) {
+    return 'oauthOnly';
+  }
+
+  return 'credential';
+}
+
+/**
+ * Fetch connector metadata from the managed API endpoint.
+ * Returns connection parameter definitions for the given connector.
+ * @internal Exported for testing
+ */
+export async function fetchConnectorMetadata(connectorId: string, azureContext: AzureContext): Promise<ConnectorMetadata | undefined> {
+  try {
+    const token = await getAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+
+    // connectorId is like /subscriptions/.../managedApis/sql
+    const url = `${baseUrl}${connectorId}?api-version=2018-07-01-preview`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      console.log(`[chat-tools] Failed to fetch connector metadata: ${response.status}`);
+      return undefined;
+    }
+
+    const data = (await response.json()) as {
+      name?: string;
+      properties?: {
+        displayName?: string;
+        connectionParameters?: Record<string, ConnectorConnectionParameter>;
+        connectionParameterSets?: ConnectorMetadata['connectionParameterSets'];
+      };
+    };
+
+    return {
+      name: data.name ?? getConnectorShortName(connectorId),
+      displayName: data.properties?.displayName,
+      connectionParameters: data.properties?.connectionParameters,
+      connectionParameterSets: data.properties?.connectionParameterSets,
+    };
+  } catch (error) {
+    console.log(`[chat-tools] Error fetching connector metadata: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Credential-Based Connection Creation
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Prompt the user for connection credential values using VS Code secure input boxes.
+ * Returns the collected parameter values, or undefined if the user cancels.
+ * @internal Exported for testing (returns the prompt logic for mocking)
+ */
+async function promptForCredentials(
+  connectorDisplayName: string,
+  parameters: Record<string, ConnectorConnectionParameter>
+): Promise<Record<string, string> | undefined> {
+  const values: Record<string, string> = {};
+
+  for (const [key, param] of Object.entries(parameters)) {
+    const displayName = param.uiDefinition?.displayName ?? key;
+    const description = param.uiDefinition?.description ?? '';
+    const isSecret = param.type?.toLowerCase() === 'securestring' || param.type?.toLowerCase() === 'secureobject';
+    const isRequired = param.uiDefinition?.constraints?.required !== 'false';
+
+    // For enum-like params with allowed values, show quick pick
+    const allowedValues =
+      param.uiDefinition?.constraints?.allowedValues ?? param.allowedValues?.map((v) => ({ value: v.value, text: v.value }));
+    if (allowedValues && allowedValues.length > 0) {
+      const items = allowedValues.map((v) => ({
+        label: v.text ?? v.value ?? '',
+        value: v.value ?? v.text ?? '',
+      }));
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `Select ${displayName} for ${connectorDisplayName}`,
+        ignoreFocusOut: true,
+      });
+      if (!selected) {
+        return undefined;
+      }
+      values[key] = selected.value;
+      continue;
+    }
+
+    const input = await vscode.window.showInputBox({
+      prompt: description || `Enter ${displayName} for ${connectorDisplayName}`,
+      placeHolder: displayName,
+      ignoreFocusOut: true,
+      password: isSecret,
+      validateInput: (value) => {
+        if (isRequired && (!value || value.trim().length === 0)) {
+          return `${displayName} is required`;
+        }
+        return undefined;
+      },
+    });
+
+    if (input === undefined) {
+      return undefined;
+    }
+    values[key] = input;
+  }
+
+  return values;
+}
+
+/**
+ * Create a managed API connection with user-provided credential parameter values.
+ * Uses ARM PUT with parameterValues in the request body.
+ */
+async function createCredentialBasedConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  azureContext: AzureContext,
+  parameterValues: Record<string, string>
+): Promise<ManagedApiConnectionResolution> {
+  if (!azureContext.resourceGroup || !azureContext.location) {
+    return { success: false, message: 'Resource group and location required to create connection.' };
+  }
+
+  const token = await getAuthorizationToken(azureContext.tenantId);
+  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+  const connectionName = `${referenceName}-${Date.now().toString(36)}`;
+  const connectionResourceId =
+    `/subscriptions/${azureContext.subscriptionId}` +
+    `/resourceGroups/${azureContext.resourceGroup}` +
+    `/providers/Microsoft.Web/connections/${connectionName}`;
+
+  // PUT to create the connection resource with parameter values
+  const putUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
+  const putBody = {
+    properties: {
+      api: { id: connectorId },
+      displayName: referenceName,
+      parameterValues,
+    },
+    kind: 'V2',
+    location: azureContext.location,
+  };
+
+  try {
+    const putResponse = await fetch(putUrl, {
+      method: 'PUT',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(putBody),
+    });
+
+    if (!putResponse.ok) {
+      const errorText = await putResponse.text().catch(() => '');
+      console.log(`[chat-tools] Failed to create credential connection: ${putResponse.status} ${errorText}`);
+      return { success: false, message: `Failed to create connection in Azure (${putResponse.status}). Please check your credentials.` };
+    }
+  } catch (error) {
+    console.log(`[chat-tools] Error creating credential connection: ${error instanceof Error ? error.message : String(error)}`);
+    return { success: false, message: 'Network error creating connection in Azure.' };
+  }
+
+  // Test the connection before persisting locally
+  await testManagedApiConnection(connectionResourceId, azureContext);
+
+  // Fetch connection key + runtime URL and write to local files
+  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
+  const keyResult = useMSI ? undefined : await fetchConnectionKey(connectionResourceId, azureContext);
+  await addRealManagedApiConnection(
+    projectPath,
+    referenceName,
+    connectorId,
+    connectionResourceId,
+    keyResult?.connectionKey,
+    useMSI,
+    keyResult?.connectionRuntimeUrl
+  );
+
+  return {
+    success: true,
+    connectionId: connectionResourceId,
+    connectionName,
+    message: `Created connection "${referenceName}" with provided credentials in resource group "${azureContext.resourceGroup}".`,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Post-Creation Connection Testing
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Test a managed API connection after creation.
+ * Non-blocking: logs a warning on failure but does not prevent connection use.
+ * @internal Exported for testing
+ */
+export async function testManagedApiConnection(connectionResourceId: string, azureContext: AzureContext): Promise<boolean> {
+  try {
+    const token = await getAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+
+    // First, get the connection details to find testLinks
+    const getUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
+    const getResponse = await fetch(getUrl, {
+      method: 'GET',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+
+    if (!getResponse.ok) {
+      console.log(`[chat-tools] Could not fetch connection for testing: ${getResponse.status}`);
+      return false;
+    }
+
+    const connectionData = (await getResponse.json()) as {
+      properties?: {
+        statuses?: Array<{ status?: string; error?: { message?: string } }>;
+        testLinks?: Array<{ requestUri?: string; method?: string }>;
+        testRequests?: Array<{ requestUri?: string; method?: string }>;
+      };
+    };
+
+    // Check existing status first
+    const statuses = connectionData.properties?.statuses ?? [];
+    const hasError = statuses.some((s) => s.status?.toLowerCase() === 'error');
+    if (hasError) {
+      const errorMsg = statuses.find((s) => s.status?.toLowerCase() === 'error')?.error?.message ?? 'Unknown error';
+      console.log(`[chat-tools] Connection test: status indicates error — ${errorMsg}`);
+      vscode.window.showWarningMessage(`Connection created but may have issues: ${errorMsg}`);
+      return false;
+    }
+
+    // Try testLinks if available
+    const testLink = connectionData.properties?.testLinks?.[0] ?? connectionData.properties?.testRequests?.[0];
+    if (testLink?.requestUri) {
+      const testResponse = await fetch(testLink.requestUri, {
+        method: testLink.method ?? 'GET',
+        headers: { Authorization: token, 'Content-Type': 'application/json' },
+      });
+      if (!testResponse.ok) {
+        console.log(`[chat-tools] Connection test failed: ${testResponse.status}`);
+        vscode.window.showWarningMessage('Connection was created but the connection test failed. You may need to verify your credentials.');
+        return false;
+      }
+    }
+
+    console.log(`[chat-tools] Connection test passed for ${connectionResourceId}`);
+    return true;
+  } catch (error) {
+    console.log(`[chat-tools] Connection test error: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Attempt to resolve a managed API connection automatically:
+ *  1. Try reusing an existing connection in the resource group
+ *  2. Discover connector parameters and classify auth type
+ *  3. For credential-based: prompt user via VS Code input and create
+ *  4. For OAuth: create connection and do inline OAuth consent
+ *  5. For multi-auth: fall back to placeholder (caller opens designer)
+ *  6. Fall back to placeholder (caller handles this)
+ */
+async function tryResolveManagedApiConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string
+): Promise<ManagedApiConnectionResolution> {
+  const azureContext = await getAzureContextFromLocalSettings(projectPath);
+  if (!azureContext) {
+    return { success: false, message: 'No Azure context configured in local.settings.json.' };
+  }
+
+  // Step 1: Try reusing existing connection from resource group
+  if (azureContext.resourceGroup) {
+    const reuseResult = await tryReuseExistingConnection(projectPath, referenceName, connectorId, azureContext);
+    if (reuseResult.success) {
+      return reuseResult;
+    }
+  }
+
+  // Step 2: Discover connector parameters and classify auth type
+  if (azureContext.resourceGroup && azureContext.location) {
+    const metadata = await fetchConnectorMetadata(connectorId, azureContext);
+    if (metadata) {
+      const authType = classifyConnectorAuthType(metadata);
+      console.log(`[chat-tools] Connector "${metadata.displayName ?? metadata.name}" classified as: ${authType}`);
+
+      switch (authType) {
+        case 'simple': {
+          // No credentials needed — create connection with empty params
+          const createResult = await createCredentialBasedConnection(projectPath, referenceName, connectorId, azureContext, {});
+          if (createResult.success) {
+            return createResult;
+          }
+          break;
+        }
+
+        case 'credential': {
+          // Prompt user for credentials via VS Code secure input
+          const params = metadata.connectionParameters ? extractPromptableParameters(metadata.connectionParameters) : {};
+          const connectorDisplayName = metadata.displayName ?? metadata.name;
+          const credentials = await promptForCredentials(connectorDisplayName, params);
+
+          if (credentials) {
+            const createResult = await createCredentialBasedConnection(projectPath, referenceName, connectorId, azureContext, credentials);
+            if (createResult.success) {
+              return createResult;
+            }
+            // Creation failed — message already set in createResult
+            return createResult;
+          }
+          // User cancelled — fall through to placeholder
+          return { success: false, message: 'Credential entry was cancelled.' };
+        }
+
+        case 'oauthOnly': {
+          // Use existing OAuth flow
+          const createResult = await createAndAuthManagedApiConnection(projectPath, referenceName, connectorId, azureContext);
+          if (createResult.success) {
+            return createResult;
+          }
+          console.log(`[chat-tools] Inline OAuth failed: ${createResult.message}`);
+          break;
+        }
+
+        case 'multiAuth': {
+          // Too complex for chat — fall back to designer panel
+          const paramSetNames = metadata.connectionParameterSets?.values?.map((v) => v.uiDefinition?.displayName ?? v.name) ?? [];
+          return {
+            success: false,
+            message: `This connector supports multiple authentication types (${paramSetNames.join(', ')}). Please use the designer to configure the connection.`,
+          };
+        }
+      }
+    } else {
+      // Metadata fetch failed — try legacy OAuth path as fallback
+      const createResult = await createAndAuthManagedApiConnection(projectPath, referenceName, connectorId, azureContext);
+      if (createResult.success) {
+        return createResult;
+      }
+      console.log(`[chat-tools] Inline OAuth fallback failed: ${createResult.message}`);
+    }
+  }
+
+  return { success: false, message: 'Could not resolve connection automatically.' };
+}
+
+/**
+ * Result of creating a service provider connection
+ */
+interface ServiceProviderConnectionResult {
+  /** Whether the connection was successfully created */
+  success: boolean;
+  /** Whether the connection already existed (no prompt needed) */
+  alreadyExists?: boolean;
+  /** Error message if creation failed */
+  error?: string;
+}
+
+/**
+ * Azure resource info for the resource picker
+ */
+interface AzureResourceInfo {
+  id: string;
+  name: string;
+  location?: string;
+  type: string;
+}
+
+/**
+ * Maps service provider IDs to Azure resource types for resource picker
+ */
+const serviceProviderToAzureResourceType: Record<string, { resourceType: string; apiVersion: string }> = {
+  '/serviceProviders/serviceBus': {
+    resourceType: 'Microsoft.ServiceBus/namespaces',
+    apiVersion: '2021-11-01',
+  },
+  '/serviceProviders/AzureBlob': {
+    resourceType: 'Microsoft.Storage/storageAccounts',
+    apiVersion: '2023-01-01',
+  },
+  '/serviceProviders/AzureQueues': {
+    resourceType: 'Microsoft.Storage/storageAccounts',
+    apiVersion: '2023-01-01',
+  },
+  '/serviceProviders/AzureTables': {
+    resourceType: 'Microsoft.Storage/storageAccounts',
+    apiVersion: '2023-01-01',
+  },
+  '/serviceProviders/AzureFile': {
+    resourceType: 'Microsoft.Storage/storageAccounts',
+    apiVersion: '2023-01-01',
+  },
+  '/serviceProviders/eventHub': {
+    resourceType: 'Microsoft.EventHub/namespaces',
+    apiVersion: '2022-10-01-preview',
+  },
+};
+
+/**
+ * Azure context resolved from local.settings.json
+ * @internal Exported for testing
+ */
+export interface AzureContext {
+  subscriptionId: string;
+  tenantId?: string;
+  resourceGroup?: string;
+  location?: string;
+  managementBaseUrl: string;
+  authenticationMethod?: string;
+}
+
+/**
+ * Check if the authentication method is Managed Service Identity.
+ * @internal Exported for testing
+ */
+export function isMSIAuthEnabled(authenticationMethod?: string): boolean {
+  return authenticationMethod?.toLowerCase() === 'managedserviceidentity';
+}
+
+/**
+ * Gets Azure subscription, tenant, resource group, and location from local.settings.json
+ */
+async function getAzureContextFromLocalSettings(projectPath: string): Promise<AzureContext | undefined> {
+  const localSettingsPath = path.join(projectPath, localSettingsFileName);
+  try {
+    if (await fse.pathExists(localSettingsPath)) {
+      const localSettings = (await fse.readJson(localSettingsPath)) as Record<string, unknown>;
+      const values = localSettings.Values as Record<string, string> | undefined;
+      if (values?.[workflowSubscriptionIdKey]) {
+        return {
+          subscriptionId: values[workflowSubscriptionIdKey],
+          tenantId: values[workflowTenantIdKey],
+          resourceGroup: values[workflowResourceGroupNameKey],
+          location: values[workflowLocationKey],
+          managementBaseUrl: values[workflowManagementBaseURIKey] ?? azurePublicBaseUrl,
+          authenticationMethod: values[workflowAuthenticationMethodKey],
+        };
+      }
+    }
+  } catch {
+    // Ignore errors reading local settings
+  }
+  return undefined;
+}
+
+/**
+ * Lists Azure resources of a specific type in a subscription
+ */
+async function listAzureResources(
+  subscriptionId: string,
+  resourceType: string,
+  apiVersion: string,
+  tenantId?: string,
+  managementBaseUrl = azurePublicBaseUrl
+): Promise<AzureResourceInfo[]> {
+  try {
+    const token = await getAuthorizationToken(tenantId);
+    const provider = resourceType.split('/')[0];
+    const type = resourceType.split('/')[1];
+    const url = `${managementBaseUrl}/subscriptions/${subscriptionId}/providers/${provider}/${type}?api-version=${apiVersion}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.log(`[chat-tools] Failed to list Azure resources: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const data = (await response.json()) as { value?: Array<{ id: string; name: string; location?: string; type: string }> };
+    return (data.value ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      location: r.location,
+      type: r.type,
+    }));
+  } catch (error) {
+    console.log(`[chat-tools] Error listing Azure resources: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Gets a Service Bus connection string from a namespace
+ */
+async function getServiceBusConnectionString(
+  resourceId: string,
+  tenantId?: string,
+  managementBaseUrl = azurePublicBaseUrl
+): Promise<string | undefined> {
+  try {
+    const token = await getAuthorizationToken(tenantId);
+
+    // First, get the authorization rules
+    const authRulesUrl = `${managementBaseUrl}${resourceId}/AuthorizationRules?api-version=2021-11-01`;
+    const authRulesResponse = await fetch(authRulesUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!authRulesResponse.ok) {
+      console.log(`[chat-tools] Failed to get Service Bus auth rules: ${authRulesResponse.status}`);
+      return undefined;
+    }
+
+    const authRulesData = (await authRulesResponse.json()) as { value?: Array<{ id: string; name: string }> };
+    const authRules = authRulesData.value ?? [];
+
+    // Prefer RootManageSharedAccessKey, otherwise use the first rule
+    const authRule = authRules.find((r) => r.name === 'RootManageSharedAccessKey') ?? authRules[0];
+    if (!authRule) {
+      console.log('[chat-tools] No authorization rules found for Service Bus');
+      return undefined;
+    }
+
+    // Get the keys for the auth rule
+    const listKeysUrl = `${managementBaseUrl}${authRule.id}/listKeys?api-version=2021-11-01`;
+    const keysResponse = await fetch(listKeysUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!keysResponse.ok) {
+      console.log(`[chat-tools] Failed to list Service Bus keys: ${keysResponse.status}`);
+      return undefined;
+    }
+
+    const keysData = (await keysResponse.json()) as { primaryConnectionString?: string };
+    return keysData.primaryConnectionString;
+  } catch (error) {
+    console.log(`[chat-tools] Error getting Service Bus connection string: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Gets a Storage Account connection string
+ */
+async function getStorageConnectionString(
+  resourceId: string,
+  tenantId?: string,
+  managementBaseUrl = azurePublicBaseUrl
+): Promise<string | undefined> {
+  try {
+    const token = await getAuthorizationToken(tenantId);
+
+    // Get the storage account keys
+    const listKeysUrl = `${managementBaseUrl}${resourceId}/listKeys?api-version=2023-01-01`;
+    const keysResponse = await fetch(listKeysUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!keysResponse.ok) {
+      console.log(`[chat-tools] Failed to list Storage keys: ${keysResponse.status}`);
+      return undefined;
+    }
+
+    const keysData = (await keysResponse.json()) as { keys?: Array<{ value: string }> };
+    const key = keysData.keys?.[0]?.value;
+    if (!key) {
+      console.log('[chat-tools] No keys found for Storage account');
+      return undefined;
+    }
+
+    // Extract account name from resource ID
+    const accountName = resourceId.split('/').pop();
+
+    // Determine the endpoint suffix based on management URL
+    let endpointSuffix = 'core.windows.net';
+    if (managementBaseUrl.includes('.azure.cn')) {
+      endpointSuffix = 'core.chinacloudapi.cn';
+    } else if (managementBaseUrl.includes('.azure.us')) {
+      endpointSuffix = 'core.usgovcloudapi.net';
+    }
+
+    return `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${key};EndpointSuffix=${endpointSuffix}`;
+  } catch (error) {
+    console.log(`[chat-tools] Error getting Storage connection string: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Gets an Event Hub connection string from a namespace
+ */
+async function getEventHubConnectionString(
+  resourceId: string,
+  tenantId?: string,
+  managementBaseUrl = azurePublicBaseUrl
+): Promise<string | undefined> {
+  try {
+    const token = await getAuthorizationToken(tenantId);
+
+    // Get the authorization rules
+    const authRulesUrl = `${managementBaseUrl}${resourceId}/AuthorizationRules?api-version=2022-10-01-preview`;
+    const authRulesResponse = await fetch(authRulesUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!authRulesResponse.ok) {
+      console.log(`[chat-tools] Failed to get Event Hub auth rules: ${authRulesResponse.status}`);
+      return undefined;
+    }
+
+    const authRulesData = (await authRulesResponse.json()) as { value?: Array<{ id: string; name: string }> };
+    const authRules = authRulesData.value ?? [];
+
+    const authRule = authRules.find((r) => r.name === 'RootManageSharedAccessKey') ?? authRules[0];
+    if (!authRule) {
+      console.log('[chat-tools] No authorization rules found for Event Hub');
+      return undefined;
+    }
+
+    // Get the keys
+    const listKeysUrl = `${managementBaseUrl}${authRule.id}/listKeys?api-version=2022-10-01-preview`;
+    const keysResponse = await fetch(listKeysUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!keysResponse.ok) {
+      console.log(`[chat-tools] Failed to list Event Hub keys: ${keysResponse.status}`);
+      return undefined;
+    }
+
+    const keysData = (await keysResponse.json()) as { primaryConnectionString?: string };
+    return keysData.primaryConnectionString;
+  } catch (error) {
+    console.log(`[chat-tools] Error getting Event Hub connection string: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Gets the connection string for an Azure resource based on its type
+ */
+async function getConnectionStringForResource(
+  resourceId: string,
+  resourceType: string,
+  tenantId?: string,
+  managementBaseUrl?: string
+): Promise<string | undefined> {
+  const normalizedType = resourceType.toLowerCase();
+
+  if (normalizedType.includes('servicebus')) {
+    return getServiceBusConnectionString(resourceId, tenantId, managementBaseUrl);
+  }
+  if (normalizedType.includes('storage')) {
+    return getStorageConnectionString(resourceId, tenantId, managementBaseUrl);
+  }
+  if (normalizedType.includes('eventhub')) {
+    return getEventHubConnectionString(resourceId, tenantId, managementBaseUrl);
+  }
+
+  return undefined;
+}
+
+/**
+ * Creates a service provider connection by letting the user pick an Azure resource.
+ * Falls back to placeholder if Azure is not configured or user cancels.
+ */
+async function createServiceProviderConnection(
+  projectPath: string,
+  connectionName: string,
+  serviceProviderId: string,
+  connectorDisplayName: string
+): Promise<ServiceProviderConnectionResult> {
+  const connectionsPath = path.join(projectPath, connectionsFileName);
+  const localSettingsPath = path.join(projectPath, localSettingsFileName);
+
+  // Check if connection already exists
+  let connectionsData: Record<string, unknown> = {};
+  try {
+    if (await fse.pathExists(connectionsPath)) {
+      connectionsData = (await fse.readJson(connectionsPath)) as Record<string, unknown>;
+    }
+  } catch {
+    connectionsData = {};
+  }
+
+  if (typeof connectionsData.serviceProviderConnections !== 'object' || connectionsData.serviceProviderConnections === null) {
+    connectionsData.serviceProviderConnections = {};
+  }
+  const spConns = connectionsData.serviceProviderConnections as Record<string, unknown>;
+
+  // If connection already exists, return early
+  if (spConns[connectionName]) {
+    console.log(`[chat-tools] Service provider connection "${connectionName}" already exists`);
+    return { success: true, alreadyExists: true };
+  }
+
+  // Try to get Azure context from local settings
+  const azureContext = await getAzureContextFromLocalSettings(projectPath);
+  let connectionString: string | undefined;
+
+  if (azureContext?.subscriptionId) {
+    // Map service provider to Azure resource type
+    const resourceMapping = serviceProviderToAzureResourceType[serviceProviderId];
+    if (resourceMapping) {
+      // List Azure resources
+      const resources = await listAzureResources(
+        azureContext.subscriptionId,
+        resourceMapping.resourceType,
+        resourceMapping.apiVersion,
+        azureContext.tenantId,
+        azureContext.managementBaseUrl
+      );
+
+      if (resources.length > 0) {
+        // Show quick pick for resource selection
+        const items = resources.map((r) => ({
+          label: r.name,
+          description: r.location,
+          detail: r.id,
+          resource: r,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: `Select a ${connectorDisplayName} resource`,
+          title: `Connect to ${connectorDisplayName}`,
+          ignoreFocusOut: true,
+        });
+
+        if (selected) {
+          // Fetch connection string from selected resource
+          connectionString = await getConnectionStringForResource(
+            selected.resource.id,
+            selected.resource.type,
+            azureContext.tenantId,
+            azureContext.managementBaseUrl
+          );
+
+          if (connectionString) {
+            console.log(`[chat-tools] Retrieved connection string from ${selected.resource.name}`);
+          } else {
+            // Show error if we couldn't get the connection string
+            vscode.window.showWarningMessage(
+              `Could not retrieve connection string from ${selected.resource.name}. You may need to configure it manually in the designer.`
+            );
+            return { success: false, error: 'Could not retrieve connection string from selected resource' };
+          }
+        } else {
+          // User cancelled the picker
+          return { success: false, error: 'Resource selection was cancelled' };
+        }
+      } else {
+        // No resources found - let user know
+        const message = `No ${connectorDisplayName} resources found in your subscription. Would you like to enter a connection string manually?`;
+        const manualEntry = await vscode.window.showInformationMessage(message, 'Enter manually', 'Cancel');
+        if (manualEntry !== 'Enter manually') {
+          return { success: false, error: 'No resources found and manual entry declined' };
+        }
+        // Fall through to manual entry below
+      }
+    }
+  }
+
+  // If we don't have a connection string yet (no Azure context, unsupported resource type, or empty resource list),
+  // fall back to manual entry
+  if (!connectionString) {
+    connectionString = await vscode.window.showInputBox({
+      prompt: `Enter the connection string for ${connectorDisplayName}`,
+      placeHolder: 'e.g., Endpoint=sb://...;SharedAccessKeyName=...;SharedAccessKey=...',
+      ignoreFocusOut: true,
+      password: true,
+      validateInput: (value) => {
+        if (!value || value.trim().length === 0) {
+          return 'Connection string cannot be empty';
+        }
+        return undefined;
+      },
+    });
+
+    if (connectionString === undefined) {
+      return { success: false, error: 'Connection string input was cancelled' };
+    }
+  }
+
+  // Create the app setting key for the connection string
+  const appSettingKey = `${connectionName}_connectionString`;
+
+  // Update local.settings.json with the connection string
+  let localSettings: Record<string, unknown> = {};
+  try {
+    if (await fse.pathExists(localSettingsPath)) {
+      localSettings = (await fse.readJson(localSettingsPath)) as Record<string, unknown>;
+    }
+  } catch {
+    localSettings = {};
+  }
+
+  if (typeof localSettings.Values !== 'object' || localSettings.Values === null) {
+    localSettings.Values = {};
+  }
+  (localSettings.Values as Record<string, string>)[appSettingKey] = connectionString;
+  await fse.writeJson(localSettingsPath, localSettings, { spaces: 2 });
+  console.log(`[chat-tools] Added connection string to local.settings.json as "${appSettingKey}"`);
+
+  // Create the service provider connection with @appsetting reference
+  spConns[connectionName] = {
+    serviceProvider: { id: serviceProviderId },
+    parameterValues: {
+      connectionString: `@appsetting('${appSettingKey}')`,
+    },
+    displayName: connectionName,
+  };
+  await fse.writeJson(connectionsPath, connectionsData, { spaces: 2 });
+  console.log(`[chat-tools] Created service provider connection for "${connectionName}"`);
+
+  return { success: true };
+}
+
+/**
+ * @deprecated Use createServiceProviderConnection instead for new connections.
+ * This function creates a placeholder connection that requires manual configuration in the designer.
+ */
 async function addPlaceholderServiceProviderConnection(
   projectPath: string,
   connectionName: string,
@@ -351,12 +1868,37 @@ async function resolveBuiltInServiceProviderAction(
   const connectionName = matched.name;
   const serviceProviderId = matched.id;
   const operationId = bestOp.name;
+  const connectorDisplayName = matched.displayName ?? matched.name;
 
+  let connectionNote = '';
   if (!projectConnections.serviceProviderIdByReference[connectionName] && projectConnections.projectPath) {
     try {
-      await addPlaceholderServiceProviderConnection(projectConnections.projectPath, connectionName, serviceProviderId);
+      const result = await createServiceProviderConnection(
+        projectConnections.projectPath,
+        connectionName,
+        serviceProviderId,
+        connectorDisplayName
+      );
+      if (result.success) {
+        if (result.alreadyExists) {
+          connectionNote = '';
+        } else {
+          connectionNote = ` Created connection for "${connectionName}" with the provided connection string.`;
+        }
+      } else {
+        // User cancelled or error occurred - fall back to placeholder
+        await addPlaceholderServiceProviderConnection(projectConnections.projectPath, connectionName, serviceProviderId);
+        connectionNote = ` Added placeholder service provider connection for "${connectionName}". Open designer to configure.`;
+      }
     } catch (error) {
-      console.error(`[chat-tools] Failed to add SP placeholder: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`[chat-tools] Failed to create SP connection: ${error instanceof Error ? error.message : String(error)}`);
+      // Fall back to placeholder on error
+      try {
+        await addPlaceholderServiceProviderConnection(projectConnections.projectPath, connectionName, serviceProviderId);
+        connectionNote = ` Added placeholder service provider connection for "${connectionName}". Open designer to configure.`;
+      } catch {
+        // Ignore secondary error
+      }
     }
   }
 
@@ -372,13 +1914,10 @@ async function resolveBuiltInServiceProviderAction(
       : {};
 
   const action = buildServiceProviderAction(connectionName, operationId, serviceProviderId, params, runAfter);
-  const note = projectConnections.serviceProviderIdByReference[connectionName]
-    ? ''
-    : ` Added placeholder service provider connection for "${connectionName}". Open designer to configure.`;
 
   return {
     action,
-    completionSuffix: ` Used built-in connector "${matched.displayName ?? matched.name}" (${bestOp.properties?.summary ?? operationId}).${note}`,
+    completionSuffix: ` Used built-in connector "${connectorDisplayName}" (${bestOp.properties?.summary ?? operationId}).${connectionNote}`,
   };
 }
 
@@ -1592,6 +3131,23 @@ async function resolveGenericApiConnectionAction(
       effectiveReference = connectorHint;
       isNewConnectorReference = true;
       console.log(`[chat-tools] Constructed connector ID for "${connectorHint}": ${resolvedConnectorId}`);
+    } else if (connectorHint && projectConnections.localSettingsValues) {
+      // No existing managed connections and no managedApiBasePath — construct from Azure context
+      const basePath = constructManagedApiBasePathFromSettings(projectConnections.localSettingsValues);
+      if (basePath) {
+        resolvedConnectorId = constructManagedApiConnectorId(basePath, connectorHint);
+        effectiveReference = connectorHint;
+        isNewConnectorReference = true;
+        console.log(`[chat-tools] Constructed connector ID from Azure context for "${connectorHint}": ${resolvedConnectorId}`);
+      } else {
+        const refsHint =
+          projectConnections.managedApiReferencesWithApiId.length > 0
+            ? ` Available managed connection references: ${projectConnections.managedApiReferencesWithApiId.join(', ')}.`
+            : '';
+        return {
+          error: `Managed connector "${connectorHint}" not found and no Azure context configured to derive location.${refsHint}`,
+        };
+      }
     } else {
       const refsHint =
         projectConnections.managedApiReferencesWithApiId.length > 0
@@ -1653,11 +3209,34 @@ async function resolveGenericApiConnectionAction(
   }
 
   if (isNewConnectorReference && resolvedConnectorId && projectConnections.projectPath) {
+    // Try to resolve the connection automatically (reuse existing or create + OAuth)
+    let connectionNote = '';
     try {
-      await addPlaceholderManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
+      const resolution = await tryResolveManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
+      if (resolution.success) {
+        connectionNote = ` ${resolution.message}`;
+      } else {
+        // Fall back to placeholder
+        await addPlaceholderManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
+        connectionNote = ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to authenticate.`;
+      }
     } catch (error) {
-      console.error(`[chat-tools] Failed to add managed API placeholder: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`[chat-tools] Failed to resolve managed API connection: ${error instanceof Error ? error.message : String(error)}`);
+      // Fall back to placeholder on unexpected errors
+      try {
+        await addPlaceholderManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
+        connectionNote = ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to authenticate.`;
+      } catch {
+        // Ignore secondary placeholder error
+      }
     }
+
+    const action = buildManagedApiConnectionAction(effectiveReference, method, pathValue, configuration);
+    if (operationId) {
+      action.operationId = operationId;
+    }
+    const completionSuffix = ` Resolved managed connector reference "${effectiveReference}" for action "${actionName}".${connectionNote}`;
+    return { action, completionSuffix };
   }
 
   const action = buildManagedApiConnectionAction(effectiveReference, method, pathValue, configuration);
@@ -1665,10 +3244,7 @@ async function resolveGenericApiConnectionAction(
     action.operationId = operationId;
   }
 
-  const connectionNote = isNewConnectorReference
-    ? ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to authenticate.`
-    : '';
-  const completionSuffix = ` Resolved managed connector reference "${effectiveReference}" for action "${actionName}".${connectionNote}`;
+  const completionSuffix = ` Resolved managed connector reference "${effectiveReference}" for action "${actionName}".`;
 
   return {
     action,
@@ -1799,7 +3375,7 @@ async function getProjectConnectionsInfo(projectPath: string): Promise<ProjectCo
       managedApiIdByReference,
       serviceProviderReferences,
       serviceProviderIdByReference,
-      managedApiBasePath: extractManagedApiBasePath(managedApiIdByReference),
+      managedApiBasePath: extractManagedApiBasePath(managedApiIdByReference) ?? constructManagedApiBasePathFromSettings(localSettingsMap),
       workflowManagementBaseUri,
       workflowTenantId,
       weatherManagedReference: detectWeatherManagedApiReference(connectionsData),
