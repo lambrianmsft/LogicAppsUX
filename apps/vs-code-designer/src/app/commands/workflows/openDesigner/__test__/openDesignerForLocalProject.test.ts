@@ -127,5 +127,22 @@ describe('OpenDesignerForLocalProject', () => {
 
       expect(mockPanel.reveal).toHaveBeenCalled();
     });
+
+    it('should fail before creating a panel when design-time startup failed', async () => {
+      const { tryGetWebviewPanel } = await import('../../../../utils/codeless/common');
+      const { getLogicAppProjectRoot } = await import('../../../../utils/codeless/connection');
+
+      vi.mocked(tryGetWebviewPanel).mockReturnValue(undefined);
+      vi.mocked(getLogicAppProjectRoot).mockResolvedValue('/test/project');
+      ext.designTimeInstances.set('/test/project', {
+        port: 7071,
+        isStarting: false,
+        startupError: 'func host failed to start',
+      });
+
+      const instance = new OpenDesignerForLocalProject(mockContext, mockUri);
+
+      await expect(instance.createPanel()).rejects.toThrow('Design time failed to start for project {0}. {1}');
+    });
   });
 });

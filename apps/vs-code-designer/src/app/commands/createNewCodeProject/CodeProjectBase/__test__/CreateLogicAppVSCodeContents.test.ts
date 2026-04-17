@@ -286,6 +286,18 @@ describe('CreateLogicAppVSCodeContents', () => {
       expect(fse.copyFile).toHaveBeenCalledWith(expect.stringContaining('ExtensionsJsonFile'), extensionsJsonPath);
     });
 
+    it('should use an extensions.json template that recommends reopening in containers', async () => {
+      await CreateLogicAppVSCodeContentsModule.createLogicAppVsCodeContents(mockContext, logicAppFolderPath);
+
+      const extensionsJsonPath = path.join(logicAppFolderPath, '.vscode', 'extensions.json');
+      const copyCall = vi.mocked(fse.copyFile).mock.calls.find((call) => call[1] === extensionsJsonPath);
+      const [templatePath] = copyCall as [string, string];
+      const realFs = await vi.importActual<typeof import('fs')>('fs');
+      const templateContent = JSON.parse(realFs.readFileSync(templatePath, 'utf8')) as { recommendations: string[] };
+
+      expect(templateContent.recommendations).toContain('ms-vscode-remote.remote-containers');
+    });
+
     it('should copy tasks.json from template', async () => {
       await CreateLogicAppVSCodeContentsModule.createLogicAppVsCodeContents(mockContext, logicAppFolderPath);
 

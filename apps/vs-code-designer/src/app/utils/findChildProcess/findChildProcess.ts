@@ -1,6 +1,6 @@
 import * as cp from 'child_process';
-import * as path from 'path';
 import { ext } from '../../../extensionVariables';
+import { getExtensionAssetPath } from '../extensionAssets';
 
 interface ProcessInfo {
   processId: number;
@@ -49,7 +49,7 @@ async function runPowerShellScript(scriptPath: string, ...args: string[]): Promi
 
 export async function getChildProcessesWithScript(parentProcessId: number): Promise<ProcessInfo[]> {
   try {
-    const scriptPath = path.join(__dirname, 'assets', 'scripts', 'get-child-processes.ps1');
+    const scriptPath = getExtensionAssetPath('scripts', 'get-child-processes.ps1');
     const output = await runPowerShellScript(scriptPath, parentProcessId.toString());
 
     if (!output || output === '[]') {

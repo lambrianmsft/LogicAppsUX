@@ -23,6 +23,7 @@ vi.mock('../app/utils/codeless/startDesignTimeApi', () => ({
   promptStartDesignTimeOption: vi.fn(),
   startAllDesignTimeApis: vi.fn(),
   stopAllDesignTimeApis: vi.fn(),
+  scheduleStartAllDesignTimeApis: vi.fn(),
 }));
 vi.mock('../app/utils/funcCoreTools/cpUtils', () => ({
   executeCommand: vi.fn(),
@@ -55,18 +56,20 @@ describe('devContainer Integration Tests', () => {
   });
 
   describe('Complete onboarding flow - devContainer', () => {
-    it('should skip entire onboarding flow in devContainer workspace', async () => {
-      const { promptStartDesignTimeOption } = await import('../app/utils/codeless/startDesignTimeApi');
+    it('should skip dependency onboarding and auto-start design time in devContainer workspace', async () => {
+      const { promptStartDesignTimeOption, scheduleStartAllDesignTimeApis } = await import('../app/utils/codeless/startDesignTimeApi');
       const installBinariesSpy = vi.spyOn(binaries, 'installBinaries');
 
       vi.mocked(isDevContainerWorkspace).mockResolvedValue(true);
 
       await startOnboarding(mockContext);
 
-      expect(mockContext.telemetry.properties.skippedOnboarding).toBe('true');
-      expect(mockContext.telemetry.properties.skippedReason).toBe('devContainer');
+      expect(mockContext.telemetry.properties.skippedDependencyOnboarding).toBe('true');
+      expect(mockContext.telemetry.properties.skippedDependencyOnboardingReason).toBe('devContainer');
+      expect(mockContext.telemetry.properties.designTimeStartupMode).toBe('devContainerAutoStart');
       expect(installBinariesSpy).not.toHaveBeenCalled();
       expect(promptStartDesignTimeOption).not.toHaveBeenCalled();
+      expect(scheduleStartAllDesignTimeApis).toHaveBeenCalled();
     });
 
     it('should complete onboarding flow in non-devContainer workspace', async () => {
@@ -81,7 +84,7 @@ describe('devContainer Integration Tests', () => {
       await startOnboarding(mockContext);
       await vi.waitFor(() => expect(mockContext.telemetry.measurements.binariesInstallDuration).toBeDefined());
 
-      expect(mockContext.telemetry.properties.skippedOnboarding).toBeUndefined();
+      expect(mockContext.telemetry.properties.skippedDependencyOnboarding).toBeUndefined();
       expect(installBinariesSpy).toHaveBeenCalled();
       expect(validateAndInstallBinaries).toHaveBeenCalled();
       expect(promptStartDesignTimeOption).toHaveBeenCalled();
@@ -135,13 +138,13 @@ describe('devContainer Integration Tests', () => {
   });
 
   describe('Telemetry tracking across devContainer detection', () => {
-    it('should track skipped onboarding in telemetry for devContainer', async () => {
+    it('should track skipped dependency onboarding in telemetry for devContainer', async () => {
       vi.mocked(isDevContainerWorkspace).mockResolvedValue(true);
 
       await startOnboarding(mockContext);
 
-      expect(mockContext.telemetry.properties.skippedOnboarding).toBe('true');
-      expect(mockContext.telemetry.properties.skippedReason).toBe('devContainer');
+      expect(mockContext.telemetry.properties.skippedDependencyOnboarding).toBe('true');
+      expect(mockContext.telemetry.properties.skippedDependencyOnboardingReason).toBe('devContainer');
     });
 
     it('should track binaries install duration for non-devContainer', async () => {

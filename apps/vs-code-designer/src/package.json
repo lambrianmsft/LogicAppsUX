@@ -1044,7 +1044,8 @@
     "azurite.azurite",
     "ms-azuretools.vscode-azureresourcegroups",
     "ms-dotnettools.csharp",
-    "ms-dotnettools.csdevkit"
+    "ms-dotnettools.csdevkit",
+    "ms-vscode-remote.remote-containers"
   ],
   "activationEvents": [
     "onView:azureWorkspace",

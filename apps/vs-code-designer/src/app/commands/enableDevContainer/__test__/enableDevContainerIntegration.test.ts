@@ -53,12 +53,6 @@ describe('enableDevContainer - Integration Tests', () => {
     vi.spyOn(vscode.window, 'showInformationMessage').mockResolvedValue(undefined);
     vi.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
     vi.spyOn(vscode.window, 'showWarningMessage').mockResolvedValue(undefined as any);
-
-    // // Check if assets need to be copied
-    // if ((await fse.pathExists(srcAssetsPath)) && !(await fse.pathExists(destAssetsPath))) {
-    //   await fse.copy(srcAssetsPath, destAssetsPath);
-    //   assetsCopied = true;
-    // }
   });
 
   afterEach(async () => {
@@ -344,7 +338,7 @@ describe('enableDevContainer - Integration Tests', () => {
 
       // Verify result
       expect(mockContext.telemetry.properties.result).toBe('Failed');
-      expect(mockContext.telemetry.properties.reason).toBe('NoWorkspace');
+      expect(mockContext.telemetry.properties.failureReason).toBe('NoWorkspace');
     });
 
     it('should verify devcontainer.json contains required properties', async () => {
@@ -373,6 +367,7 @@ describe('enableDevContainer - Integration Tests', () => {
 
       // Verify Logic Apps extension is included
       expect(devContainerContent.customizations.vscode.extensions).toContain('ms-azuretools.vscode-azurelogicapps');
+      expect(devContainerContent.customizations.vscode.extensions).toContain('ms-vscode-remote.remote-containers');
 
       // Verify settings include required Logic Apps configurations
       const settings = devContainerContent.customizations.vscode.settings;
