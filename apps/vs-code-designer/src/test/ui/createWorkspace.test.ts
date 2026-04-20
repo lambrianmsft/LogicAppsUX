@@ -2577,6 +2577,43 @@ describe('Create Workspace Tests', function () {
       console.log('[validCcNs] PASSED');
     });
 
+    it('should enable Next for dotted namespace like MyCompany.Functions', async () => {
+      let nsInput: WebElement | null = null;
+      for (const label of ['Function namespace', 'Namespace', 'namespace']) {
+        try {
+          nsInput = await findInputByLabel(driver, label);
+          break;
+        } catch {
+          // Try next
+        }
+      }
+      if (!nsInput) {
+        throw new Error('Could not find function namespace input');
+      }
+
+      // Dotted namespace must be accepted and Next button must enable
+      await clearAndType(nsInput, 'MyCompany.Functions');
+      await sleep(TYPE_SETTLE);
+
+      // Verify no validation error appears
+      const parent = await nsInput.findElement(By.xpath('ancestor::*[contains(@class, "fui-Field")]'));
+      const errorMessages = await parent.findElements(By.css('[id*="error"], [role="alert"]'));
+      const visibleErrors = [];
+      for (const msg of errorMessages) {
+        if (await msg.isDisplayed()) {
+          visibleErrors.push(await msg.getText());
+        }
+      }
+      if (visibleErrors.length > 0) {
+        throw new Error(`Unexpected validation error for dotted namespace "MyCompany.Functions": ${visibleErrors.join(', ')}`);
+      }
+
+      // Restore a simple namespace for subsequent tests
+      await clearAndType(nsInput, 'ValidNamespace');
+      await captureScreenshot(driver, 'validCcNsDotted-passed');
+      console.log('[validCcNsDotted] PASSED: Dotted namespace "MyCompany.Functions" accepted');
+    });
+
     it('should disable Next when custom code function namespace is cleared', async () => {
       let nsInput: WebElement | null = null;
       for (const label of ['Function namespace', 'Namespace', 'namespace']) {
@@ -4042,7 +4079,7 @@ describe('Create Workspace Tests', function () {
       const appName = uniqueName('ccapp');
       const wfName = uniqueName('ccwf');
       const ccFolderName = uniqueName('ccfolder');
-      const fnNamespace = 'TestNamespace';
+      const fnNamespace = 'MyCompany.Functions';
       const fnName = uniqueName('myfunc');
 
       // Step 1: Open the Create Workspace command
