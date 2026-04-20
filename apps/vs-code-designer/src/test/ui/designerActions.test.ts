@@ -727,7 +727,7 @@ async function openFileInEditor(workbench: Workbench, driver: WebDriver, filePat
       await driver.actions().keyDown(Key.CONTROL).sendKeys('p').keyUp(Key.CONTROL).perform();
       await sleep(1000);
       const qInput = await driver.findElement(By.css('.quick-input-box input'));
-      await qInput.sendKeys(parentDir + '/' + expectedName);
+      await qInput.sendKeys(`${parentDir}/${expectedName}`);
       await sleep(1500);
       await qInput.sendKeys(Key.ENTER);
       await sleep(2000);
@@ -1788,7 +1788,7 @@ async function openDesignerViaExplorer(driver: WebDriver, workflowJsonPath: stri
     await driver.actions().keyDown(Key.CONTROL).sendKeys('p').keyUp(Key.CONTROL).perform();
     await sleep(1000);
     const quickInput = await driver.findElement(By.css('.quick-input-box input'));
-    await quickInput.sendKeys(label + '/workflow.json');
+    await quickInput.sendKeys(`${label}/workflow.json`);
     await sleep(1500);
     await quickInput.sendKeys(Key.ENTER);
     await sleep(2000);
@@ -3094,20 +3094,96 @@ describe('Designer Actions Tests', function () {
       console.log(`[test2] workflow.json actions: ${JSON.stringify(Object.keys(actions || {}))}`);
       assert.ok(actions && Object.keys(actions).length > 0, 'workflow.json should contain actions after save');
 
-      console.log('[test2] Workflow saved — starting debug session...');
+      console.log('[test2] Workflow saved — building custom code function project...');
 
-      // Assertion 6: Start debugging and wait for runtime
+      // Assertion 6: Build the custom code function project before debugging.
+      // func host start needs the compiled DLL to run InvokeFunction actions.
+      // dotnet build performs an implicit NuGet restore.
+      if (entry.ccFolderName) {
+        const fnDir = path.join(entry.wsDir, entry.ccFolderName);
+        console.log(`[test2] Running "dotnet build" in ${fnDir}...`);
+        try {
+          const { execSync } = require('child_process');
+          const buildOutput = execSync('dotnet build', {
+            cwd: fnDir,
+            encoding: 'utf8',
+            timeout: 120_000,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+          console.log(`[test2] dotnet build output (last 500 chars): ${buildOutput.slice(-500)}`);
+          const buildSucceeded = buildOutput.includes('Build succeeded');
+          assert.ok(buildSucceeded, 'dotnet build should succeed for the custom code function project');
+          console.log('[test2] Custom code function project built successfully');
+        } catch (buildErr: any) {
+          console.log(`[test2] dotnet build failed: ${buildErr.message}`);
+          if (buildErr.stderr) {
+            console.log(`[test2] dotnet build stderr: ${buildErr.stderr.slice(-500)}`);
+          }
+          assert.fail(`dotnet build failed for custom code function project: ${buildErr.message}`);
+        }
+      }
+
+      // Assertion 7: Start debugging and wait for runtime
       workbench = new Workbench();
       await startDebugging(workbench, driver);
       const runtimeReady = await waitForRuntimeReady(driver);
-      await captureScreenshot(driver, 'test2-step6-after-debug-start');
+      await captureScreenshot(driver, 'test2-step7-after-debug-start');
       assert.ok(runtimeReady, 'Functions runtime should start and become ready');
 
-      // Skip run trigger/verification for custom code workspaces.
-      // The custom code .csproj can't build in CI (no NuGet restore),
-      // so the InvokeFunction action will fail and no run will succeed.
-      // The important assertions are: add action + save + debug starts.
-      console.log('[test2] PASSED — add action + save + debug started (skipping run for custom code)');
+      // Assertion 8: Open overview page
+      try {
+        const editorView = new EditorView();
+        await editorView.closeAllEditors();
+        await sleep(1000);
+      } catch {
+        /* ignore */
+      }
+
+      workbench = new Workbench();
+      const workflowPath = path.join(entry.wfDir, 'workflow.json');
+      const overviewOpened = await openOverviewPage(workbench, driver, workflowPath);
+      assert.ok(overviewOpened, 'Overview page should open');
+
+      try {
+        await driver.switchTo().defaultContent();
+      } catch {
+        /* ignore */
+      }
+      const overviewWebview = await switchToOverviewWebview(driver);
+      await captureScreenshot(driver, 'test2-step8-overview-loaded');
+
+      // Assertion 9: Click "Run trigger"
+      const triggerRan = await clickRunTrigger(driver);
+      await captureScreenshot(driver, 'test2-step9-after-run-trigger');
+      assert.ok(triggerRan, '"Run trigger" button should be clickable');
+
+      // Assertion 10: Wait for run to show "Succeeded"
+      await sleep(1000);
+      await clickRefresh(driver);
+      const runningStatus = await getLatestRunStatus(driver);
+      await captureScreenshot(driver, `test2-step10-run-status-${(runningStatus || 'none').toLowerCase()}`);
+      console.log(`[test2] Latest run status after trigger: "${runningStatus}"`);
+
+      const { found: succeeded, lastStatus } = await waitForRunStatusInList(driver, 'Succeeded');
+      await captureScreenshot(driver, 'test2-step11-run-succeeded-in-list');
+      assert.ok(succeeded, `Run should show "Succeeded" in overview list (last status: "${lastStatus}")`);
+
+      // Assertion 11: Open run details and verify all nodes succeeded
+      const detailsOpened = await clickLatestRunRow(driver);
+      await captureScreenshot(driver, 'test2-step12-run-details-opened');
+      assert.ok(detailsOpened, 'Should be able to open the succeeded run');
+
+      const { allSucceeded, details } = await verifyAllNodesSucceeded(driver);
+      await captureScreenshot(driver, 'test2-step13-all-nodes-succeeded');
+      assert.ok(allSucceeded, `All action nodes should be succeeded (${details})`);
+
+      console.log('[test2] PASSED — full flow: add action + save + build + debug + overview + run succeeded');
+
+      try {
+        await overviewWebview.switchBack();
+      } catch {
+        /* ignore */
+      }
       await stopDebugging(driver);
       return;
     } finally {
