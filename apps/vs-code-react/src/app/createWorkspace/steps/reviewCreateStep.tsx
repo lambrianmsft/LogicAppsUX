@@ -30,7 +30,6 @@ export const ReviewCreateStep: React.FC = () => {
     flowType,
     logicAppsWithoutCustomCode,
     separator,
-    isDevContainerProject,
   } = createWorkspaceState;
 
   const needsDotNetFrameworkStep = logicAppType === ProjectType.customCode;
@@ -123,7 +122,7 @@ export const ReviewCreateStep: React.FC = () => {
             {renderSettingRow(intlText.WORKSPACE_NAME_REVIEW, workspaceName)}
             {renderSettingRow(intlText.WORKSPACE_FOLDER, workspaceBasePath)}
             {renderSettingRow(intlText.WORKSPACE_FILE, workspaceFilePath)}
-            {renderSettingRow(intlText.USE_DEV_CONTAINER_LABEL, isDevContainerProject ? 'Yes' : 'No')}
+            {/* DevContainer review row hidden — feature not ready to ship */}
           </div>
         )}
 

@@ -793,6 +793,10 @@
         {
           "command": "azureLogicAppsStandard.createProject",
           "when": "never"
+        },
+        {
+          "command": "azureLogicAppsStandard.enableDevContainer",
+          "when": "never"
         }
       ]
     },
