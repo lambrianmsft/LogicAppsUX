@@ -178,6 +178,40 @@ Each app and library has its own CLAUDE.md with specific guidance.
 4. **Console Logging**: Extensive debug logging available in development mode
 5. **Source Maps**: Enabled for all builds to aid debugging
 
+## Knowledge Graphs (Graphify)
+
+Each library has a Graphify knowledge graph at `libs/<lib>/src/graphify-out/` containing:
+- **GRAPH_REPORT.md** — God nodes (most-connected abstractions), communities, surprising cross-file connections
+- **graph.json** — Queryable graph for structural questions
+
+Graphs are **auto-rebuilt by CI** when source files change on main. No manual rebuild needed unless working on a feature branch.
+
+### Quick commands (one-time setup: `pnpm run graphify:setup`)
+```bash
+# Rebuild all graphs (pure AST, no LLM, runs in seconds)
+pnpm run graphify:rebuild
+
+# Rebuild a specific lib
+pnpm run graphify:rebuild -- designer-v2
+
+# Query a graph
+graphify query "how does serialization work?" --graph libs/designer-v2/src/graphify-out/graph.json
+
+# Trace a path between nodes
+graphify path "serializeWorkflow" "BJSDeserializer" --graph libs/designer-v2/src/graphify-out/graph.json
+
+# Explain a god node
+graphify explain "getOperationSettings" --graph libs/designer-v2/src/graphify-out/graph.json
+
+# Generate interactive HTML visualization
+graphify update src/  # run from within a lib directory, then open graphify-out/graph.html
+```
+
+### Key god nodes by library
+- **designer-v2**: `getOperationSettings` (52 edges), `getReactQueryClient` (45), `initializeOperationDetails` (24)
+- **designer**: `getOperationSettings` (52 edges), `getReactQueryClient` (45), `initializeOperationDetails` (25)
+- **logic-apps-shared**: Check `libs/logic-apps-shared/src/graphify-out/GRAPH_REPORT.md`
+
 ## Active Migration Projects
 
 ### LESS to Fluent UI v9 makeStyles Migration
