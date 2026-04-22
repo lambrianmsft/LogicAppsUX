@@ -3130,6 +3130,13 @@ describe('Designer Actions Tests', function () {
       await captureScreenshot(driver, 'test2-step7-after-debug-start');
       assert.ok(runtimeReady, 'Functions runtime should start and become ready');
 
+      // Extra stabilization for custom code: the func host needs time to
+      // initialize the custom code worker process and register the workflow's
+      // trigger callback URL. Without this, "Run trigger" fires before the
+      // workflow is fully registered and no run appears.
+      console.log('[test2] Waiting 15s for custom code worker to initialize...');
+      await sleep(15_000);
+
       // Assertion 8: Open overview page
       try {
         const editorView = new EditorView();
@@ -3152,19 +3159,41 @@ describe('Designer Actions Tests', function () {
       const overviewWebview = await switchToOverviewWebview(driver);
       await captureScreenshot(driver, 'test2-step8-overview-loaded');
 
+      // Wait for callback URL to appear before triggering the run.
+      // The callback URL indicates the workflow is fully registered.
+      console.log('[test2] Waiting for callback URL in overview...');
+      let callbackUrlFound = false;
+      for (let urlAttempt = 0; urlAttempt < 10; urlAttempt++) {
+        const hasUrl = await driver.executeScript<boolean>(`
+          var body = document.body ? document.body.textContent : '';
+          return (body.includes('localhost:') && body.includes('/api/')) ||
+                 body.includes('127.0.0.1');
+        `);
+        if (hasUrl) {
+          console.log(`[test2] Callback URL found after ${urlAttempt * 3}s`);
+          callbackUrlFound = true;
+          break;
+        }
+        await sleep(3000);
+        await clickRefresh(driver);
+      }
+      if (!callbackUrlFound) {
+        console.log('[test2] Warning: Callback URL not found after 30s — proceeding with run trigger anyway');
+      }
+
       // Assertion 9: Click "Run trigger"
       const triggerRan = await clickRunTrigger(driver);
       await captureScreenshot(driver, 'test2-step9-after-run-trigger');
       assert.ok(triggerRan, '"Run trigger" button should be clickable');
 
-      // Assertion 10: Wait for run to show "Succeeded"
-      await sleep(1000);
+      // Assertion 10: Wait for run to show "Succeeded" (90s timeout for custom code)
+      await sleep(2000);
       await clickRefresh(driver);
       const runningStatus = await getLatestRunStatus(driver);
       await captureScreenshot(driver, `test2-step10-run-status-${(runningStatus || 'none').toLowerCase()}`);
       console.log(`[test2] Latest run status after trigger: "${runningStatus}"`);
 
-      const { found: succeeded, lastStatus } = await waitForRunStatusInList(driver, 'Succeeded');
+      const { found: succeeded, lastStatus } = await waitForRunStatusInList(driver, 'Succeeded', 90_000);
       await captureScreenshot(driver, 'test2-step11-run-succeeded-in-list');
       assert.ok(succeeded, `Run should show "Succeeded" in overview list (last status: "${lastStatus}")`);
 
