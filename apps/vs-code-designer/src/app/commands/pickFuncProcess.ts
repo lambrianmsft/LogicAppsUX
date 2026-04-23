@@ -312,22 +312,17 @@ async function startFuncTask(
 
 /**
  * Discover (or reuse cached) child process IDs for workflow debug attachment.
- *
- * NOTE: `taskInfo.childProcessId` is intentionally mutated here. The `taskInfo`
- * object is a shared reference stored in `runningFuncTaskMap`, so updating its
- * `childProcessId` caches the discovered PIDs for subsequent debug attach calls
- * (e.g., re-attach after restart). The return value is provided for caller convenience.
  */
 async function getWorkflowDebugProcessCandidates(taskInfo: IRunningFuncTask): Promise<Array<string | undefined>> {
   const firstChildProcessId = taskInfo.childProcessId?.[0] ?? (await pickChildProcess(taskInfo));
   const hostChildProcessId = taskInfo.childProcessId?.[1] ?? (await pickFuncHostChildProcess(taskInfo));
 
-  taskInfo.childProcessId = [firstChildProcessId, hostChildProcessId];
-  return taskInfo.childProcessId;
+  return [firstChildProcessId, hostChildProcessId];
 }
 
 export async function pickWorkflowDebugProcess(taskInfo: IRunningFuncTask, preferHostChildProcess = false): Promise<string> {
   const [firstChildProcessId, hostChildProcessId] = await getWorkflowDebugProcessCandidates(taskInfo);
+  taskInfo.childProcessId = [firstChildProcessId, hostChildProcessId];
   const selectedProcessId =
     process.platform === Platform.windows && preferHostChildProcess
       ? (hostChildProcessId ?? firstChildProcessId ?? String(taskInfo.processId))

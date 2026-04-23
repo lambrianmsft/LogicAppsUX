@@ -3,7 +3,8 @@ import { ext } from '../../../../../extensionVariables';
 
 // Mock dependencies before importing the class
 vi.mock('../../../../../localize', () => ({
-  localize: (_key: string, defaultMsg: string) => defaultMsg,
+  localize: (_key: string, defaultMsg: string, ...args: string[]) =>
+    defaultMsg.replace(/{(\d+)}/g, (_match, index) => args[Number(index)] ?? ''),
 }));
 
 vi.mock('../../../../utils/codeless/common', () => ({
@@ -142,9 +143,9 @@ describe('OpenDesignerForLocalProject', () => {
 
       const instance = new OpenDesignerForLocalProject(mockContext, mockUri);
 
-      // Note: toThrow() does a substring match, and the mock `localize` in test-setup.ts
-      // returns the raw format string without substitution, so matching against {0}/{1} works.
-      await expect(instance.createPanel()).rejects.toThrow('Design time failed to start for project {0}. {1}');
+      await expect(instance.createPanel()).rejects.toThrow(
+        'Design time failed to start for project /test/project. func host failed to start'
+      );
     });
   });
 });
