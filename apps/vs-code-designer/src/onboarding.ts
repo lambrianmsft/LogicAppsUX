@@ -16,7 +16,7 @@ import { ext } from './extensionVariables';
 
 /**
  * Start onboarding experience prompting inputs for user.
- * This function will propmpt/install dependencies binaries and start the design time api.
+ * This function will prompt/install dependencies binaries and start the design time api.
  * Devcontainer workspaces skip dependency onboarding but still auto-start design time.
  * @param {IActionContext} activateContext - Activation context.
  */

@@ -65,6 +65,8 @@ export async function getChildProcessesWithScript(parentProcessId: number): Prom
       parentProcessId: item.ParentProcessId,
     }));
   } catch (error) {
-    throw new Error(`Failed to execute Powershell script to get the func child process: ${error.message}`);
+    throw new Error(
+      `Failed to execute Powershell script to get the func child process: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
