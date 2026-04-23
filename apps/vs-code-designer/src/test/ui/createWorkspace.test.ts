@@ -442,32 +442,55 @@ async function switchToWebviewFrame(driver: WebDriver): Promise<WebView> {
     /* ignore */
   }
 
+  // Manual iframe switching approach — more reliable than ExTester's WebView class
+  // because it doesn't depend on the .editor-instance element being in the DOM.
+  // ExTester's WebView extends Editor, which requires .editor-instance to exist
+  // before it can locate the webview iframe. On slow CI runners, the editor layout
+  // may not have rendered yet, causing the constructor to fail.
+  //
+  // Instead, we directly wait for the webview iframe elements using Selenium's
+  // explicit wait, which properly polls until the element appears.
+  const WEBVIEW_TIMEOUT = 60_000;
+
   let lastError: Error | null = null;
-  // On CI the first cold webview render takes longer (~15s).
-  // Use 10 retries x 3s = 30s total to accommodate.
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const webview = new WebView();
-      await webview.switchToFrame();
+      await driver.switchTo().defaultContent();
+
+      // Step 1: Wait for the outer webview iframe to appear
+      console.log(`[switchToWebviewFrame] Attempt ${attempt + 1}/3: Waiting for webview iframe...`);
+      const outerFrame = await driver.wait(
+        until.elementLocated(By.css("iframe[class='webview ready']")),
+        WEBVIEW_TIMEOUT,
+        'Webview iframe not found within timeout'
+      );
+      await driver.switchTo().frame(outerFrame);
+
+      // Step 2: Wait for the inner #active-frame iframe
+      const innerFrame = await driver.wait(until.elementLocated(By.id('active-frame')), 15_000, '#active-frame not found');
+      await driver.switchTo().frame(innerFrame);
       await sleep(1000);
 
       // Verify we're NOT in the "from package" webview
       const packageLabels = await driver.findElements(By.xpath("//*[contains(text(), 'Package path')]"));
       if (packageLabels.length > 0) {
-        await webview.switchBack();
+        await driver.switchTo().defaultContent();
         throw new Error(
           'Wrong webview opened: "Create Workspace From Package" instead of "Create Workspace". ' +
             'The command palette selected the wrong command.'
         );
       }
 
+      // Return a WebView instance for API compatibility (switchBack etc.)
+      // The driver is already in the correct frame context.
+      const webview = new WebView();
       return webview;
     } catch (e: any) {
       lastError = e;
       if (e.message?.includes('Package')) {
         throw e; // Don't retry wrong webview
       }
-      console.log(`[switchToWebviewFrame] Attempt ${attempt + 1}/10 failed: ${e.message}`);
+      console.log(`[switchToWebviewFrame] Attempt ${attempt + 1}/3 failed: ${e.message}`);
       try {
         await driver.switchTo().defaultContent();
       } catch {
@@ -484,11 +507,11 @@ async function switchToWebviewFrame(driver: WebDriver): Promise<WebView> {
         /* ignore */
       }
 
-      await sleep(3000);
+      await sleep(5000);
     }
   }
 
-  throw lastError || new Error('Could not switch to webview frame after 5 attempts');
+  throw lastError || new Error('Could not switch to webview frame after 3 attempts');
 }
 
 /**
