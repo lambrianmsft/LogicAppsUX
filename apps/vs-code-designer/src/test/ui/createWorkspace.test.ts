@@ -1575,27 +1575,18 @@ describe('Create Workspace Tests', function () {
 
     beforeEach(async () => {
       // Switch into the webview iframe before each test.
-      // Use manual iframe switching instead of webview.switchToFrame()
-      // because the ExTester method depends on .editor-instance which
-      // may not be present on slow CI runners.
-      try {
-        await driver.switchTo().defaultContent();
-        const outerFrame = await driver.wait(
-          until.elementLocated(By.css("iframe[class='webview ready']")),
-          15_000,
-          'Webview iframe not found in beforeEach'
-        );
-        await driver.switchTo().frame(outerFrame);
-        const innerFrame = await driver.wait(until.elementLocated(By.id('active-frame')), 10_000, '#active-frame not found in beforeEach');
-        await driver.switchTo().frame(innerFrame);
-      } catch {
-        // Fallback to ExTester's method
-        try {
-          await webview.switchToFrame();
-        } catch {
-          console.log('[readonly:beforeEach] Warning: could not switch to webview frame');
-        }
-      }
+      // Use manual iframe switching — ExTester's webview.switchToFrame()
+      // depends on .editor-instance / .monaco-workbench which may not
+      // be present on slow CI runners.
+      await driver.switchTo().defaultContent();
+      const outerFrame = await driver.wait(
+        until.elementLocated(By.css("iframe[class='webview ready']")),
+        30_000,
+        'Webview iframe not found in beforeEach'
+      );
+      await driver.switchTo().frame(outerFrame);
+      const innerFrame = await driver.wait(until.elementLocated(By.id('active-frame')), 15_000, '#active-frame not found in beforeEach');
+      await driver.switchTo().frame(innerFrame);
       await waitForCreateWorkspaceFormReady(driver);
       await sleep(200);
     });
@@ -1603,13 +1594,9 @@ describe('Create Workspace Tests', function () {
     afterEach(async () => {
       // Switch back to VS Code chrome after each test
       try {
-        await webview.switchBack();
+        await driver.switchTo().defaultContent();
       } catch {
-        try {
-          await driver.switchTo().defaultContent();
-        } catch {
-          console.log('[readonly:afterEach] Could not switch to defaultContent');
-        }
+        console.log('[readonly:afterEach] Could not switch to defaultContent');
       }
     });
 
@@ -1617,7 +1604,8 @@ describe('Create Workspace Tests', function () {
       // Close the shared webview when all read-only tests are done
       try {
         await driver.switchTo().defaultContent();
-        await driver.wait(until.elementLocated(By.css('.monaco-workbench')), 10_000);
+        // Wait briefly for the VS Code UI to be interactable
+        await sleep(2000);
         const editorView = new EditorView();
         await editorView.closeAllEditors();
       } catch {
@@ -4006,7 +3994,7 @@ describe('Create Workspace Tests', function () {
         /* ignore */
       }
       try {
-        await driver.wait(until.elementLocated(By.css('.monaco-workbench')), 10_000);
+        await sleep(2000);
         const editorView = new EditorView();
         await editorView.closeAllEditors();
       } catch {
