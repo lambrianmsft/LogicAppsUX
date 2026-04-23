@@ -1574,8 +1574,28 @@ describe('Create Workspace Tests', function () {
     });
 
     beforeEach(async () => {
-      // Switch into the webview iframe before each test
-      await webview.switchToFrame();
+      // Switch into the webview iframe before each test.
+      // Use manual iframe switching instead of webview.switchToFrame()
+      // because the ExTester method depends on .editor-instance which
+      // may not be present on slow CI runners.
+      try {
+        await driver.switchTo().defaultContent();
+        const outerFrame = await driver.wait(
+          until.elementLocated(By.css("iframe[class='webview ready']")),
+          15_000,
+          'Webview iframe not found in beforeEach'
+        );
+        await driver.switchTo().frame(outerFrame);
+        const innerFrame = await driver.wait(until.elementLocated(By.id('active-frame')), 10_000, '#active-frame not found in beforeEach');
+        await driver.switchTo().frame(innerFrame);
+      } catch {
+        // Fallback to ExTester's method
+        try {
+          await webview.switchToFrame();
+        } catch {
+          console.log('[readonly:beforeEach] Warning: could not switch to webview frame');
+        }
+      }
       await waitForCreateWorkspaceFormReady(driver);
       await sleep(200);
     });
