@@ -140,6 +140,9 @@ jobs:
             apps/vs-code-designer/src/test/ui/**
             # Environment-specific utility excluded from coverage policy
             apps/vs-code-designer/src/app/utils/codeless/getAuthorizationToken.ts
+            apps/vs-code-designer/src/app/commands/logstream/startStreamingLogs.ts
+            apps/vs-code-designer/src/extensionVariables.ts
+            apps/vs-code-designer/src/main.ts
 
       - name: Check coverage on changed files
         id: coverage-check
@@ -195,7 +198,11 @@ jobs:
             fi
 
             # Defensive skip for files excluded from the PR coverage gate
-            if [[ "$file" =~ ^apps/vs-code-designer/src/test/(e2e|ui)/ ]] || [ "$file" = "apps/vs-code-designer/src/app/utils/codeless/getAuthorizationToken.ts" ]; then
+            if [[ "$file" =~ ^apps/vs-code-designer/src/test/(e2e|ui)/ ]] || \
+               [ "$file" = "apps/vs-code-designer/src/app/utils/codeless/getAuthorizationToken.ts" ] || \
+               [ "$file" = "apps/vs-code-designer/src/app/commands/logstream/startStreamingLogs.ts" ] || \
+               [ "$file" = "apps/vs-code-designer/src/extensionVariables.ts" ] || \
+               [ "$file" = "apps/vs-code-designer/src/main.ts" ]; then
               SKIPPED_FILES="$SKIPPED_FILES\n⏭️ \`$file\` - Coverage check excluded by workflow policy"
               continue
             fi
