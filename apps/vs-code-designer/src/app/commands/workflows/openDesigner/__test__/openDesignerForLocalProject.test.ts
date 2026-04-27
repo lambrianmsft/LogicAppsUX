@@ -93,6 +93,7 @@ describe('OpenDesignerForLocalProject', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    ext.designTimeInstances.clear();
   });
 
   describe('constructor', () => {
@@ -146,6 +147,18 @@ describe('OpenDesignerForLocalProject', () => {
       await expect(instance.createPanel()).rejects.toThrow(
         'Design time failed to start for project /test/project. func host failed to start'
       );
+    });
+
+    it('should fail when no design-time instance is available for the project', async () => {
+      const { tryGetWebviewPanel } = await import('../../../../utils/codeless/common');
+      const { getLogicAppProjectRoot } = await import('../../../../utils/codeless/connection');
+
+      vi.mocked(tryGetWebviewPanel).mockReturnValue(undefined);
+      vi.mocked(getLogicAppProjectRoot).mockResolvedValue('/test/project');
+
+      const instance = new OpenDesignerForLocalProject(mockContext, mockUri);
+
+      await expect(instance.createPanel()).rejects.toThrow('Design time is not running for project /test/project.');
     });
   });
 });

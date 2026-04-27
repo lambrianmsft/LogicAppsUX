@@ -196,6 +196,58 @@ describe('pickWorkflowDebugProcess', () => {
     expect(result).toBe('111');
     expect(taskInfo.childProcessId).toEqual(['111', '222']);
   });
+
+  it('should reuse cached child process ids when they are already present', async () => {
+    setProcessPlatform('win32');
+
+    const taskInfo: IRunningFuncTask = {
+      startTime: Date.now(),
+      processId: 100,
+      childProcessId: ['111', '222'],
+    };
+
+    const childProcessSpy = vi.spyOn(findChildProcessModule, 'getChildProcessesWithScript');
+
+    const result = await pickFuncProcessModule.pickWorkflowDebugProcess(taskInfo, true);
+
+    expect(result).toBe('222');
+    expect(taskInfo.childProcessId).toEqual(['111', '222']);
+    expect(childProcessSpy).not.toHaveBeenCalled();
+  });
+
+  it('should safely reuse a cached no-child-pids fallback without rediscovering processes', async () => {
+    setProcessPlatform('win32');
+
+    const taskInfo: IRunningFuncTask = {
+      startTime: Date.now(),
+      processId: 100,
+      childProcessId: ['100', undefined],
+    };
+
+    const childProcessSpy = vi.spyOn(findChildProcessModule, 'getChildProcessesWithScript');
+
+    const result = await pickFuncProcessModule.pickWorkflowDebugProcess(taskInfo);
+
+    expect(result).toBe('100');
+    expect(taskInfo.childProcessId).toEqual(['100', undefined]);
+    expect(childProcessSpy).not.toHaveBeenCalled();
+  });
+
+  it('should safely fall back to the tracked task pid when no child pids are discovered', async () => {
+    setProcessPlatform('win32');
+
+    const taskInfo: IRunningFuncTask = {
+      startTime: Date.now(),
+      processId: 100,
+    };
+
+    vi.spyOn(findChildProcessModule, 'getChildProcessesWithScript').mockResolvedValue([]);
+
+    const result = await pickFuncProcessModule.pickWorkflowDebugProcess(taskInfo);
+
+    expect(result).toBe('100');
+    expect(taskInfo.childProcessId).toEqual(['100', undefined]);
+  });
 });
 
 describe('getWindowsChildren', () => {

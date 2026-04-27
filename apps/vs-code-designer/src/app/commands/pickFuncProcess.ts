@@ -314,8 +314,10 @@ async function startFuncTask(
  * Discover (or reuse cached) child process IDs for workflow debug attachment.
  */
 async function getWorkflowDebugProcessCandidates(taskInfo: IRunningFuncTask): Promise<Array<string | undefined>> {
-  const firstChildProcessId = taskInfo.childProcessId?.[0] ?? (await pickChildProcess(taskInfo));
-  const hostChildProcessId = taskInfo.childProcessId?.[1] ?? (await pickFuncHostChildProcess(taskInfo));
+  const hasCachedFirstChildProcessId = (taskInfo.childProcessId?.length ?? 0) >= 1;
+  const hasCachedHostChildProcessId = (taskInfo.childProcessId?.length ?? 0) >= 2;
+  const firstChildProcessId = hasCachedFirstChildProcessId ? taskInfo.childProcessId?.[0] : await pickChildProcess(taskInfo);
+  const hostChildProcessId = hasCachedHostChildProcessId ? taskInfo.childProcessId?.[1] : await pickFuncHostChildProcess(taskInfo);
 
   return [firstChildProcessId, hostChildProcessId];
 }
