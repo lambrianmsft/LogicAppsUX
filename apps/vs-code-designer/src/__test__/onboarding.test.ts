@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { onboardBinaries } from '../app/utils/runtimeDependencies';
+import { startOnboarding } from '../onboarding';
+import * as binaries from '../app/utils/binaries';
+import { promptStartDesignTimeOption, scheduleStartAllDesignTimeApis } from '../app/utils/codeless/startDesignTimeApi';
 import { validateAndInstallBinaries } from '../app/commands/binaries/validateAndInstallBinaries';
 import { validateTasksJson } from '../app/utils/vsCodeConfig/tasks';
 import { isDevContainerWorkspace } from '../app/utils/devContainerUtils';
@@ -8,6 +11,7 @@ import type { IActionContext } from '@microsoft/vscode-azext-utils';
 
 vi.mock('../app/utils/codeless/startDesignTimeApi', () => ({
   promptStartDesignTimeOption: vi.fn(),
+  scheduleStartAllDesignTimeApis: vi.fn(),
 }));
 // Auto-mocks: no problematic transitive imports once the above chains are broken.
 vi.mock('../app/commands/binaries/validateAndInstallBinaries');
@@ -119,5 +123,77 @@ describe('onboardBinaries', () => {
 
       expect(validateTasksJson).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('startOnboarding', () => {
+  let mockContext: IActionContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockContext = {
+      telemetry: {
+        properties: {},
+        measurements: {},
+      },
+      errorHandling: {},
+      ui: {},
+      valuesToMask: [],
+    } as any;
+  });
+
+  it('should skip dependency onboarding and auto-start design time in devContainer workspaces', async () => {
+    const installBinariesSpy = vi.spyOn(binaries, 'installBinaries');
+    vi.mocked(isDevContainerWorkspace).mockResolvedValue(true);
+    vi.mocked(scheduleStartAllDesignTimeApis).mockImplementation(() => undefined);
+
+    await startOnboarding(mockContext);
+
+    expect(mockContext.telemetry.properties.isDevContainer).toBe('true');
+    expect(mockContext.telemetry.properties.skippedDependencyOnboarding).toBe('true');
+    expect(mockContext.telemetry.properties.skippedDependencyOnboardingReason).toBe('devContainer');
+    expect(mockContext.telemetry.properties.designTimeStartupMode).toBe('devContainerAutoStart');
+    expect(mockContext.telemetry.properties.designTimeStartupState).toBe('scheduled');
+    expect(installBinariesSpy).not.toHaveBeenCalled();
+    expect(promptStartDesignTimeOption).not.toHaveBeenCalled();
+    expect(scheduleStartAllDesignTimeApis).toHaveBeenCalled();
+    expect(mockContext.telemetry.measurements.binariesInstallDuration).toBeUndefined();
+  });
+
+  it('should install binaries and prompt for design time in non-devContainer workspaces', async () => {
+    const installBinariesSpy = vi.spyOn(binaries, 'installBinaries');
+    vi.mocked(isDevContainerWorkspace).mockResolvedValue(false);
+    vi.mocked(promptStartDesignTimeOption).mockResolvedValue(undefined);
+
+    await startOnboarding(mockContext);
+    await vi.waitFor(() => expect(mockContext.telemetry.measurements.binariesInstallDuration).toBeDefined());
+
+    expect(mockContext.telemetry.properties.isDevContainer).toBe('false');
+    expect(mockContext.telemetry.properties.lastStep).toBeDefined();
+    expect(installBinariesSpy).toHaveBeenCalled();
+    expect(promptStartDesignTimeOption).toHaveBeenCalledWith(mockContext);
+    expect(scheduleStartAllDesignTimeApis).not.toHaveBeenCalled();
+    expect(typeof mockContext.telemetry.measurements.binariesInstallDuration).toBe('number');
+    expect(mockContext.telemetry.measurements.binariesInstallDuration).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should bypass the auto-start prompt path entirely for devContainer workspaces', async () => {
+    vi.mocked(isDevContainerWorkspace).mockResolvedValue(true);
+    vi.mocked(scheduleStartAllDesignTimeApis).mockImplementation(() => undefined);
+    vi.mocked(promptStartDesignTimeOption).mockResolvedValue(undefined);
+
+    await startOnboarding(mockContext);
+
+    expect(promptStartDesignTimeOption).not.toHaveBeenCalled();
+    expect(scheduleStartAllDesignTimeApis).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not wait for design-time startup completion in devContainer workspaces', async () => {
+    vi.mocked(isDevContainerWorkspace).mockResolvedValue(true);
+    vi.mocked(scheduleStartAllDesignTimeApis).mockImplementation(() => undefined);
+
+    await expect(startOnboarding(mockContext)).resolves.toBeUndefined();
+
+    expect(scheduleStartAllDesignTimeApis).toHaveBeenCalledTimes(1);
   });
 });

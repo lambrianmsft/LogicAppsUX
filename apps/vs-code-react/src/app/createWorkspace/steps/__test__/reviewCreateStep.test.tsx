@@ -227,20 +227,22 @@ describe('ReviewCreateStep', () => {
   });
 
   describe('dev container setting', () => {
-    it('should display Yes when dev container is enabled', () => {
+    it('should not display dev container row in review (feature hidden)', () => {
       renderWithStore({
         flowType: 'createWorkspace',
         isDevContainerProject: true,
       });
-      expect(screen.getByText('Yes')).toBeInTheDocument();
+      expect(screen.queryByText('Use Dev Container')).not.toBeInTheDocument();
     });
 
-    it('should display No when dev container is disabled', () => {
+    it('should not show Yes/No for dev container when feature is hidden', () => {
       renderWithStore({
         flowType: 'createWorkspace',
         isDevContainerProject: false,
       });
-      expect(screen.getByText('No')).toBeInTheDocument();
+      // The "No" text should not appear as a dev container value
+      // (it may appear elsewhere, so we check for the label specifically)
+      expect(screen.queryByText('Use Dev Container')).not.toBeInTheDocument();
     });
   });
 });

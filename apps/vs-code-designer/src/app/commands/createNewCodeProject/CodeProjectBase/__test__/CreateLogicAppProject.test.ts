@@ -906,7 +906,7 @@ local.settings.json`
 
       // Create simple valid files instead of copying from templates
       await fse.writeJSON(path.join(vscodePath, 'extensions.json'), {
-        recommendations: ['ms-azuretools.vscode-azurelogicapps'],
+        recommendations: ['ms-azuretools.vscode-azurelogicapps', 'ms-vscode-remote.remote-containers'],
       });
       await fse.writeJSON(path.join(vscodePath, 'tasks.json'), {
         version: '2.0.0',

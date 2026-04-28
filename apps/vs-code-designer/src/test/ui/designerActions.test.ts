@@ -727,7 +727,7 @@ async function openFileInEditor(workbench: Workbench, driver: WebDriver, filePat
       await driver.actions().keyDown(Key.CONTROL).sendKeys('p').keyUp(Key.CONTROL).perform();
       await sleep(1000);
       const qInput = await driver.findElement(By.css('.quick-input-box input'));
-      await qInput.sendKeys(parentDir + '/' + expectedName);
+      await qInput.sendKeys(`${parentDir}/${expectedName}`);
       await sleep(1500);
       await qInput.sendKeys(Key.ENTER);
       await sleep(2000);
@@ -1788,7 +1788,7 @@ async function openDesignerViaExplorer(driver: WebDriver, workflowJsonPath: stri
     await driver.actions().keyDown(Key.CONTROL).sendKeys('p').keyUp(Key.CONTROL).perform();
     await sleep(1000);
     const quickInput = await driver.findElement(By.css('.quick-input-box input'));
-    await quickInput.sendKeys(label + '/workflow.json');
+    await quickInput.sendKeys(`${label}/workflow.json`);
     await sleep(1500);
     await quickInput.sendKeys(Key.ENTER);
     await sleep(2000);
@@ -3094,20 +3094,174 @@ describe('Designer Actions Tests', function () {
       console.log(`[test2] workflow.json actions: ${JSON.stringify(Object.keys(actions || {}))}`);
       assert.ok(actions && Object.keys(actions).length > 0, 'workflow.json should contain actions after save');
 
-      console.log('[test2] Workflow saved — starting debug session...');
+      console.log('[test2] Workflow saved — building custom code function project...');
 
-      // Assertion 6: Start debugging and wait for runtime
+      // Assertion 6: Build the custom code function project before debugging.
+      // func host start needs the compiled DLL to run InvokeFunction actions.
+      // dotnet build performs an implicit NuGet restore.
+      if (entry.ccFolderName) {
+        const fnDir = path.join(entry.wsDir, entry.ccFolderName);
+        console.log(`[test2] Running "dotnet build" in ${fnDir}...`);
+        try {
+          const { execSync } = require('child_process');
+          const buildOutput = execSync('dotnet build', {
+            cwd: fnDir,
+            encoding: 'utf8',
+            timeout: 120_000,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+          console.log(`[test2] dotnet build output (last 500 chars): ${buildOutput.slice(-500)}`);
+          const buildSucceeded = buildOutput.includes('Build succeeded');
+          assert.ok(buildSucceeded, 'dotnet build should succeed for the custom code function project');
+          console.log('[test2] Custom code function project built successfully');
+
+          // Diagnostic: Log publish output and Logic App folder contents
+          // to understand if the function DLL was copied to the right place.
+          const publishDir = path.join(fnDir, 'bin', 'Debug', 'net8', 'publish');
+          if (fs.existsSync(publishDir)) {
+            const publishFiles = fs.readdirSync(publishDir).filter((f: string) => f.endsWith('.dll') || f.endsWith('.json'));
+            console.log(`[test2] Function publish dir files (DLLs/JSON): ${JSON.stringify(publishFiles.slice(0, 15))}`);
+          } else {
+            console.log(`[test2] Warning: publish dir not found at ${publishDir}`);
+          }
+
+          // Check if function DLL was copied to the Logic App folder
+          const appDir = entry.appDir;
+          console.log(`[test2] Logic App folder: ${appDir}`);
+          const appContents = fs.existsSync(appDir) ? fs.readdirSync(appDir) : [];
+          console.log(`[test2] Logic App folder contents: ${JSON.stringify(appContents)}`);
+          const libDir = path.join(appDir, 'lib');
+          if (fs.existsSync(libDir)) {
+            const libContents: string[] = [];
+            const walkDir = (dir: string, prefix: string) => {
+              for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+                const rel = `${prefix}/${item.name}`;
+                if (item.isDirectory()) {
+                  walkDir(path.join(dir, item.name), rel);
+                } else {
+                  libContents.push(rel);
+                }
+              }
+            };
+            walkDir(libDir, 'lib');
+            console.log(`[test2] Logic App lib/ tree (${libContents.length} files): ${JSON.stringify(libContents.slice(0, 20))}`);
+          } else {
+            console.log('[test2] Warning: lib/ folder not found in Logic App folder');
+          }
+
+          // Read the .csproj to show the actual LogicAppFolderToPublish value
+          const csprojFiles = fs.readdirSync(fnDir).filter((f: string) => f.endsWith('.csproj'));
+          if (csprojFiles.length > 0) {
+            const csprojContent = fs.readFileSync(path.join(fnDir, csprojFiles[0]), 'utf-8');
+            const publishMatch = csprojContent.match(/<LogicAppFolderToPublish>(.*?)<\/LogicAppFolderToPublish>/);
+            console.log(`[test2] .csproj LogicAppFolderToPublish: ${publishMatch ? publishMatch[1] : 'NOT FOUND'}`);
+          }
+        } catch (buildErr: any) {
+          console.log(`[test2] dotnet build failed: ${buildErr.message}`);
+          if (buildErr.stderr) {
+            console.log(`[test2] dotnet build stderr: ${buildErr.stderr.slice(-500)}`);
+          }
+          assert.fail(`dotnet build failed for custom code function project: ${buildErr.message}`);
+        }
+      }
+
+      // Assertion 7: Start debugging and wait for runtime
       workbench = new Workbench();
       await startDebugging(workbench, driver);
       const runtimeReady = await waitForRuntimeReady(driver);
-      await captureScreenshot(driver, 'test2-step6-after-debug-start');
+      await captureScreenshot(driver, 'test2-step7-after-debug-start');
       assert.ok(runtimeReady, 'Functions runtime should start and become ready');
 
-      // Skip run trigger/verification for custom code workspaces.
-      // The custom code .csproj can't build in CI (no NuGet restore),
-      // so the InvokeFunction action will fail and no run will succeed.
-      // The important assertions are: add action + save + debug starts.
-      console.log('[test2] PASSED — add action + save + debug started (skipping run for custom code)');
+      // Extra stabilization for custom code: the func host needs time to
+      // initialize the custom code worker process and register the workflow's
+      // trigger callback URL. Without this, "Run trigger" fires before the
+      // workflow is fully registered and no run appears.
+      console.log('[test2] Waiting 15s for custom code worker to initialize...');
+      await sleep(15_000);
+
+      // Assertion 8: Open overview page
+      try {
+        const editorView = new EditorView();
+        await editorView.closeAllEditors();
+        await sleep(1000);
+      } catch {
+        /* ignore */
+      }
+
+      workbench = new Workbench();
+      const workflowPath = path.join(entry.wfDir, 'workflow.json');
+      const overviewOpened = await openOverviewPage(workbench, driver, workflowPath);
+      assert.ok(overviewOpened, 'Overview page should open');
+
+      try {
+        await driver.switchTo().defaultContent();
+      } catch {
+        /* ignore */
+      }
+      const overviewWebview = await switchToOverviewWebview(driver);
+      await captureScreenshot(driver, 'test2-step8-overview-loaded');
+
+      // Wait for callback URL to appear before triggering the run.
+      // The callback URL indicates the workflow is fully registered.
+      console.log('[test2] Waiting for callback URL in overview...');
+      let callbackUrlFound = false;
+      for (let urlAttempt = 0; urlAttempt < 10; urlAttempt++) {
+        const hasUrl = await driver.executeScript<boolean>(`
+          var body = document.body ? document.body.textContent : '';
+          return (body.includes('localhost:') && body.includes('/api/')) ||
+                 body.includes('127.0.0.1');
+        `);
+        if (hasUrl) {
+          console.log(`[test2] Callback URL found after ${urlAttempt * 3}s`);
+          callbackUrlFound = true;
+          break;
+        }
+        await sleep(3000);
+        await clickRefresh(driver);
+      }
+      if (!callbackUrlFound) {
+        console.log('[test2] Warning: Callback URL not found after 30s — proceeding with run trigger anyway');
+      }
+
+      // Assertion 9: Click "Run trigger"
+      const triggerRan = await clickRunTrigger(driver);
+      await captureScreenshot(driver, 'test2-step9-after-run-trigger');
+      assert.ok(triggerRan, '"Run trigger" button should be clickable');
+
+      // Assertion 10: Wait for run to show "Succeeded" (90s timeout for custom code).
+      // This is non-fatal because the custom code InvokeFunction action requires the
+      // function worker process to be fully loaded, which is unreliable in CI.
+      // The critical assertions (dotnet build + debug start) have already passed.
+      await sleep(2000);
+      await clickRefresh(driver);
+      const runningStatus = await getLatestRunStatus(driver);
+      await captureScreenshot(driver, `test2-step10-run-status-${(runningStatus || 'none').toLowerCase()}`);
+      console.log(`[test2] Latest run status after trigger: "${runningStatus}"`);
+
+      const { found: succeeded, lastStatus } = await waitForRunStatusInList(driver, 'Succeeded', 90_000);
+      await captureScreenshot(driver, 'test2-step11-run-succeeded-in-list');
+
+      if (succeeded) {
+        // Bonus: Open run details and verify all nodes succeeded
+        const detailsOpened = await clickLatestRunRow(driver);
+        await captureScreenshot(driver, 'test2-step12-run-details-opened');
+        assert.ok(detailsOpened, 'Should be able to open the succeeded run');
+
+        const { allSucceeded, details } = await verifyAllNodesSucceeded(driver);
+        await captureScreenshot(driver, 'test2-step13-all-nodes-succeeded');
+        assert.ok(allSucceeded, `All action nodes should be succeeded (${details})`);
+
+        console.log('[test2] PASSED — full flow: add action + save + build + debug + overview + run succeeded');
+      } else {
+        console.log(`[test2] PASSED (partial) — build + debug succeeded. Run did not complete: last status="${lastStatus}"`);
+        console.log('[test2] Custom code run verification is non-fatal in CI (function worker initialization timing)');
+      }
+
+      try {
+        await overviewWebview.switchBack();
+      } catch {
+        /* ignore */
+      }
       await stopDebugging(driver);
       return;
     } finally {

@@ -374,6 +374,43 @@ describe('CreateWorkspace', () => {
         );
       }
     });
+
+    it('should accept dotted namespace (e.g. MyCompany.Functions) for customCode projects', () => {
+      renderWithStore({
+        flowType: 'createWorkspace',
+        currentStep: 1,
+        workspaceProjectPath: { fsPath: '/valid/path', path: '/valid/path' },
+        pathValidationResults: { '/valid/path': true },
+        workspaceName: 'my-ws',
+        logicAppType: ProjectType.customCode,
+        logicAppName: 'my-app',
+        workflowType: 'Stateful-Codeless',
+        workflowName: 'my-wf',
+        functionFolderName: 'funcs',
+        functionNamespace: 'MyCompany.Functions',
+        functionName: 'MyFunc',
+        targetFramework: 'net8',
+      });
+
+      const buttons = screen.getAllByRole('button');
+      const createButton = buttons.find(
+        (b) => (b.textContent?.includes('Create') || b.textContent?.includes('Workspace')) && !b.hasAttribute('disabled')
+      );
+
+      expect(createButton).toBeDefined();
+
+      if (createButton) {
+        fireEvent.click(createButton);
+        expect(mockPostMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            command: 'createWorkspace',
+            data: expect.objectContaining({
+              functionNamespace: 'MyCompany.Functions',
+            }),
+          })
+        );
+      }
+    });
   });
 
   describe('step navigation', () => {
@@ -394,6 +431,36 @@ describe('CreateWorkspace', () => {
       const nextButton = buttons.find((b) => b.textContent?.includes('Next'));
 
       if (nextButton && !nextButton.hasAttribute('disabled')) {
+        fireEvent.click(nextButton);
+        const state = store.getState().createWorkspace;
+        expect(state.currentStep).toBe(1);
+      }
+    });
+
+    it('should enable Next button for custom code with dotted namespace', () => {
+      const { store } = renderWithStore({
+        flowType: 'createWorkspace',
+        workspaceProjectPath: { fsPath: '/valid/path', path: '/valid/path' },
+        pathValidationResults: { '/valid/path': true },
+        workspaceName: 'valid-name',
+        logicAppType: ProjectType.customCode,
+        logicAppName: 'valid-app',
+        workflowType: 'Stateful-Codeless',
+        workflowName: 'valid-wf',
+        functionFolderName: 'funcs',
+        functionNamespace: 'My.Namespace',
+        functionName: 'MyFunc',
+        targetFramework: 'net8',
+        currentStep: 0,
+      });
+
+      const buttons = screen.getAllByRole('button');
+      const nextButton = buttons.find((b) => b.textContent?.includes('Next'));
+
+      expect(nextButton).toBeDefined();
+      expect(nextButton?.hasAttribute('disabled')).toBe(false);
+
+      if (nextButton) {
         fireEvent.click(nextButton);
         const state = store.getState().createWorkspace;
         expect(state.currentStep).toBe(1);

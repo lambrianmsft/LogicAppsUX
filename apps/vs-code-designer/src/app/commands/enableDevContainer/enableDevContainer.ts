@@ -27,7 +27,7 @@ export async function enableDevContainer(context: IActionContext, workspaceFileP
     const message = localize('noWorkspace', 'No workspace is currently open. Please open a Logic App workspace first.');
     vscode.window.showErrorMessage(message);
     context.telemetry.properties.result = 'Failed';
-    context.telemetry.properties.reason = 'NoWorkspace';
+    context.telemetry.properties.failureReason = 'NoWorkspace';
     return;
   }
 
@@ -89,8 +89,8 @@ export async function enableDevContainer(context: IActionContext, workspaceFileP
     }
   } catch (error) {
     context.telemetry.properties.result = 'Failed';
-    context.telemetry.properties.error = error.message;
-    ext.outputChannel.appendLine(`Error enabling devcontainer: ${error.message}`);
+    context.telemetry.properties.error = error instanceof Error ? error.message : String(error);
+    ext.outputChannel.appendLine(`Error enabling devcontainer: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
 }

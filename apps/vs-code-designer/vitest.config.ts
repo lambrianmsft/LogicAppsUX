@@ -27,6 +27,7 @@ export default defineConfig({
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
       // Exclude VS Code E2E suites that run under the extension test harness, not Vitest.
       'src/test/e2e/**',
+      // Exclude Mocha-driven UI tests from both source and generated output.
       'src/test/ui/**',
     ],
   },

@@ -442,32 +442,55 @@ async function switchToWebviewFrame(driver: WebDriver): Promise<WebView> {
     /* ignore */
   }
 
+  // Manual iframe switching approach — more reliable than ExTester's WebView class
+  // because it doesn't depend on the .editor-instance element being in the DOM.
+  // ExTester's WebView extends Editor, which requires .editor-instance to exist
+  // before it can locate the webview iframe. On slow CI runners, the editor layout
+  // may not have rendered yet, causing the constructor to fail.
+  //
+  // Instead, we directly wait for the webview iframe elements using Selenium's
+  // explicit wait, which properly polls until the element appears.
+  const WEBVIEW_TIMEOUT = 60_000;
+
   let lastError: Error | null = null;
-  // On CI the first cold webview render takes longer (~15s).
-  // Use 10 retries x 3s = 30s total to accommodate.
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const webview = new WebView();
-      await webview.switchToFrame();
+      await driver.switchTo().defaultContent();
+
+      // Step 1: Wait for the outer webview iframe to appear
+      console.log(`[switchToWebviewFrame] Attempt ${attempt + 1}/3: Waiting for webview iframe...`);
+      const outerFrame = await driver.wait(
+        until.elementLocated(By.css("iframe[class='webview ready']")),
+        WEBVIEW_TIMEOUT,
+        'Webview iframe not found within timeout'
+      );
+      await driver.switchTo().frame(outerFrame);
+
+      // Step 2: Wait for the inner #active-frame iframe
+      const innerFrame = await driver.wait(until.elementLocated(By.id('active-frame')), 15_000, '#active-frame not found');
+      await driver.switchTo().frame(innerFrame);
       await sleep(1000);
 
       // Verify we're NOT in the "from package" webview
       const packageLabels = await driver.findElements(By.xpath("//*[contains(text(), 'Package path')]"));
       if (packageLabels.length > 0) {
-        await webview.switchBack();
+        await driver.switchTo().defaultContent();
         throw new Error(
           'Wrong webview opened: "Create Workspace From Package" instead of "Create Workspace". ' +
             'The command palette selected the wrong command.'
         );
       }
 
+      // Return a WebView instance for API compatibility (switchBack etc.)
+      // The driver is already in the correct frame context.
+      const webview = new WebView();
       return webview;
     } catch (e: any) {
       lastError = e;
       if (e.message?.includes('Package')) {
         throw e; // Don't retry wrong webview
       }
-      console.log(`[switchToWebviewFrame] Attempt ${attempt + 1}/10 failed: ${e.message}`);
+      console.log(`[switchToWebviewFrame] Attempt ${attempt + 1}/3 failed: ${e.message}`);
       try {
         await driver.switchTo().defaultContent();
       } catch {
@@ -484,11 +507,11 @@ async function switchToWebviewFrame(driver: WebDriver): Promise<WebView> {
         /* ignore */
       }
 
-      await sleep(3000);
+      await sleep(5000);
     }
   }
 
-  throw lastError || new Error('Could not switch to webview frame after 5 attempts');
+  throw lastError || new Error('Could not switch to webview frame after 3 attempts');
 }
 
 /**
@@ -1551,8 +1574,19 @@ describe('Create Workspace Tests', function () {
     });
 
     beforeEach(async () => {
-      // Switch into the webview iframe before each test
-      await webview.switchToFrame();
+      // Switch into the webview iframe before each test.
+      // Use manual iframe switching — ExTester's webview.switchToFrame()
+      // depends on .editor-instance / .monaco-workbench which may not
+      // be present on slow CI runners.
+      await driver.switchTo().defaultContent();
+      const outerFrame = await driver.wait(
+        until.elementLocated(By.css("iframe[class='webview ready']")),
+        30_000,
+        'Webview iframe not found in beforeEach'
+      );
+      await driver.switchTo().frame(outerFrame);
+      const innerFrame = await driver.wait(until.elementLocated(By.id('active-frame')), 15_000, '#active-frame not found in beforeEach');
+      await driver.switchTo().frame(innerFrame);
       await waitForCreateWorkspaceFormReady(driver);
       await sleep(200);
     });
@@ -1560,13 +1594,9 @@ describe('Create Workspace Tests', function () {
     afterEach(async () => {
       // Switch back to VS Code chrome after each test
       try {
-        await webview.switchBack();
+        await driver.switchTo().defaultContent();
       } catch {
-        try {
-          await driver.switchTo().defaultContent();
-        } catch {
-          console.log('[readonly:afterEach] Could not switch to defaultContent');
-        }
+        console.log('[readonly:afterEach] Could not switch to defaultContent');
       }
     });
 
@@ -1574,7 +1604,8 @@ describe('Create Workspace Tests', function () {
       // Close the shared webview when all read-only tests are done
       try {
         await driver.switchTo().defaultContent();
-        await driver.wait(until.elementLocated(By.css('.monaco-workbench')), 10_000);
+        // Wait briefly for the VS Code UI to be interactable
+        await sleep(2000);
         const editorView = new EditorView();
         await editorView.closeAllEditors();
       } catch {
@@ -2575,6 +2606,43 @@ describe('Create Workspace Tests', function () {
       await clearAndType(nsInput, 'Valid.Namespace');
       await captureScreenshot(driver, 'validCcNs-passed');
       console.log('[validCcNs] PASSED');
+    });
+
+    it('should enable Next for dotted namespace like MyCompany.Functions', async () => {
+      let nsInput: WebElement | null = null;
+      for (const label of ['Function namespace', 'Namespace', 'namespace']) {
+        try {
+          nsInput = await findInputByLabel(driver, label);
+          break;
+        } catch {
+          // Try next
+        }
+      }
+      if (!nsInput) {
+        throw new Error('Could not find function namespace input');
+      }
+
+      // Dotted namespace must be accepted and Next button must enable
+      await clearAndType(nsInput, 'MyCompany.Functions');
+      await sleep(TYPE_SETTLE);
+
+      // Verify no validation error appears
+      const parent = await nsInput.findElement(By.xpath('ancestor::*[contains(@class, "fui-Field")]'));
+      const errorMessages = await parent.findElements(By.css('[id*="error"], [role="alert"]'));
+      const visibleErrors = [];
+      for (const msg of errorMessages) {
+        if (await msg.isDisplayed()) {
+          visibleErrors.push(await msg.getText());
+        }
+      }
+      if (visibleErrors.length > 0) {
+        throw new Error(`Unexpected validation error for dotted namespace "MyCompany.Functions": ${visibleErrors.join(', ')}`);
+      }
+
+      // Restore a simple namespace for subsequent tests
+      await clearAndType(nsInput, 'ValidNamespace');
+      await captureScreenshot(driver, 'validCcNsDotted-passed');
+      console.log('[validCcNsDotted] PASSED: Dotted namespace "MyCompany.Functions" accepted');
     });
 
     it('should disable Next when custom code function namespace is cleared', async () => {
@@ -3926,7 +3994,7 @@ describe('Create Workspace Tests', function () {
         /* ignore */
       }
       try {
-        await driver.wait(until.elementLocated(By.css('.monaco-workbench')), 10_000);
+        await sleep(2000);
         const editorView = new EditorView();
         await editorView.closeAllEditors();
       } catch {
@@ -4042,7 +4110,7 @@ describe('Create Workspace Tests', function () {
       const appName = uniqueName('ccapp');
       const wfName = uniqueName('ccwf');
       const ccFolderName = uniqueName('ccfolder');
-      const fnNamespace = 'TestNamespace';
+      const fnNamespace = 'MyCompany.Functions';
       const fnName = uniqueName('myfunc');
 
       // Step 1: Open the Create Workspace command
