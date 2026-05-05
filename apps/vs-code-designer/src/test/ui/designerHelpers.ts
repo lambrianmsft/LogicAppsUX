@@ -1258,6 +1258,24 @@ export async function findLastAddActionElement(driver: WebDriver): Promise<WebEl
   return null;
 }
 
+export async function clickElementWithFallback(driver: WebDriver, element: WebElement, description: string): Promise<void> {
+  try {
+    await driver.executeScript('arguments[0].scrollIntoView({ block: "center", inline: "center" });', element);
+    await sleep(100);
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    await driver.actions().move({ origin: element }).click().perform();
+    return;
+  } catch (e: any) {
+    console.log(`[clickElementWithFallback] Actions click failed for ${description}: ${e.message}`);
+  }
+
+  await driver.executeScript('arguments[0].click();', element);
+}
+
 /**
  * Poll until the discovery panel (recommendation panel) is visible.
  * Returns when the panel root or search box appears, or after timeout.
@@ -1343,7 +1361,7 @@ export async function clickAddActionMenuItem(driver: WebDriver): Promise<boolean
           const text = await el.getText();
           if (text.toLowerCase().includes('add an action')) {
             console.log(`[clickAddActionMenuItem] Found "Add an action" menu item`);
-            await el.click();
+            await clickElementWithFallback(driver, el, 'Add an action menu item');
             // Poll for the discovery panel to appear
             await waitForDiscoveryPanel(driver);
             return true;
