@@ -257,6 +257,24 @@ async function waitForReviewStep(driver: WebDriver, timeoutMs = 6_000): Promise<
   return false;
 }
 
+async function clickButtonInWebviewByText(driver: WebDriver, label: string): Promise<boolean> {
+  return driver
+    .executeScript<boolean>(
+      `
+      const label = arguments[0];
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const button = buttons.find((element) => element.textContent?.includes(label) && !element.disabled && element.getAttribute('aria-disabled') !== 'true');
+      if (!button) {
+        return false;
+      }
+      button.click();
+      return true;
+    `,
+      label
+    )
+    .catch(() => false);
+}
+
 async function clickNextAndWaitForReviewStep(driver: WebDriver, webview: WebView): Promise<void> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     await dismissOuterNotificationsAndReturnToWebview(driver, webview);
@@ -271,6 +289,14 @@ async function clickNextAndWaitForReviewStep(driver: WebDriver, webview: WebView
 
     if (await waitForReviewStep(driver)) {
       return;
+    }
+
+    const clickedInWebview = await clickButtonInWebviewByText(driver, 'Next');
+    if (clickedInWebview) {
+      console.log(`[createWs] Clicked Next with webview fallback (attempt ${attempt})`);
+      if (await waitForReviewStep(driver)) {
+        return;
+      }
     }
 
     await captureScreenshot(driver, `create-ws-next-attempt-${attempt}-still-setup`, EXPLICIT_SCREENSHOT_DIR);
@@ -300,10 +326,27 @@ async function dismissOuterNotificationsAndReturnToWebview(driver: WebDriver, we
     await dismissNotifications(driver);
     await driver
       .executeScript(
-        'document.querySelectorAll(".notification-toast .codicon-close, .notifications-toasts .codicon-notifications-clear-all, .notifications-toasts [aria-label=\\"Close\\"], .notification-list-item [aria-label=\\"Close\\"]").forEach((element) => element.click())'
+        `
+        const notificationSelectors = [
+          '.notification-toast .codicon-close',
+          '.notifications-toasts .codicon-notifications-clear-all',
+          '.notifications-toasts [aria-label="Close"]',
+          '.notification-list-item [aria-label="Close"]',
+          '.notification-toast button[aria-label="Close"]',
+          '.notification-toast .monaco-action-bar .action-label.codicon-close'
+        ];
+        document.querySelectorAll(notificationSelectors.join(',')).forEach((element) => element.click());
+
+        for (const button of Array.from(document.querySelectorAll('.notification-toast button, .notifications-toasts button'))) {
+          const text = button.textContent || '';
+          if (text.includes("Don't warn again") || text.includes('Close')) {
+            button.click();
+          }
+        }
+      `
       )
       .catch(() => undefined);
-    await sleep(300);
+    await sleep(1000);
   } finally {
     await webview.switchToFrame();
   }
