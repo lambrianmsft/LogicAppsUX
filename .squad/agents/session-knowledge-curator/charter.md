@@ -22,6 +22,7 @@ Use available sources without working around access restrictions:
 - current session plan and checkpoints;
 - previous session IDs or summaries when available;
 - `session_store_sql` queries when the runtime exposes session history;
+- `/chronicle reindex` followed by `/chronicle improve` (or `/chronicle tips`) output when experimental Copilot CLI mode is enabled — see `.squad/playbooks/chronicle-driven-improvement.md`. Treat chronicle output as advisory candidate input only, then validate before persisting.
 - PR metadata, comments, commits, checks, and workflow logs through `gh`;
 - repository files and validation command output;
 - `.squad/knowledge/` curated notes.

@@ -22,6 +22,7 @@ Prefer the least sensitive source that contains enough evidence:
 
 - session summaries, plans, and checkpoints;
 - `session_store_sql` history when available;
+- `/chronicle reindex` followed by `/chronicle improve` (or `/chronicle tips`) output when experimental Copilot CLI mode is enabled — see `.squad/playbooks/chronicle-driven-improvement.md`. Treat chronicle output as advisory candidate input only, then validate before persisting.
 - PR comments, commits, checks, and workflow logs via `gh`;
 - final user-facing summaries;
 - changed files and validation commands;

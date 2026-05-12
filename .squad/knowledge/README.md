@@ -27,3 +27,5 @@ Each durable learning should include:
 - whether it is verified or needs revalidation.
 
 Use `session-knowledge-curator` and `playbooks/session-knowledge-feed.md` to add entries.
+
+For chronicle-driven candidates, see `playbooks/chronicle-driven-improvement.md` and the one-shot prompt at `prompts/chronicle-improve.md`.

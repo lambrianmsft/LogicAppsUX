@@ -98,6 +98,46 @@ Curated durable learnings for VS Code ExTester UI E2E tests. Add entries through
 - Applies to: `vscode-test-specialist`, `test`, `customer-repro-tester`, `ci-sentinel`.
 - Status: verified.
 
+### Fill webview wizard inputs by label, not index
+
+- Learning: VS Code wizard webview E2Es should locate inputs by their visible label (e.g., `findInputByLabel('Workspace name')`) rather than by DOM index or positional order.
+- Why it matters: PR #9161 stabilized `workspaceConversionCreate.test.ts` after the index-based fills wrote the workspace path into the name field when the wizard reordered/re-rendered inputs.
+- Source: Azure/LogicAppsUX#9161; `apps/vs-code-designer/src/test/ui/workspaceConversionCreate.test.ts`; session `35f3ecef-6086-4148-9b2c-d57123f7c5e6`.
+- Applies to: `vscode-test-specialist`, `test`, `senior-swe-critic`.
+- Status: verified.
+
+### Wrap every webview DOM read against stale elements
+
+- Learning: In VS Code webview E2Es, every per-element read — `label.getText()`, `label.getAttribute('for')`, parent traversal, and inner `findElement(...)` — must tolerate `StaleElementReferenceError` and `continue` to the next candidate. Filtering only on `isDisplayed()` is not enough.
+- Why it matters: PR #9161 followup commit `Handle stale labels in conversion create E2E` (5283d8a) addressed reviewer feedback that the helper still threw when the webview re-rendered between the initial visibility filter and the later label-processing calls.
+- Source: Azure/LogicAppsUX#9161 Copilot review comment on `findInputByLabel`; commit `5283d8a5`; `apps/vs-code-designer/src/test/ui/workspaceConversionCreate.test.ts`.
+- Applies to: `vscode-test-specialist`, `test`, `senior-swe-reviewer`.
+- Status: verified.
+
+### Gate Next/Create on validation completion, not button visibility
+
+- Learning: For VS Code wizard webviews, click `Next`/`Create` only after path/name validators report success (button enabled, no error decorators) — not just after the button becomes visible.
+- Why it matters: Webview validators are async; clicking on visibility races with validation and advances the wizard with invalid fields, causing later assertions to fail. PR #9161 added waits for path/name validation before advancing.
+- Source: Azure/LogicAppsUX#9161 commit `Harden conversion create E2E flow` (91a41294); `apps/vs-code-designer/src/test/ui/workspaceConversionCreate.test.ts`.
+- Applies to: `vscode-test-specialist`, `test`.
+- Status: verified.
+
+### Target primary actions by exact button text
+
+- Learning: Use exact-text predicates (e.g., `waitForButtonByExactText('Create')`) for `Create`/`Submit`/`Next` actions in VS Code webviews instead of position-based or partial-text selectors.
+- Why it matters: PR #9161 commit `Target conversion create submit action` (d52a5172) fixed flakiness where the test could click an adjacent or earlier button after the wizard layout changed.
+- Source: Azure/LogicAppsUX#9161 commit `d52a5172`; `apps/vs-code-designer/src/test/ui/workspaceConversionCreate.test.ts`.
+- Applies to: `vscode-test-specialist`, `test`.
+- Status: verified.
+
+### Shared DOM helpers prevent suite drift
+
+- Learning: When the same DOM-query helpers (`waitForButtonByExactText`, `toXPathLiteral`, `findInputByLabel`, `clearAndType`, etc.) appear in multiple VS Code E2E suites, extract them into `apps/vs-code-designer/src/test/ui/helpers.ts` (or `designerHelpers.ts`/`runHelpers.ts`) so they evolve together.
+- Why it matters: Duplicated DOM helpers drift over time and reintroduce flakiness when the webview UI changes. PR #9161 reviewer flagged this for the conversion-create helpers vs. `createWorkspace.test.ts`.
+- Source: Azure/LogicAppsUX#9161 Copilot review comment on helper duplication; `apps/vs-code-designer/src/test/ui/helpers.ts`.
+- Applies to: `vscode-test-specialist`, `test`, `senior-swe-reviewer`.
+- Status: needs revalidation — the extraction was deferred in PR #9161 with documented scope rationale; future test-touching PRs should consolidate when scope permits.
+
 ### Azurite failure E2Es must prove root-cause behavior
 
 - Learning: Azurite auto-start failure E2Es should prove the Azurite timeout appears and downstream `AzureWebJobsStorage` / `Debug anyway` prompts do not appear; prompt suppression alone is not a fix.
