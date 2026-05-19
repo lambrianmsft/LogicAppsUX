@@ -69,6 +69,7 @@ export const ExtensionCommand = {
   workspace_existence_result: 'workspace-existence-result',
   package_existence_result: 'package-existence-result',
   refresh_workflow: 'refresh-workflow',
+  openConnectionsPanel: 'open-connections-panel',
 } as const;
 export type ExtensionCommand = (typeof ExtensionCommand)[keyof typeof ExtensionCommand];
 

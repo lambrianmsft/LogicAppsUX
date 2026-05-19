@@ -16,7 +16,9 @@ import {
   resolveSwaggerOperation,
   resolveOfflineManagedConnectorOperation,
   buildServiceProviderAction,
+  buildServiceBusConnectionString,
   resolveAppSettingExpressions,
+  inferDefaultRunAfter,
 } from '../tools/workflowTools';
 import { WorkflowTypeOption } from '../chatConstants';
 
@@ -778,6 +780,18 @@ describe('trigger/action definitions', () => {
     expect(action.runAfter).toEqual({ Previous_Action: ['Succeeded'] });
   });
 
+  it('builds a Service Bus connection string from endpoint and key fields', () => {
+    expect(buildServiceBusConnectionString('sb://contoso.servicebus.windows.net/', 'RootManageSharedAccessKey', 'secret-value')).toBe(
+      'Endpoint=sb://contoso.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secret-value'
+    );
+  });
+
+  it('preserves an Endpoint= prefix when building a Service Bus connection string', () => {
+    expect(
+      buildServiceBusConnectionString('Endpoint=sb://contoso.servicebus.windows.net/', 'RootManageSharedAccessKey', 'secret-value')
+    ).toBe('Endpoint=sb://contoso.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secret-value');
+  });
+
   it('builds ServiceProvider action with empty parameters when none provided', () => {
     const action = buildServiceProviderAction('AzureBlob', 'readBlob', '/serviceProviders/AzureBlob');
     expect((action.inputs as any).parameters).toEqual({});
@@ -805,5 +819,71 @@ describe('trigger/action definitions', () => {
     const input = '/subscriptions/abc-123/providers/Microsoft.Web/locations/westus/managedApis/sql';
     const result = resolveAppSettingExpressions(input, { WORKFLOWS_SUBSCRIPTION_ID: 'other' });
     expect(result).toBe(input);
+  });
+});
+
+describe('inferDefaultRunAfter', () => {
+  it('returns {} when there are no existing actions', () => {
+    expect(inferDefaultRunAfter(undefined, undefined)).toEqual({});
+    expect(inferDefaultRunAfter({}, undefined)).toEqual({});
+  });
+
+  it('chains after the last existing action when caller omits runAfter', () => {
+    const existing = {
+      First_Action: { type: 'Compose' },
+      Second_Action: { type: 'Http' },
+    };
+    expect(inferDefaultRunAfter(existing, undefined)).toEqual({ Second_Action: ['Succeeded'] });
+  });
+
+  it('chains after the last existing action when caller passes an empty configuration', () => {
+    const existing = { Only_Action: { type: 'Compose' } };
+    expect(inferDefaultRunAfter(existing, {})).toEqual({ Only_Action: ['Succeeded'] });
+  });
+
+  it('preserves an explicit top-level runAfter pointing at a specific previous action', () => {
+    const existing = {
+      Compose1: { type: 'Compose' },
+      Compose2: { type: 'Compose' },
+    };
+    expect(inferDefaultRunAfter(existing, { runAfter: { Compose1: ['Succeeded'] } })).toEqual({ Compose1: ['Succeeded'] });
+  });
+
+  it('preserves an explicit runAfter:{} to opt into parallel execution', () => {
+    const existing = { Compose1: { type: 'Compose' } };
+    expect(inferDefaultRunAfter(existing, { runAfter: {} })).toEqual({});
+  });
+
+  it('preserves runAfter when nested under inputs', () => {
+    const existing = { Compose1: { type: 'Compose' } };
+    expect(inferDefaultRunAfter(existing, { inputs: { runAfter: { Compose1: ['Failed'] } } })).toEqual({ Compose1: ['Failed'] });
+  });
+
+  it('ignores non-object runAfter values from the caller', () => {
+    const existing = { Compose1: { type: 'Compose' } };
+    expect(inferDefaultRunAfter(existing, { runAfter: 'invalid' as unknown as Record<string, unknown> })).toEqual({
+      Compose1: ['Succeeded'],
+    });
+  });
+
+  it('respects the workflow JSON insertion order for chaining', () => {
+    const existing = {
+      A: { type: 'Compose' },
+      B: { type: 'Compose' },
+      C: { type: 'Compose' },
+    };
+    expect(inferDefaultRunAfter(existing, undefined)).toEqual({ C: ['Succeeded'] });
+  });
+});
+
+describe('buildSeattleWeatherConnectorAction with runAfter', () => {
+  it('uses the provided runAfter when chaining', () => {
+    const action = buildSeattleWeatherConnectorAction('msnweather', { Previous_Trigger: ['Succeeded'] });
+    expect(action.runAfter).toEqual({ Previous_Trigger: ['Succeeded'] });
+  });
+
+  it('still defaults to {} when runAfter is not provided', () => {
+    const action = buildSeattleWeatherConnectorAction('msnweather');
+    expect(action.runAfter).toEqual({});
   });
 });

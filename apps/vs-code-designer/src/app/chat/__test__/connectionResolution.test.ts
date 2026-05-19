@@ -12,10 +12,6 @@ import {
   isMSIAuthEnabled,
   constructManagedApiBasePathFromSettings,
   registerPendingOAuthCallback,
-  classifyConnectorAuthType,
-  extractUserFacingParameters,
-  extractPromptableParameters,
-  isHiddenParam,
 } from '../tools/workflowTools';
 
 const tempProjectPaths = new Set<string>();
@@ -267,6 +263,26 @@ describe('addRealManagedApiConnection', () => {
     expect(values['outlook-connectionKey']).toBe('test-connection-key-123');
   });
 
+  it('writes connectionRuntimeUrl for raw key connections', async () => {
+    const projectPath = await createTempProject();
+
+    await addRealManagedApiConnection(
+      projectPath,
+      'outlook',
+      '/subscriptions/sub/managedApis/outlook',
+      '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Web/connections/outlook-conn',
+      'test-connection-key-123',
+      false,
+      'https://runtime.contoso.example'
+    );
+
+    const connectionsData = await readProjectJson(projectPath, 'connections.json');
+    const managed = connectionsData.managedApiConnections as Record<string, unknown>;
+    const conn = managed.outlook as Record<string, unknown>;
+
+    expect(conn.connectionRuntimeUrl).toBe('https://runtime.contoso.example');
+  });
+
   it('writes ManagedServiceIdentity authentication when useMSI is true', async () => {
     const projectPath = await createTempProject();
 
@@ -288,6 +304,26 @@ describe('addRealManagedApiConnection', () => {
     expect(auth.scheme).toBeUndefined();
     expect(auth.parameter).toBeUndefined();
     expect(await fse.pathExists(path.join(projectPath, 'local.settings.json'))).toBe(false);
+  });
+
+  it('writes connectionRuntimeUrl for managed identity connections', async () => {
+    const projectPath = await createTempProject();
+
+    await addRealManagedApiConnection(
+      projectPath,
+      'servicebus',
+      '/subscriptions/sub/managedApis/servicebus',
+      '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Web/connections/sb-conn',
+      undefined,
+      true,
+      'https://runtime.servicebus.example'
+    );
+
+    const connectionsData = await readProjectJson(projectPath, 'connections.json');
+    const managed = connectionsData.managedApiConnections as Record<string, unknown>;
+    const conn = managed.servicebus as Record<string, unknown>;
+
+    expect(conn.connectionRuntimeUrl).toBe('https://runtime.servicebus.example');
   });
 
   it('stores connection key in local.settings.json for Raw Keys', async () => {
@@ -621,407 +657,5 @@ describe('addRealManagedApiConnection — sequential writes', () => {
     expect(managed.conn2).toBeDefined();
     expect(values['conn1-connectionKey']).toBe('key1');
     expect(values['conn2-connectionKey']).toBe('key2');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────
-// classifyConnectorAuthType
-// ─────────────────────────────────────────────────────────────────────
-
-describe('classifyConnectorAuthType', () => {
-  it('returns "simple" when connector has no connection parameters', () => {
-    expect(classifyConnectorAuthType({ name: 'simple-connector' })).toBe('simple');
-  });
-
-  it('returns "simple" when all parameters are hidden (token-prefixed)', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'hidden-params',
-        connectionParameters: {
-          token: { type: 'oauthSetting' },
-          'token:clientId': { type: 'string' },
-          'token:clientSecret': { type: 'securestring' },
-        },
-      })
-    ).toBe('simple');
-  });
-
-  it('returns "simple" when all parameters are hidden via uiDefinition', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'ui-hidden',
-        connectionParameters: {
-          internalParam: { type: 'string', uiDefinition: { constraints: { hidden: 'true' } } },
-        },
-      })
-    ).toBe('simple');
-  });
-
-  it('returns "oauthOnly" when all visible parameters are OAuth settings', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'outlook',
-        connectionParameters: {
-          token: { type: 'oauthSetting' },
-          'token:clientId': { type: 'string' },
-          authorizationUrl: { type: 'oauthSetting' },
-        },
-      })
-    ).toBe('oauthOnly');
-  });
-
-  it('returns "credential" when visible parameters include string/securestring', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'servicebus',
-        connectionParameters: {
-          connectionString: { type: 'securestring', uiDefinition: { displayName: 'Connection String' } },
-        },
-      })
-    ).toBe('credential');
-  });
-
-  it('returns "credential" for SQL-like connector with mixed param types', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'sql-single-auth',
-        connectionParameters: {
-          token: { type: 'oauthSetting' },
-          server: { type: 'string', uiDefinition: { displayName: 'SQL server name' } },
-          database: { type: 'string', uiDefinition: { displayName: 'SQL database name' } },
-          username: { type: 'string' },
-          password: { type: 'securestring' },
-        },
-      })
-    ).toBe('credential');
-  });
-
-  it('returns "multiAuth" when connectionParameterSets has multiple values', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'sql',
-        connectionParameterSets: {
-          values: [
-            {
-              name: 'sqlAuthentication',
-              parameters: {
-                server: { type: 'string' },
-                username: { type: 'string' },
-                password: { type: 'securestring' },
-              },
-            },
-            {
-              name: 'windowsAuthentication',
-              parameters: {
-                server: { type: 'string' },
-              },
-            },
-          ],
-        },
-      })
-    ).toBe('multiAuth');
-  });
-
-  it('returns appropriate type for single connectionParameterSet', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'single-set',
-        connectionParameterSets: {
-          values: [
-            {
-              name: 'default',
-              parameters: {
-                apiKey: { type: 'securestring', uiDefinition: { displayName: 'API Key' } },
-              },
-            },
-          ],
-        },
-      })
-    ).toBe('credential');
-  });
-
-  it('returns "simple" for single parameter set with only hidden params', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'simple-set',
-        connectionParameterSets: {
-          values: [
-            {
-              name: 'default',
-              parameters: {
-                token: { type: 'oauthSetting' },
-                'token:clientId': { type: 'string' },
-              },
-            },
-          ],
-        },
-      })
-    ).toBe('simple');
-  });
-
-  it('returns "oauthOnly" for single parameter set with only OAuth visible params', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'oauth-set',
-        connectionParameterSets: {
-          values: [
-            {
-              name: 'default',
-              parameters: {
-                token: { type: 'oauthSetting' },
-                authUrl: { type: 'oauthSetting' },
-              },
-            },
-          ],
-        },
-      })
-    ).toBe('oauthOnly');
-  });
-
-  it('returns "simple" when connectionParameters is an empty object', () => {
-    expect(
-      classifyConnectorAuthType({
-        name: 'empty-params',
-        connectionParameters: {},
-      })
-    ).toBe('simple');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────
-// extractUserFacingParameters
-// ─────────────────────────────────────────────────────────────────────
-
-describe('extractUserFacingParameters', () => {
-  it('filters out token-prefixed parameters', () => {
-    const result = extractUserFacingParameters({
-      token: { type: 'oauthSetting' },
-      'token:clientId': { type: 'string' },
-      'token:clientSecret': { type: 'securestring' },
-      server: { type: 'string' },
-    });
-    expect(Object.keys(result)).toEqual(['server']);
-  });
-
-  it('filters out parameters with hidden constraint', () => {
-    const result = extractUserFacingParameters({
-      visibleParam: { type: 'string' },
-      hiddenParam: { type: 'string', uiDefinition: { constraints: { hidden: 'true' } } },
-    });
-    expect(Object.keys(result)).toEqual(['visibleParam']);
-  });
-
-  it('keeps oauthSetting type parameters (visible for classification)', () => {
-    const result = extractUserFacingParameters({
-      oauthParam: { type: 'oauthSetting' },
-      apiKey: { type: 'securestring' },
-    });
-    expect(Object.keys(result)).toEqual(['oauthParam', 'apiKey']);
-  });
-
-  it('filters out connection type parameters', () => {
-    const result = extractUserFacingParameters({
-      prerequisiteConn: { type: 'connection' },
-      server: { type: 'string' },
-    });
-    expect(Object.keys(result)).toEqual(['server']);
-  });
-
-  it('keeps all parameters when none are hidden', () => {
-    const params = {
-      server: { type: 'string', uiDefinition: { displayName: 'Server' } },
-      database: { type: 'string', uiDefinition: { displayName: 'Database' } },
-      password: { type: 'securestring', uiDefinition: { displayName: 'Password' } },
-    };
-    const result = extractUserFacingParameters(params);
-    expect(Object.keys(result)).toEqual(['server', 'database', 'password']);
-  });
-
-  it('returns empty object when all parameters are hidden', () => {
-    const result = extractUserFacingParameters({
-      token: { type: 'oauthSetting' },
-      'token:TenantId': { type: 'string' },
-    });
-    expect(Object.keys(result)).toEqual([]);
-  });
-
-  it('returns empty object for empty input', () => {
-    expect(Object.keys(extractUserFacingParameters({}))).toEqual([]);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────
-// isHiddenParam
-// ─────────────────────────────────────────────────────────────────────
-
-describe('isHiddenParam', () => {
-  it('hides "token" key', () => {
-    expect(isHiddenParam('token', { type: 'oauthSetting' })).toBe(true);
-  });
-
-  it('hides "token:clientId" key', () => {
-    expect(isHiddenParam('token:clientId', { type: 'string' })).toBe(true);
-  });
-
-  it('hides parameters with hidden constraint in uiDefinition', () => {
-    expect(isHiddenParam('someParam', { type: 'string', uiDefinition: { constraints: { hidden: 'true' } } })).toBe(true);
-  });
-
-  it('does not hide oauthSetting type (visible for classification)', () => {
-    expect(isHiddenParam('authUrl', { type: 'oauthSetting' })).toBe(false);
-  });
-
-  it('hides connection type', () => {
-    expect(isHiddenParam('gatewayConn', { type: 'connection' })).toBe(true);
-  });
-
-  it('does not hide regular string parameter', () => {
-    expect(isHiddenParam('server', { type: 'string' })).toBe(false);
-  });
-
-  it('does not hide securestring parameter', () => {
-    expect(isHiddenParam('password', { type: 'securestring' })).toBe(false);
-  });
-
-  it('is case-insensitive for token prefix', () => {
-    expect(isHiddenParam('Token', { type: 'oauthSetting' })).toBe(true);
-    expect(isHiddenParam('TOKEN:ClientId', { type: 'string' })).toBe(true);
-  });
-
-  it('is case-insensitive for type check', () => {
-    expect(isHiddenParam('conn', { type: 'Connection' })).toBe(true);
-  });
-
-  it('does not hide when hidden constraint is "false"', () => {
-    expect(isHiddenParam('param', { type: 'string', uiDefinition: { constraints: { hidden: 'false' } } })).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────
-// addRealManagedApiConnection — connectionRuntimeUrl support
-// ─────────────────────────────────────────────────────────────────────
-
-describe('addRealManagedApiConnection — connectionRuntimeUrl', () => {
-  it('writes connectionRuntimeUrl when provided', async () => {
-    const projectPath = await createTempProject();
-
-    await addRealManagedApiConnection(
-      projectPath,
-      'outlook',
-      '/subscriptions/sub/managedApis/outlook',
-      '/subscriptions/sub/rg/providers/Microsoft.Web/connections/outlook-conn',
-      'test-key',
-      false,
-      'https://runtime.azure.com/api/connections/outlook-conn'
-    );
-
-    const connectionsData = await readProjectJson(projectPath, 'connections.json');
-    const managed = connectionsData.managedApiConnections as Record<string, unknown>;
-    const conn = managed.outlook as Record<string, unknown>;
-
-    expect(conn.connectionRuntimeUrl).toBe('https://runtime.azure.com/api/connections/outlook-conn');
-  });
-
-  it('omits connectionRuntimeUrl when not provided', async () => {
-    const projectPath = await createTempProject();
-
-    await addRealManagedApiConnection(
-      projectPath,
-      'sql',
-      '/subscriptions/sub/managedApis/sql',
-      '/subscriptions/sub/rg/providers/Microsoft.Web/connections/sql-conn',
-      'key-123'
-    );
-
-    const connectionsData = await readProjectJson(projectPath, 'connections.json');
-    const managed = connectionsData.managedApiConnections as Record<string, unknown>;
-    const conn = managed.sql as Record<string, unknown>;
-
-    expect(conn.connectionRuntimeUrl).toBeUndefined();
-  });
-
-  it('writes connectionRuntimeUrl alongside MSI authentication', async () => {
-    const projectPath = await createTempProject();
-
-    await addRealManagedApiConnection(
-      projectPath,
-      'servicebus',
-      '/subscriptions/sub/managedApis/servicebus',
-      '/subscriptions/sub/rg/providers/Microsoft.Web/connections/sb-conn',
-      undefined,
-      true,
-      'https://runtime.azure.com/api/connections/sb-conn'
-    );
-
-    const connectionsData = await readProjectJson(projectPath, 'connections.json');
-    const managed = connectionsData.managedApiConnections as Record<string, unknown>;
-    const conn = managed.servicebus as Record<string, unknown>;
-
-    expect(conn.connectionRuntimeUrl).toBe('https://runtime.azure.com/api/connections/sb-conn');
-    expect((conn.authentication as Record<string, unknown>).type).toBe('ManagedServiceIdentity');
-  });
-
-  it('writes connectionRuntimeUrl alongside Raw Keys authentication', async () => {
-    const projectPath = await createTempProject();
-
-    await addRealManagedApiConnection(
-      projectPath,
-      'outlook',
-      '/subscriptions/sub/managedApis/outlook',
-      '/subscriptions/sub/rg/providers/Microsoft.Web/connections/o365-conn',
-      'my-key',
-      false,
-      'https://runtime.azure.com/api/connections/o365'
-    );
-
-    const connectionsData = await readProjectJson(projectPath, 'connections.json');
-    const managed = connectionsData.managedApiConnections as Record<string, unknown>;
-    const conn = managed.outlook as Record<string, unknown>;
-    const auth = conn.authentication as Record<string, unknown>;
-
-    expect(conn.connectionRuntimeUrl).toBe('https://runtime.azure.com/api/connections/o365');
-    expect(auth.type).toBe('Raw');
-    expect(auth.scheme).toBe('Key');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────
-// extractPromptableParameters
-// ─────────────────────────────────────────────────────────────────────
-
-describe('extractPromptableParameters', () => {
-  it('filters out both hidden and oauthSetting parameters', () => {
-    const result = extractPromptableParameters({
-      token: { type: 'oauthSetting' },
-      authUrl: { type: 'oauthSetting' },
-      server: { type: 'string', uiDefinition: { displayName: 'Server' } },
-      password: { type: 'securestring', uiDefinition: { displayName: 'Password' } },
-    });
-    expect(Object.keys(result)).toEqual(['server', 'password']);
-  });
-
-  it('returns empty for OAuth-only connector', () => {
-    const result = extractPromptableParameters({
-      token: { type: 'oauthSetting' },
-      'token:clientId': { type: 'string' },
-      consentUrl: { type: 'oauthSetting' },
-    });
-    expect(Object.keys(result)).toEqual([]);
-  });
-
-  it('keeps credential parameters for non-OAuth connector', () => {
-    const result = extractPromptableParameters({
-      connectionString: { type: 'securestring', uiDefinition: { displayName: 'Connection String' } },
-    });
-    expect(Object.keys(result)).toEqual(['connectionString']);
-  });
-
-  it('returns empty for connector with only hidden parameters', () => {
-    const result = extractPromptableParameters({
-      token: { type: 'oauthSetting' },
-      'token:TenantId': { type: 'string' },
-      hiddenParam: { type: 'string', uiDefinition: { constraints: { hidden: 'true' } } },
-    });
-    expect(Object.keys(result)).toEqual([]);
   });
 });

@@ -1,0 +1,2215 @@
+
+> @microsoft/logicappsux@5.110.0 test:e2e:chatClient C:\dobby\repos\LogicAppsUX
+> playwright test --config=playwright.chatClient.config.ts
+
+[1A[2K[WebServer] The system cannot find the path specified.
+
+
+Running 224 tests using 12 workers
+
+[1A[2K[1/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:60:3 ΓÇ║ Authentication Flows ΓÇ║ should display service icon when provided @mock
+[1A[2K[2/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:104:3 ΓÇ║ Authentication Flows ΓÇ║ should open popup when sign in button is clicked @mock
+[1A[2K[3/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:131:3 ΓÇ║ Authentication Flows ΓÇ║ should show authenticating state when popup is open @mock
+[1A[2K[4/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:178:3 ΓÇ║ Authentication Flows ΓÇ║ should disable cancel button while authenticating @mock
+[1A[2K[5/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:153:3 ΓÇ║ Authentication Flows ΓÇ║ should handle cancel authentication @mock
+[1A[2K[6/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:204:3 ΓÇ║ Authentication Flows ΓÇ║ should handle popup blocker scenario @mock
+[1A[2K[7/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:246:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should show completed state after successful auth @mock
+[1A[2K[8/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+[1A[2K[9/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:356:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should maintain auth state after page interactions @mock
+[1A[2K[10/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:302:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should handle multiple auth completions in sequence @mock
+[1A[2K[11/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:34:3 ΓÇ║ Authentication Flows ΓÇ║ should display authentication required UI @mock
+[1A[2K[12/224] [chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:76:3 ΓÇ║ Authentication Flows ΓÇ║ should handle multiple authentication requirements @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:356:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should maintain auth state after page interactions @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:34:3 ΓÇ║ Authentication Flows ΓÇ║ should display authentication required UI @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:178:3 ΓÇ║ Authentication Flows ΓÇ║ should disable cancel button while authenticating @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:302:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should handle multiple auth completions in sequence @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:76:3 ΓÇ║ Authentication Flows ΓÇ║ should handle multiple authentication requirements @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:356:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should maintain auth state after page interactions @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906129712,"result":{"taskId":"task-371a581a-4747-4cb7-b91d-fed2d7b981a1","contextId":"ctx-54ae4197-8017-468b-9d43-3b6b8ed20ebe","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:09 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906129712,"result":{"taskId":"task-371a581a-4747-4cb7-b91d-fed2d7b981a1","contextId":"ctx-54ae4197-8017-468b-9d43-3b6b8ed20ebe","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:60:3 ΓÇ║ Authentication Flows ΓÇ║ should display service icon when provided @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:246:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should show completed state after successful auth @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:204:3 ΓÇ║ Authentication Flows ΓÇ║ should handle popup blocker scenario @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:131:3 ΓÇ║ Authentication Flows ΓÇ║ should show authenticating state when popup is open @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:153:3 ΓÇ║ Authentication Flows ΓÇ║ should handle cancel authentication @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:104:3 ΓÇ║ Authentication Flows ΓÇ║ should open popup when sign in button is clicked @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:34:3 ΓÇ║ Authentication Flows ΓÇ║ should display authentication required UI @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130038,"result":{"taskId":"task-296f93d3-e6c3-493b-9afa-f569830c94c2","contextId":"ctx-8a6b854b-c8e4-41b0-aa38-d300bbc292af","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130038,"result":{"taskId":"task-296f93d3-e6c3-493b-9afa-f569830c94c2","contextId":"ctx-8a6b854b-c8e4-41b0-aa38-d300bbc292af","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[13/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:14:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in agent card request @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:76:3 ΓÇ║ Authentication Flows ΓÇ║ should handle multiple authentication requirements @mock
+message full: {
+  "kind": "text",
+  "text": "multiple auth"
+}
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+messageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:76:3 ΓÇ║ Authentication Flows ΓÇ║ should handle multiple authentication requirements @mock
+messageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: multiple auth 
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+user message: require auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:76:3 ΓÇ║ Authentication Flows ΓÇ║ should handle multiple authentication requirements @mock
+user message: multiple auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:178:3 ΓÇ║ Authentication Flows ΓÇ║ should disable cancel button while authenticating @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130425,"result":{"taskId":"task-dec3545a-2cb2-4280-83d2-e213aca043eb","contextId":"ctx-25ba1ac2-cd87-46f9-8d62-f81f36f5bf8c","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130425,"result":{"taskId":"task-dec3545a-2cb2-4280-83d2-e213aca043eb","contextId":"ctx-25ba1ac2-cd87-46f9-8d62-f81f36f5bf8c","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:76:3 ΓÇ║ Authentication Flows ΓÇ║ should handle multiple authentication requirements @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130425,"result":{"taskId":"task-6aac8acb-0c7e-4f02-80e7-a7a90eb34ebb","contextId":"ctx-74c458db-2c40-49f0-a816-143ab72b0ba9","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130425,"result":{"taskId":"task-6aac8acb-0c7e-4f02-80e7-a7a90eb34ebb","contextId":"ctx-74c458db-2c40-49f0-a816-143ab72b0ba9","status":{"state":"working","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:178:3 ΓÇ║ Authentication Flows ΓÇ║ should disable cancel button while authenticating @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130428,"result":{"taskId":"task-8beb32a2-b7c4-4032-b332-ed385d8f60e5","contextId":"ctx-04be255f-a770-41e3-87a2-8b7488959729","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130428,"result":{"taskId":"task-8beb32a2-b7c4-4032-b332-ed385d8f60e5","contextId":"ctx-04be255f-a770-41e3-87a2-8b7488959729","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:302:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should handle multiple auth completions in sequence @mock
+message full: {
+  "kind": "text",
+  "text": "multiple auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: multiple auth 
+
+[1A[2Kuser message: multiple auth
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130448,"result":{"taskId":"task-7ac3434d-4783-4818-83e9-fa3ce4318916","contextId":"ctx-c18cb775-2980-40af-9e49-3ca77a7dc244","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130448,"result":{"taskId":"task-7ac3434d-4783-4818-83e9-fa3ce4318916","contextId":"ctx-c18cb775-2980-40af-9e49-3ca77a7dc244","status":{"state":"working","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:356:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should maintain auth state after page interactions @mock
+message full: {
+  "kind": "data",
+  "data": {
+    "messageType": "AuthenticationCompleted"
+  }
+}
+
+[1A[2KmessageType AuthenticationCompleted
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message:  AuthenticationCompleted
+
+[1A[2Kuser message: 
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130491,"result":{"taskId":"task-f286894d-27c5-4930-8dc5-7228cb96456d","contextId":"ctx-a4ac6be1-80d2-45b0-8133-1079a02a47c8","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130491,"result":{"taskId":"task-f286894d-27c5-4930-8dc5-7228cb96456d","contextId":"ctx-a4ac6be1-80d2-45b0-8133-1079a02a47c8","status":{"state":"working","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:60:3 ΓÇ║ Authentication Flows ΓÇ║ should display service icon when provided @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:246:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should show completed state after successful auth @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:60:3 ΓÇ║ Authentication Flows ΓÇ║ should display service icon when provided @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130596,"result":{"taskId":"task-d0aa202e-9cfa-40f3-bbba-d54a0ff355da","contextId":"ctx-de9abc0a-a16f-42ec-b747-070657b3544f","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130596,"result":{"taskId":"task-d0aa202e-9cfa-40f3-bbba-d54a0ff355da","contextId":"ctx-de9abc0a-a16f-42ec-b747-070657b3544f","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:246:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should show completed state after successful auth @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130617,"result":{"taskId":"task-e343b830-5f15-48f0-adef-0cb67cddad77","contextId":"ctx-b5d854d4-f46b-441b-bd10-f5b20d5c8693","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130617,"result":{"taskId":"task-e343b830-5f15-48f0-adef-0cb67cddad77","contextId":"ctx-b5d854d4-f46b-441b-bd10-f5b20d5c8693","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:104:3 ΓÇ║ Authentication Flows ΓÇ║ should open popup when sign in button is clicked @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130839,"result":{"taskId":"task-2158043a-3580-4b30-94fb-138f8e9206af","contextId":"ctx-3a0a4512-9227-442c-92ad-4b172c643034","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130839,"result":{"taskId":"task-2158043a-3580-4b30-94fb-138f8e9206af","contextId":"ctx-3a0a4512-9227-442c-92ad-4b172c643034","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:131:3 ΓÇ║ Authentication Flows ΓÇ║ should show authenticating state when popup is open @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:204:3 ΓÇ║ Authentication Flows ΓÇ║ should handle popup blocker scenario @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:131:3 ΓÇ║ Authentication Flows ΓÇ║ should show authenticating state when popup is open @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130909,"result":{"taskId":"task-aa45848a-6381-46af-a319-2e41fb436cb0","contextId":"ctx-abb620f8-aeaf-4652-8e98-e7feab19131b","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130909,"result":{"taskId":"task-aa45848a-6381-46af-a319-2e41fb436cb0","contextId":"ctx-abb620f8-aeaf-4652-8e98-e7feab19131b","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:204:3 ΓÇ║ Authentication Flows ΓÇ║ should handle popup blocker scenario @mock
+[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906130928,"result":{"taskId":"task-3e0b8381-1825-4798-b469-7ae1fa0b9af4","contextId":"ctx-99232d78-8a65-4b9a-9cbe-5c57b1927164","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:10 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906130928,"result":{"taskId":"task-3e0b8381-1825-4798-b469-7ae1fa0b9af4","contextId":"ctx-99232d78-8a65-4b9a-9cbe-5c57b1927164","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[14/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:31:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in message/stream requests @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:153:3 ΓÇ║ Authentication Flows ΓÇ║ should handle cancel authentication @mock
+message full: {
+  "kind": "text",
+  "text": "require auth"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: require auth 
+
+[1A[2Kuser message: require auth
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906131006,"result":{"taskId":"task-057c941a-b046-4160-9238-0be59c845868","contextId":"ctx-3cbf8b0e-0037-4489-bfe3-d49d1f7e8b0c","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:11 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906131006,"result":{"taskId":"task-057c941a-b046-4160-9238-0be59c845868","contextId":"ctx-3cbf8b0e-0037-4489-bfe3-d49d1f7e8b0c","kind":"status-update","status":{"state":"auth-required","timestamp":"4/2
+
+[1A[2K[15/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:59:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in contexts/list requests @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:271:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should send authentication completed message @mock
+message full: {
+  "kind": "data",
+  "data": {
+    "messageType": "AuthenticationCompleted"
+  }
+}
+
+[1A[2KmessageType AuthenticationCompleted
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message:  AuthenticationCompleted
+
+[1A[2Kuser message: 
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906131174,"result":{"taskId":"task-4c7cab5e-af68-4dc1-9e85-38d728bfaf3f","contextId":"ctx-85603db7-da41-4f7a-9295-831d080ab3b9","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:11 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906131174,"result":{"taskId":"task-4c7cab5e-af68-4dc1-9e85-38d728bfaf3f","contextId":"ctx-85603db7-da41-4f7a-9295-831d080ab3b9","status":{"state":"working","timestamp":"4/22/2026, 6:02:11 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:246:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should show completed state after successful auth @mock
+message full: {
+  "kind": "data",
+  "data": {
+    "messageType": "AuthenticationCompleted"
+  }
+}
+
+[1A[2KmessageType AuthenticationCompleted
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message:  AuthenticationCompleted
+
+[1A[2Kuser message: 
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906131370,"result":{"taskId":"task-84093a15-c17f-4017-8019-b8e9339fd489","contextId":"ctx-f0f5d7ba-a5b2-4418-a586-6147c5e18259","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:11 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906131370,"result":{"taskId":"task-84093a15-c17f-4017-8019-b8e9339fd489","contextId":"ctx-f0f5d7ba-a5b2-4418-a586-6147c5e18259","status":{"state":"working","timestamp":"4/22/2026, 6:02:11 PM"},"kind":"
+
+[1A[2K[16/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:80:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in agent card request @mock
+[1A[2K[17/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:97:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in message/stream requests @mock
+[1A[2K[18/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:125:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in contexts/list requests @mock
+[1A[2K[19/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:146:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should include both API key and OBO token headers in requests @mock
+[1A[2K[20/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:177:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should maintain credentials across multiple requests @mock
+[1A[2K[21/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:222:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should not include API key header when not provided @mock
+[1A[2K[22/224] [chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:250:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should handle special characters in API key @mock
+[1A[2K[23/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:81:3 ΓÇ║ Login Prompt Display ΓÇ║ should display login prompt when agent card returns 401 @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-flow.spec.ts:302:3 ΓÇ║ Authentication Completion Flow ΓÇ║ should handle multiple auth completions in sequence @mock
+message full: {
+  "kind": "data",
+  "data": {
+    "messageType": "AuthenticationCompleted"
+  }
+}
+
+[1A[2KmessageType AuthenticationCompleted
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message:  AuthenticationCompleted
+
+[1A[2Kuser message: 
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906133893,"result":{"taskId":"task-5cdd86c5-7e3c-4a14-8037-644bd4bd3c1c","contextId":"ctx-045b4354-4e3f-442b-afd4-16d8af8e2852","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:13 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906133893,"result":{"taskId":"task-5cdd86c5-7e3c-4a14-8037-644bd4bd3c1c","contextId":"ctx-045b4354-4e3f-442b-afd4-16d8af8e2852","status":{"state":"working","timestamp":"4/22/2026, 6:02:13 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:177:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should maintain credentials across multiple requests @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:31:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in message/stream requests @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:80:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in agent card request @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:125:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in contexts/list requests @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:97:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in message/stream requests @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:250:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should handle special characters in API key @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[24/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:94:3 ΓÇ║ Login Prompt Display ΓÇ║ should display person icon in login prompt @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:146:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should include both API key and OBO token headers in requests @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:59:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in contexts/list requests @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:14:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in agent card request @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:222:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should not include API key header when not provided @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[25/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:107:3 ΓÇ║ Login Prompt Display ΓÇ║ should show sign in button enabled by default @mock
+[1A[2K[26/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:126:3 ΓÇ║ Login Popup Flow ΓÇ║ should open login popup when sign in button is clicked @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:177:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should maintain credentials across multiple requests @mock
+message full: {
+  "kind": "text",
+  "text": "First message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: First message 
+
+[1A[2Kuser message: First message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906135440,"result":{"taskId":"task-59b791e4-ac89-4b0d-948a-dbc9598c0535","contextId":"ctx-fa8a904c-b6af-4f64-96fd-6615e6c8adc3","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906135440,"result":{"taskId":"task-59b791e4-ac89-4b0d-948a-dbc9598c0535","contextId":"ctx-fa8a904c-b6af-4f64-96fd-6615e6c8adc3","status":{"state":"working","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:31:3 ΓÇ║ API Key Authentication ΓÇ║ should include API key header in message/stream requests @mock
+message full: {
+  "kind": "text",
+  "text": "Test message with API key"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message with API key 
+
+[1A[2Kuser message: Test message with API key
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906135509,"result":{"taskId":"task-530834df-2e75-4170-afcb-2d480eefb8d1","contextId":"ctx-0141b736-0309-4f01-881d-551de3f62ba6","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906135509,"result":{"taskId":"task-530834df-2e75-4170-afcb-2d480eefb8d1","contextId":"ctx-0141b736-0309-4f01-881d-551de3f62ba6","status":{"state":"working","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:250:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should handle special characters in API key @mock
+message full: {
+  "kind": "text",
+  "text": "Test"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test 
+
+[1A[2Kuser message: Test
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906135659,"result":{"taskId":"task-f99b023a-3a1b-4058-94cd-68c8b7744262","contextId":"ctx-e2b14872-0b75-4f5d-9e38-6ebd39648d94","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906135659,"result":{"taskId":"task-f99b023a-3a1b-4058-94cd-68c8b7744262","contextId":"ctx-e2b14872-0b75-4f5d-9e38-6ebd39648d94","status":{"state":"working","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"
+
+[1A[2K[27/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:148:3 ΓÇ║ Login Popup Flow ΓÇ║ should show loading state when popup is open @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:97:3 ΓÇ║ OBO Token Authentication ΓÇ║ should include OBO token header in message/stream requests @mock
+message full: {
+  "kind": "text",
+  "text": "Test message with OBO token"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message with OBO token 
+
+[1A[2Kuser message: Test message with OBO token
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906135664,"result":{"taskId":"task-48a4b72f-6d46-4e61-b2d8-3f06f46faa0a","contextId":"ctx-c299f4cc-8836-46dd-aca8-53b88a69971c","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906135664,"result":{"taskId":"task-48a4b72f-6d46-4e61-b2d8-3f06f46faa0a","contextId":"ctx-c299f4cc-8836-46dd-aca8-53b88a69971c","status":{"state":"working","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:146:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should include both API key and OBO token headers in requests @mock
+message full: {
+  "kind": "text",
+  "text": "Test message with both credentials"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message with both credentials 
+
+[1A[2Kuser message: Test message with both credentials
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906135774,"result":{"taskId":"task-fa9899d0-51c5-42eb-a6b9-deb0eb37a322","contextId":"ctx-202e4546-17bc-44b8-a985-f2e96c3b9822","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906135774,"result":{"taskId":"task-fa9899d0-51c5-42eb-a6b9-deb0eb37a322","contextId":"ctx-202e4546-17bc-44b8-a985-f2e96c3b9822","status":{"state":"working","timestamp":"4/22/2026, 6:02:15 PM"},"kind":"
+
+[1A[2K[28/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:192:3 ΓÇ║ Login Popup Flow ΓÇ║ should display error message when popup is blocked @mock
+[1A[2K[29/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:169:3 ΓÇ║ Login Popup Flow ΓÇ║ should handle popup blocker gracefully @mock
+[1A[2K[30/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:223:3 ΓÇ║ Token Refresh Flow ΓÇ║ should attempt token refresh before showing login prompt @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:222:3 ΓÇ║ Authentication Edge Cases ΓÇ║ should not include API key header when not provided @mock
+message full: {
+  "kind": "text",
+  "text": "Message without credentials"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message without credentials 
+
+[1A[2Kuser message: Message without credentials
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906136041,"result":{"taskId":"task-e49a61d1-79ed-4977-863a-b0e95491cbba","contextId":"ctx-9d6b9958-96f2-4b8f-aaf2-712495cdbe06","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:16 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906136041,"result":{"taskId":"task-e49a61d1-79ed-4977-863a-b0e95491cbba","contextId":"ctx-9d6b9958-96f2-4b8f-aaf2-712495cdbe06","status":{"state":"working","timestamp":"4/22/2026, 6:02:16 PM"},"kind":"
+
+[1A[2K[31/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:248:3 ΓÇ║ Token Refresh Flow ΓÇ║ should reload page if token refresh succeeds @mock
+[1A[2K[32/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:295:3 ΓÇ║ Authentication Success Flow ΓÇ║ should reload page after successful authentication @mock
+[1A[2K[33/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:372:3 ΓÇ║ Login Prompt Accessibility ΓÇ║ should have accessible button with proper role @mock
+[1A[2K[34/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:383:3 ΓÇ║ Login Prompt Accessibility ΓÇ║ should be keyboard navigable @mock
+[1A[2K[35/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:399:3 ΓÇ║ Successful Login to MultiSession Chat ΓÇ║ should show multi-session chat after successful sign in @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\auth-headers.spec.ts:177:3 ΓÇ║ Combined API Key and OBO Token Authentication ΓÇ║ should maintain credentials across multiple requests @mock
+message full: {
+  "kind": "text",
+  "text": "Second message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Second message 
+
+[1A[2Kuser message: Second message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906136599,"result":{"taskId":"task-eee6c61a-8e8b-4957-abe6-bd994d08b029","contextId":"ctx-78212ec5-29ee-4a59-892d-edcd835898e2","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:16 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906136599,"result":{"taskId":"task-eee6c61a-8e8b-4957-abe6-bd994d08b029","contextId":"ctx-78212ec5-29ee-4a59-892d-edcd835898e2","status":{"state":"working","timestamp":"4/22/2026, 6:02:16 PM"},"kind":"
+
+[1A[2K[36/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:548:3 ΓÇ║ Successful Login to MultiSession Chat ΓÇ║ should show chat input after successful sign in for single session @mock
+[1A[2K[37/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:659:3 ΓÇ║ Successful Login to MultiSession Chat ΓÇ║ should display agent name after successful authentication @mock
+[1A[2K[38/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:771:3 ΓÇ║ Multiple Identity Providers ΓÇ║ should display multiple provider buttons when multiple providers are configured @mock
+[1A[2K[39/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:810:3 ΓÇ║ Multiple Identity Providers ΓÇ║ should use correct sign-in endpoint for each provider @mock
+[1A[2K[40/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:853:3 ΓÇ║ Multiple Identity Providers ΓÇ║ should show loading state only on clicked provider button @mock
+[1A[2K[41/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:903:3 ΓÇ║ Multiple Identity Providers ΓÇ║ should show configuration message when no providers configured @mock
+[1A[2K[42/224] [chromium] ΓÇ║ tests\features\authentication\login-prompt.spec.ts:950:3 ΓÇ║ Multiple Identity Providers ΓÇ║ should handle single custom provider correctly @mock
+[1A[2K[43/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:22:3 ΓÇ║ Username Display ΓÇ║ should display username from JWT in user messages @mock
+[1A[2K[44/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:46:3 ΓÇ║ Username Display ΓÇ║ should handle messages without username gracefully @mock
+[1A[2K[45/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:69:3 ΓÇ║ Username Display ΓÇ║ should display username in multiple messages @mock
+[1A[2K[46/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:97:3 ΓÇ║ Username Display ΓÇ║ should differentiate between user and agent names @mock
+[1A[2K[47/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:123:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle username with special characters @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:22:3 ΓÇ║ Username Display ΓÇ║ should display username from JWT in user messages @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[48/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:156:3 ΓÇ║ Username Edge Cases ΓÇ║ should persist username across page interactions @mock
+[1A[2K[49/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock
+[1A[2K[50/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:213:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle malformed JWT token gracefully @mock
+[1A[2K[51/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:240:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing access_token in auth response @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:46:3 ΓÇ║ Username Display ΓÇ║ should handle messages without username gracefully @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:22:3 ΓÇ║ Username Display ΓÇ║ should display username from JWT in user messages @mock
+message full: {
+  "kind": "text",
+  "text": "Hello, this is a test message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Hello, this is a test message 
+
+[1A[2Kuser message: Hello, this is a test message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906141525,"result":{"taskId":"task-9cf1270f-724c-46d0-b390-b584ae6af7c0","contextId":"ctx-f8b967ef-830f-4f41-ba75-4bab288b6269","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:21 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906141525,"result":{"taskId":"task-9cf1270f-724c-46d0-b390-b584ae6af7c0","contextId":"ctx-f8b967ef-830f-4f41-ba75-4bab288b6269","status":{"state":"working","timestamp":"4/22/2026, 6:02:21 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:97:3 ΓÇ║ Username Display ΓÇ║ should differentiate between user and agent names @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:123:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle username with special characters @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:69:3 ΓÇ║ Username Display ΓÇ║ should display username in multiple messages @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[52/224] [chromium] ΓÇ║ tests\features\messaging\complete-flow.spec.ts:27:3 ΓÇ║ Complete Chat Flow ΓÇ║ should complete a full chat conversation @mock
+[1A[2K[53/224] [chromium] ΓÇ║ tests\features\messaging\complete-flow.spec.ts:217:3 ΓÇ║ Complete Chat Flow ΓÇ║ should show typing indicator while waiting for response @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:46:3 ΓÇ║ Username Display ΓÇ║ should handle messages without username gracefully @mock
+message full: {
+  "kind": "text",
+  "text": "Test message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message 
+
+[1A[2Kuser message: Test message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906142281,"result":{"taskId":"task-a750a0e0-753d-436b-8d6e-35490c473d5a","contextId":"ctx-50805266-ae33-4688-ab72-632fa65c5909","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906142281,"result":{"taskId":"task-a750a0e0-753d-436b-8d6e-35490c473d5a","contextId":"ctx-50805266-ae33-4688-ab72-632fa65c5909","status":{"state":"working","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:156:3 ΓÇ║ Username Edge Cases ΓÇ║ should persist username across page interactions @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[54/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:71:3 ΓÇ║ Input Validation ΓÇ║ should trim whitespace from messages @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:97:3 ΓÇ║ Username Display ΓÇ║ should differentiate between user and agent names @mock
+message full: {
+  "kind": "text",
+  "text": "Hello agent"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Hello agent 
+
+[1A[2Kuser message: Hello agent
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906142588,"result":{"taskId":"task-285035f1-da26-4b77-8313-d39d038ffc64","contextId":"ctx-bcc96ddf-8c7d-4494-8fc8-1d7f098fce8b","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906142588,"result":{"taskId":"task-285035f1-da26-4b77-8313-d39d038ffc64","contextId":"ctx-bcc96ddf-8c7d-4494-8fc8-1d7f098fce8b","status":{"state":"working","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:213:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle malformed JWT token gracefully @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:123:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle username with special characters @mock
+message full: {
+  "kind": "text",
+  "text": "Testing username display"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Testing username display 
+
+[1A[2Kuser message: Testing username display
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906142725,"result":{"taskId":"task-9219e8e7-e61c-46cd-9890-e291ed57af91","contextId":"ctx-e4fccac6-1c8f-42f1-afde-5a09e158b174","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906142725,"result":{"taskId":"task-9219e8e7-e61c-46cd-9890-e291ed57af91","contextId":"ctx-e4fccac6-1c8f-42f1-afde-5a09e158b174","status":{"state":"working","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:240:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing access_token in auth response @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[55/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:83:3 ΓÇ║ Input Validation ΓÇ║ should handle newlines in messages @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:69:3 ΓÇ║ Username Display ΓÇ║ should display username in multiple messages @mock
+message full: {
+  "kind": "text",
+  "text": "First message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: First message 
+
+[1A[2Kuser message: First message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906142940,"result":{"taskId":"task-742123ff-5b3b-4a39-bd8a-00f393e23f88","contextId":"ctx-7ce1d89f-2283-4310-a6ff-064d11dfff6d","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906142940,"result":{"taskId":"task-742123ff-5b3b-4a39-bd8a-00f393e23f88","contextId":"ctx-7ce1d89f-2283-4310-a6ff-064d11dfff6d","status":{"state":"working","timestamp":"4/22/2026, 6:02:22 PM"},"kind":"
+
+[1A[2K[56/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:100:3 ΓÇ║ Input Validation ΓÇ║ should handle unicode characters @mock
+[1A[2K[57/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:111:3 ΓÇ║ Input Validation ΓÇ║ should handle numbers and symbols @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:156:3 ΓÇ║ Username Edge Cases ΓÇ║ should persist username across page interactions @mock
+message full: {
+  "kind": "text",
+  "text": "Initial message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Initial message 
+
+[1A[2Kuser message: Initial message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906143237,"result":{"taskId":"task-68cdd03f-de3c-4723-a91e-2c364b0ea372","contextId":"ctx-88ac1344-dfac-4f8e-8a9a-30ec7d87f5c4","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906143237,"result":{"taskId":"task-68cdd03f-de3c-4723-a91e-2c364b0ea372","contextId":"ctx-88ac1344-dfac-4f8e-8a9a-30ec7d87f5c4","status":{"state":"working","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:213:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle malformed JWT token gracefully @mock
+message full: {
+  "kind": "text",
+  "text": "Test with malformed token"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test with malformed token 
+
+[1A[2Kuser message: Test with malformed token
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906143396,"result":{"taskId":"task-ebb3e2b7-7d90-4326-b711-485830fefa2b","contextId":"ctx-6809c76f-2c05-4547-9b9d-273a541cc29c","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906143396,"result":{"taskId":"task-ebb3e2b7-7d90-4326-b711-485830fefa2b","contextId":"ctx-6809c76f-2c05-4547-9b9d-273a541cc29c","status":{"state":"working","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock
+message full: {
+  "kind": "text",
+  "text": "Test message without username"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message without username 
+
+[1A[2Kuser message: Test message without username
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906143460,"result":{"taskId":"task-c8895bb9-a14f-4161-8531-f7c4bd5b1e5d","contextId":"ctx-a85c4453-a733-4ced-a45f-831e4dbc4342","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906143460,"result":{"taskId":"task-c8895bb9-a14f-4161-8531-f7c4bd5b1e5d","contextId":"ctx-a85c4453-a733-4ced-a45f-831e4dbc4342","status":{"state":"working","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:240:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing access_token in auth response @mock
+message full: {
+  "kind": "text",
+  "text": "Test without access token"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test without access token 
+
+[1A[2Kuser message: Test without access token
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906143640,"result":{"taskId":"task-cdfad273-59f3-4dd5-8606-90e317d3f8f5","contextId":"ctx-c5f2d1ee-5f8f-4c2c-9ff7-c2a0872723a5","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906143640,"result":{"taskId":"task-cdfad273-59f3-4dd5-8606-90e317d3f8f5","contextId":"ctx-c5f2d1ee-5f8f-4c2c-9ff7-c2a0872723a5","status":{"state":"working","timestamp":"4/22/2026, 6:02:23 PM"},"kind":"
+
+[1A[2K[58/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:122:3 ΓÇ║ Input Validation ΓÇ║ should handle markdown-like syntax @mock
+[1A[2K[59/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:134:3 ΓÇ║ Input Validation ΓÇ║ should preserve input value while typing @mock
+[1A[2K[60/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:149:3 ΓÇ║ Input Validation ΓÇ║ should allow editing message before sending @mock
+[1A[2K[61/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:163:3 ΓÇ║ Input Validation ΓÇ║ should handle rapid typing @mock
+[1A[2K[62/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:174:3 ΓÇ║ Input Validation ΓÇ║ should handle pasting text into input @mock
+[1A[2K[63/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:190:3 ΓÇ║ Input Validation ΓÇ║ should allow clearing and refilling input @mock
+[1A[2K[64/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:251:3 ΓÇ║ Input State Management ΓÇ║ should maintain focus on input after typing @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:69:3 ΓÇ║ Username Display ΓÇ║ should display username in multiple messages @mock
+message full: {
+  "kind": "text",
+  "text": "Second message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Second message 
+
+[1A[2Kuser message: Second message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906145100,"result":{"taskId":"task-e362ee33-90b3-412c-b853-05b3e86aa30a","contextId":"ctx-99d954c7-e912-4ccd-8fa6-1667144d66ed","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:25 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906145100,"result":{"taskId":"task-e362ee33-90b3-412c-b853-05b3e86aa30a","contextId":"ctx-99d954c7-e912-4ccd-8fa6-1667144d66ed","status":{"state":"working","timestamp":"4/22/2026, 6:02:25 PM"},"kind":"
+
+[1A[2K[65/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:261:3 ΓÇ║ Input State Management ΓÇ║ should clear input after successful send @mock
+[1A[2K[66/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:272:3 ΓÇ║ Input State Management ΓÇ║ should disable input while waiting for response @mock
+[1A[2K[67/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:290:3 ΓÇ║ Input State Management ΓÇ║ should update send button state based on input @mock
+[1A[2K[68/224] [chromium] ΓÇ║ tests\features\messaging\input-validation.spec.ts:312:3 ΓÇ║ Input State Management ΓÇ║ should handle Escape key without crashing @mock
+[1A[2K[69/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:23:3 ΓÇ║ Long Message Handling ΓÇ║ should handle very long user messages (1000+ characters) @mock
+[1A[2K[70/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:45:3 ΓÇ║ Long Message Handling ΓÇ║ should handle extremely long messages (5000+ characters) @mock
+[1A[2K[71/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:66:3 ΓÇ║ Long Message Handling ΓÇ║ should handle very long agent responses @mock
+[1A[2K[72/224] [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock (retry #1)
+[1A[2K[73/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:92:3 ΓÇ║ Long Message Handling ΓÇ║ should preserve line breaks in long messages @mock
+[1A[2K[74/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:121:3 ΓÇ║ Rapid Message Sending ΓÇ║ should queue messages when sent rapidly @mock
+[1A[2K[75/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:151:3 ΓÇ║ Rapid Message Sending ΓÇ║ should disable input while waiting for response @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:23:3 ΓÇ║ Long Message Handling ΓÇ║ should handle very long user messages (1000+ characters) @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:45:3 ΓÇ║ Long Message Handling ΓÇ║ should handle extremely long messages (5000+ characters) @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[76/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:169:3 ΓÇ║ Rapid Message Sending ΓÇ║ should handle three messages in quick succession @mock
+[1A[2K[77/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:203:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle messages with multiple emojis @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:66:3 ΓÇ║ Long Message Handling ΓÇ║ should handle very long agent responses @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[78/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:214:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle emoji-only messages @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:92:3 ΓÇ║ Long Message Handling ΓÇ║ should preserve line breaks in long messages @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[79/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:225:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle complex emoji with modifiers @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:23:3 ΓÇ║ Long Message Handling ΓÇ║ should handle very long user messages (1000+ characters) @mock
+message full: {
+  "kind": "text",
+  "text": "This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. End of long message."
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. End of long message. 
+
+[1A[2Kuser message: This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. This is a very long message. End of long message.
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906148357,"result":{"taskId":"task-44d7e9bf-7572-4f5a-ac2c-ac87b2acf58a","contextId":"ctx-ce684c3b-a656-4f11-896f-b2769a4ac6c8","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906148357,"result":{"taskId":"task-44d7e9bf-7572-4f5a-ac2c-ac87b2acf58a","contextId":"ctx-ce684c3b-a656-4f11-896f-b2769a4ac6c8","status":{"state":"working","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:45:3 ΓÇ║ Long Message Handling ΓÇ║ should handle extremely long messages (5000+ characters) @mock
+message full: {
+  "kind": "text",
+  "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+
+[1A[2Kuser message: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906148416,"result":{"taskId":"task-4db8ee64-a6d6-4ae4-9fa7-d3b95ddeea54","contextId":"ctx-c96c9f11-76ae-4e16-91aa-161641867896","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906148416,"result":{"taskId":"task-4db8ee64-a6d6-4ae4-9fa7-d3b95ddeea54","contextId":"ctx-c96c9f11-76ae-4e16-91aa-161641867896","status":{"state":"working","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:121:3 ΓÇ║ Rapid Message Sending ΓÇ║ should queue messages when sent rapidly @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:66:3 ΓÇ║ Long Message Handling ΓÇ║ should handle very long agent responses @mock
+message full: {
+  "kind": "text",
+  "text": "give me a very long response"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: give me a very long response 
+
+[1A[2Kuser message: give me a very long response
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906148813,"result":{"taskId":"task-b6e6eae9-c0a7-45f7-bb7e-6bf1cf9193ce","contextId":"ctx-b8e26fde-58e3-48f1-87b2-0dbd243db4de","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906148813,"result":{"taskId":"task-b6e6eae9-c0a7-45f7-bb7e-6bf1cf9193ce","contextId":"ctx-b8e26fde-58e3-48f1-87b2-0dbd243db4de","status":{"state":"working","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:92:3 ΓÇ║ Long Message Handling ΓÇ║ should preserve line breaks in long messages @mock
+message full: {
+  "kind": "text",
+  "text": "Line 1: This is line number 1 of the message\nLine 2: This is line number 2 of the message\nLine 3: This is line number 3 of the message\nLine 4: This is line number 4 of the message\nLine 5: This is line number 5 of the message\nLine 6: This is line number 6 of the message\nLine 7: This is line number 7 of the message\nLine 8: This is line number 8 of the message\nLine 9: This is line number 9 of the message\nLine 10: This is line number 10 of the message\nLine 11: This is line number 11 of the message\nLine 12: This is line number 12 of the message\nLine 13: This is line number 13 of the message\nLine 14: This is line number 14 of the message\nLine 15: This is line number 15 of the message\nLine 16: This is line number 16 of the message\nLine 17: This is line number 17 of the message\nLine 18: This is line number 18 of the message\nLine 19: This is line number 19 of the message\nLine 20: This is line number 20 of the message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Line 1: This is line number 1 of the message
+Line 2: This is line number 2 of the message
+Line 3: This is line number 3 of the message
+Line 4: This is line number 4 of the message
+Line 5: This is line number 5 of the message
+Line 6: This is line number 6 of the message
+Line 7: This is line number 7 of the message
+Line 8: This is line number 8 of the message
+Line 9: This is line number 9 of the message
+Line 10: This is line number 10 of the message
+Line 11: This is line number 11 of the message
+Line 12: This is line number 12 of the message
+Line 13: This is line number 13 of the message
+Line 14: This is line number 14 of the message
+Line 15: This is line number 15 of the message
+Line 16: This is line number 16 of the message
+Line 17: This is line number 17 of the message
+Line 18: This is line number 18 of the message
+Line 19: This is line number 19 of the message
+Line 20: This is line number 20 of the message 
+
+[1A[2Kuser message: Line 1: This is line number 1 of the message
+Line 2: This is line number 2 of the message
+Line 3: This is line number 3 of the message
+Line 4: This is line number 4 of the message
+Line 5: This is line number 5 of the message
+Line 6: This is line number 6 of the message
+Line 7: This is line number 7 of the message
+Line 8: This is line number 8 of the message
+Line 9: This is line number 9 of the message
+Line 10: This is line number 10 of the message
+Line 11: This is line number 11 of the message
+Line 12: This is line number 12 of the message
+Line 13: This is line number 13 of the message
+Line 14: This is line number 14 of the message
+Line 15: This is line number 15 of the message
+Line 16: This is line number 16 of the message
+Line 17: This is line number 17 of the message
+Line 18: This is line number 18 of the message
+Line 19: This is line number 19 of the message
+Line 20: This is line number 20 of the message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906148977,"result":{"taskId":"task-e63023c4-c516-42e1-886c-1996dcf0cf44","contextId":"ctx-9f1f753c-ed23-4b3a-865e-fdab18d3228b","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906148977,"result":{"taskId":"task-e63023c4-c516-42e1-886c-1996dcf0cf44","contextId":"ctx-9f1f753c-ed23-4b3a-865e-fdab18d3228b","status":{"state":"working","timestamp":"4/22/2026, 6:02:28 PM"},"kind":"
+
+[1A[2K[80/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:238:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle mixed scripts in one message @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:151:3 ΓÇ║ Rapid Message Sending ΓÇ║ should disable input while waiting for response @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[81/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:250:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle right-to-left text @mock
+[1A[2K[82/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:261:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle mathematical symbols and special characters @mock
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[83/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:272:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle currency and special symbols @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:121:3 ΓÇ║ Rapid Message Sending ΓÇ║ should queue messages when sent rapidly @mock
+message full: {
+  "kind": "text",
+  "text": "First rapid message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: First rapid message 
+
+[1A[2Kuser message: First rapid message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906149477,"result":{"taskId":"task-3e6a726f-67e4-49b3-b174-9a04a5f813be","contextId":"ctx-ac769f87-90d0-4a40-978f-54e6d233d9ad","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:29 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906149477,"result":{"taskId":"task-3e6a726f-67e4-49b3-b174-9a04a5f813be","contextId":"ctx-ac769f87-90d0-4a40-978f-54e6d233d9ad","status":{"state":"working","timestamp":"4/22/2026, 6:02:29 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:169:3 ΓÇ║ Rapid Message Sending ΓÇ║ should handle three messages in quick succession @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:121:3 ΓÇ║ Rapid Message Sending ΓÇ║ should queue messages when sent rapidly @mock
+message full: {
+  "kind": "text",
+  "text": "Second rapid message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Second rapid message 
+
+[1A[2Kuser message: Second rapid message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906149747,"result":{"taskId":"task-1fdf71e2-a5e7-4480-9fbe-c367e57006ff","contextId":"ctx-0b8919bb-56ca-40aa-b377-982214781527","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:29 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906149747,"result":{"taskId":"task-1fdf71e2-a5e7-4480-9fbe-c367e57006ff","contextId":"ctx-0b8919bb-56ca-40aa-b377-982214781527","status":{"state":"working","timestamp":"4/22/2026, 6:02:29 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:151:3 ΓÇ║ Rapid Message Sending ΓÇ║ should disable input while waiting for response @mock
+message full: {
+  "kind": "text",
+  "text": "Test message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message 
+
+[1A[2Kuser message: Test message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906149793,"result":{"taskId":"task-386d26e4-b75a-4108-8915-df7fdf41c1fa","contextId":"ctx-88cad32c-2d32-41df-83b6-f9ff08ff5b91","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:29 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906149793,"result":{"taskId":"task-386d26e4-b75a-4108-8915-df7fdf41c1fa","contextId":"ctx-88cad32c-2d32-41df-83b6-f9ff08ff5b91","status":{"state":"working","timestamp":"4/22/2026, 6:02:29 PM"},"kind":"
+
+[1A[2K[84/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:283:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle box drawing and block characters @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:203:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle messages with multiple emojis @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:225:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle complex emoji with modifiers @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock
+message full: {
+  "kind": "text",
+  "text": "Test message without username"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test message without username 
+
+[1A[2Kuser message: Test message without username
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906150075,"result":{"taskId":"task-2f3a3978-e060-41b8-8b2d-c133f2544258","contextId":"ctx-b57e8df4-f956-464a-ac94-95c2bfba8660","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906150075,"result":{"taskId":"task-2f3a3978-e060-41b8-8b2d-c133f2544258","contextId":"ctx-b57e8df4-f956-464a-ac94-95c2bfba8660","status":{"state":"working","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:169:3 ΓÇ║ Rapid Message Sending ΓÇ║ should handle three messages in quick succession @mock
+message full: {
+  "kind": "text",
+  "text": "First message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: First message 
+
+[1A[2Kuser message: First message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906150307,"result":{"taskId":"task-d85f80d1-1e77-45e4-9e41-7f82d1b16062","contextId":"ctx-06859e62-d79c-4370-aca1-e0295ff8abab","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906150307,"result":{"taskId":"task-d85f80d1-1e77-45e4-9e41-7f82d1b16062","contextId":"ctx-06859e62-d79c-4370-aca1-e0295ff8abab","status":{"state":"working","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"
+
+[1A[2K[85/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:304:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with only whitespace characters @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:214:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle emoji-only messages @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:169:3 ΓÇ║ Rapid Message Sending ΓÇ║ should handle three messages in quick succession @mock
+message full: {
+  "kind": "text",
+  "text": "Second message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Second message 
+
+[1A[2Kuser message: Second message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906150568,"result":{"taskId":"task-4481d62c-ae19-43bb-b54f-0c119383bc76","contextId":"ctx-341d614f-7d13-42ce-96b6-95bdc9885821","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906150568,"result":{"taskId":"task-4481d62c-ae19-43bb-b54f-0c119383bc76","contextId":"ctx-341d614f-7d13-42ce-96b6-95bdc9885821","status":{"state":"working","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"
+
+[1A[2K[86/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:325:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with tabs and special whitespace @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:203:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle messages with multiple emojis @mock
+message full: {
+  "kind": "text",
+  "text": "≡ƒæï Hello! ≡ƒîƒ How are you? ≡ƒÄë Great to see you! ≡ƒÆ»"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: ≡ƒæï Hello! ≡ƒîƒ How are you? ≡ƒÄë Great to see you! ≡ƒÆ» 
+
+[1A[2Kuser message: ≡ƒæï Hello! ≡ƒîƒ How are you? ≡ƒÄë Great to see you! ≡ƒÆ»
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906150707,"result":{"taskId":"task-c5620e8f-bd9c-4e0c-a301-03c597794fef","contextId":"ctx-f904acf5-9a19-4b3d-a9d9-57b9edf43c57","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906150707,"result":{"taskId":"task-c5620e8f-bd9c-4e0c-a301-03c597794fef","contextId":"ctx-f904acf5-9a19-4b3d-a9d9-57b9edf43c57","status":{"state":"working","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:169:3 ΓÇ║ Rapid Message Sending ΓÇ║ should handle three messages in quick succession @mock
+message full: {
+  "kind": "text",
+  "text": "Third message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Third message 
+
+[1A[2Kuser message: Third message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906150799,"result":{"taskId":"task-d3194506-03b9-4490-b40f-6702178a5a99","contextId":"ctx-ea16b571-f634-4ab6-8e85-045e5ea74270","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906150799,"result":{"taskId":"task-d3194506-03b9-4490-b40f-6702178a5a99","contextId":"ctx-ea16b571-f634-4ab6-8e85-045e5ea74270","status":{"state":"working","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:225:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle complex emoji with modifiers @mock
+message full: {
+  "kind": "text",
+  "text": "≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæºΓÇì≡ƒæª ≡ƒæì≡ƒÅ╜ ≡ƒÅ│∩╕ÅΓÇì≡ƒîê ≡ƒæ⌐≡ƒÅ╛ΓÇì≡ƒÆ╗"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: ≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæºΓÇì≡ƒæª ≡ƒæì≡ƒÅ╜ ≡ƒÅ│∩╕ÅΓÇì≡ƒîê ≡ƒæ⌐≡ƒÅ╛ΓÇì≡ƒÆ╗ 
+
+[1A[2Kuser message: ≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæºΓÇì≡ƒæª ≡ƒæì≡ƒÅ╜ ≡ƒÅ│∩╕ÅΓÇì≡ƒîê ≡ƒæ⌐≡ƒÅ╛ΓÇì≡ƒÆ╗
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906150829,"result":{"taskId":"task-59a838ca-40f6-4241-8dd1-dcb4e4a3e810","contextId":"ctx-086fefe4-6074-4653-9e48-72cfb14d8d27","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906150829,"result":{"taskId":"task-59a838ca-40f6-4241-8dd1-dcb4e4a3e810","contextId":"ctx-086fefe4-6074-4653-9e48-72cfb14d8d27","status":{"state":"working","timestamp":"4/22/2026, 6:02:30 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:238:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle mixed scripts in one message @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:272:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle currency and special symbols @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:261:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle mathematical symbols and special characters @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[87/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+[1A[2K[88/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:356:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with JSON-like content @mock
+[1A[2K  1) [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock 
+
+    Error: expect.toBeVisible: Error: strict mode violation: getByText('Test message without username') resolved to 2 elements:
+        1) <div class="___o7u2gz0_0000000 fibxuh5 f9ijwd5 fkhj508 f1i3iumi">Test message without username</div> aka getByText('Test message without username', { exact: true })
+        2) <p>I received your message: "Test message without usΓÇª</p> aka getByText('I received your message: "')
+
+    Call log:
+    [2m  - expect.toBeVisible with timeout 5000ms[22m
+    [2m  - waiting for getByText('Test message without username')[22m
+
+
+      206 |
+      207 |     // Message should still appear and chat should function normally
+    > 208 |     await expect(page.getByText('Test message without username')).toBeVisible({ timeout: 5000 });
+          |                                                                   ^
+      209 |     // Chat should remain functional
+      210 |     await expect(messageInput).toBeEnabled({ timeout: 10000 });
+      211 |   });
+        at C:\dobby\repos\LogicAppsUX\e2e\chatClient\tests\features\authentication\username-display.spec.ts:208:67
+
+    attachment #1: trace (application/zip) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\tests-features-authenticat-35da5-ame-claim-in-JWT-gracefully-chromium\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results\tests-features-authenticat-35da5-ame-claim-in-JWT-gracefully-chromium\trace.zip
+
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:250:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle right-to-left text @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[89/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:367:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with HTML-like content @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:214:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle emoji-only messages @mock
+message full: {
+  "kind": "text",
+  "text": "≡ƒÄ¿≡ƒÄ¡≡ƒÄ¬≡ƒÄ¼≡ƒÄ«"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: ≡ƒÄ¿≡ƒÄ¡≡ƒÄ¬≡ƒÄ¼≡ƒÄ« 
+
+[1A[2Kuser message: ≡ƒÄ¿≡ƒÄ¡≡ƒÄ¬≡ƒÄ¼≡ƒÄ«
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906151291,"result":{"taskId":"task-1fb3eab2-4af9-4bf0-97a3-377938815846","contextId":"ctx-b607b077-2058-4ec1-8e15-9c029f07b118","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906151291,"result":{"taskId":"task-1fb3eab2-4af9-4bf0-97a3-377938815846","contextId":"ctx-b607b077-2058-4ec1-8e15-9c029f07b118","status":{"state":"working","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:283:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle box drawing and block characters @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[90/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:379:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with script-like content @mock
+[1A[2K[91/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:391:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with URL-like content @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:304:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with only whitespace characters @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:272:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle currency and special symbols @mock
+message full: {
+  "kind": "text",
+  "text": "Γé¼ ┬ú ┬Ñ Γé╣ Γé╜ Γé┐ ┬⌐ ┬« Γäó ┬░ ┬º ┬╢"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Γé¼ ┬ú ┬Ñ Γé╣ Γé╜ Γé┐ ┬⌐ ┬« Γäó ┬░ ┬º ┬╢ 
+
+[1A[2Kuser message: Γé¼ ┬ú ┬Ñ Γé╣ Γé╜ Γé┐ ┬⌐ ┬« Γäó ┬░ ┬º ┬╢
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906151693,"result":{"taskId":"task-b4f3f388-a754-406a-bc8b-c4aba9718422","contextId":"ctx-8b328081-a3f4-4602-84f3-a1e81b490389","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906151693,"result":{"taskId":"task-b4f3f388-a754-406a-bc8b-c4aba9718422","contextId":"ctx-8b328081-a3f4-4602-84f3-a1e81b490389","status":{"state":"working","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:238:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle mixed scripts in one message @mock
+message full: {
+  "kind": "text",
+  "text": "Hello Σ╜áσÑ╜ ┘à╪▒╪¡╪¿╪º ╨ƒ╤Ç╨╕╨▓╨╡╤é ≡ƒîì"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Hello Σ╜áσÑ╜ ┘à╪▒╪¡╪¿╪º ╨ƒ╤Ç╨╕╨▓╨╡╤é ≡ƒîì 
+
+[1A[2Kuser message: Hello Σ╜áσÑ╜ ┘à╪▒╪¡╪¿╪º ╨ƒ╤Ç╨╕╨▓╨╡╤é ≡ƒîì
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906151707,"result":{"taskId":"task-f6e16f59-2c6f-4ed1-8b36-b3640b991dc0","contextId":"ctx-e9e75fbb-6960-4203-8f6d-65e11a1daa8b","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906151707,"result":{"taskId":"task-f6e16f59-2c6f-4ed1-8b36-b3640b991dc0","contextId":"ctx-e9e75fbb-6960-4203-8f6d-65e11a1daa8b","status":{"state":"working","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:261:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle mathematical symbols and special characters @mock
+message full: {
+  "kind": "text",
+  "text": "Γêæ Γê½ Γêé ΓêÜ Γê₧ Γëê Γëá Γëñ ΓëÑ Γêê Γêë Γèé Γèâ Γê¬ Γê⌐"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Γêæ Γê½ Γêé ΓêÜ Γê₧ Γëê Γëá Γëñ ΓëÑ Γêê Γêë Γèé Γèâ Γê¬ Γê⌐ 
+
+[1A[2Kuser message: Γêæ Γê½ Γêé ΓêÜ Γê₧ Γëê Γëá Γëñ ΓëÑ Γêê Γêë Γèé Γèâ Γê¬ Γê⌐
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906151854,"result":{"taskId":"task-2794af1c-8e1d-44af-a4ca-c8f1383929a5","contextId":"ctx-3c45b878-735c-4273-a2a2-1d5de8b68484","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906151854,"result":{"taskId":"task-2794af1c-8e1d-44af-a4ca-c8f1383929a5","contextId":"ctx-3c45b878-735c-4273-a2a2-1d5de8b68484","status":{"state":"working","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:250:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle right-to-left text @mock
+message full: {
+  "kind": "text",
+  "text": "┘à╪▒╪¡╪¿╪º ╪¿┘â ┘ü┘è ╪╣╪º┘ä┘à ╪º┘ä╪¿╪▒┘à╪¼╪⌐"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: ┘à╪▒╪¡╪¿╪º ╪¿┘â ┘ü┘è ╪╣╪º┘ä┘à ╪º┘ä╪¿╪▒┘à╪¼╪⌐ 
+
+[1A[2Kuser message: ┘à╪▒╪¡╪¿╪º ╪¿┘â ┘ü┘è ╪╣╪º┘ä┘à ╪º┘ä╪¿╪▒┘à╪¼╪⌐
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906151943,"result":{"taskId":"task-df4bae09-fd58-4499-bc7d-d3fcd8d6adc4","contextId":"ctx-d0ef8652-4dff-4fd5-b046-e75d704ca846","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906151943,"result":{"taskId":"task-df4bae09-fd58-4499-bc7d-d3fcd8d6adc4","contextId":"ctx-d0ef8652-4dff-4fd5-b046-e75d704ca846","status":{"state":"working","timestamp":"4/22/2026, 6:02:31 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:325:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with tabs and special whitespace @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[92/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:402:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with file paths @mock
+[1A[2K[93/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:420:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with SQL-like content @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:283:3 ΓÇ║ Emoji and Complex Unicode ΓÇ║ should handle box drawing and block characters @mock
+message full: {
+  "kind": "text",
+  "text": "ΓöîΓöÇΓö¼ΓöÇΓöÉ\nΓöé Γöé Γöé\nΓö£ΓöÇΓö╝ΓöÇΓöñ\nΓöé Γöé Γöé\nΓööΓöÇΓö┤ΓöÇΓöÿ"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: ΓöîΓöÇΓö¼ΓöÇΓöÉ
+Γöé Γöé Γöé
+Γö£ΓöÇΓö╝ΓöÇΓöñ
+Γöé Γöé Γöé
+ΓööΓöÇΓö┤ΓöÇΓöÿ 
+
+[1A[2Kuser message: ΓöîΓöÇΓö¼ΓöÇΓöÉ
+Γöé Γöé Γöé
+Γö£ΓöÇΓö╝ΓöÇΓöñ
+Γöé Γöé Γöé
+ΓööΓöÇΓö┤ΓöÇΓöÿ
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906152259,"result":{"taskId":"task-de8c2982-ad6f-4643-8c7b-f51e386fabd1","contextId":"ctx-ca460236-8f5d-4f4e-9ea3-f7c95ca113bf","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:32 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906152259,"result":{"taskId":"task-de8c2982-ad6f-4643-8c7b-f51e386fabd1","contextId":"ctx-ca460236-8f5d-4f4e-9ea3-f7c95ca113bf","status":{"state":"working","timestamp":"4/22/2026, 6:02:32 PM"},"kind":"
+
+[1A[2K[94/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:432:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with backticks and template literals @mock
+[1A[2K[95/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:443:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with regex patterns @mock
+[1A[2K[96/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:454:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with zero-width characters @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:356:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with JSON-like content @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:367:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with HTML-like content @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[97/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:325:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with tabs and special whitespace @mock
+message full: {
+  "kind": "text",
+  "text": "Word1\tWord2\tWord3"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Word1	Word2	Word3 
+
+[1A[2Kuser message: Word1	Word2	Word3
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906152872,"result":{"taskId":"task-7b13b971-cb3d-487e-93b0-e2c1e073d7c2","contextId":"ctx-2bd1d7d8-3566-49d1-b61b-f0708b2195f0","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:32 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906152872,"result":{"taskId":"task-7b13b971-cb3d-487e-93b0-e2c1e073d7c2","contextId":"ctx-2bd1d7d8-3566-49d1-b61b-f0708b2195f0","status":{"state":"working","timestamp":"4/22/2026, 6:02:32 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "null"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: null 
+
+[1A[2Kuser message: null
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906152991,"result":{"taskId":"task-f936d206-393d-4d55-841d-2827d7abe36a","contextId":"ctx-6f57c8d0-efde-43f1-89e1-c480e23ca83f","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:32 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906152991,"result":{"taskId":"task-f936d206-393d-4d55-841d-2827d7abe36a","contextId":"ctx-6f57c8d0-efde-43f1-89e1-c480e23ca83f","status":{"state":"working","timestamp":"4/22/2026, 6:02:32 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:379:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with script-like content @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[98/224] [chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:506:3 ΓÇ║ Message Performance ΓÇ║ should handle rapid input changes without lag @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "undefined"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: undefined 
+
+[1A[2Kuser message: undefined
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906153266,"result":{"taskId":"task-b722f440-f18c-45f7-8c08-09e2d69c37fc","contextId":"ctx-8d50b677-ad0b-472a-a616-f32cd5fc2bf0","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906153266,"result":{"taskId":"task-b722f440-f18c-45f7-8c08-09e2d69c37fc","contextId":"ctx-8d50b677-ad0b-472a-a616-f32cd5fc2bf0","status":{"state":"working","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:356:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with JSON-like content @mock
+message full: {
+  "kind": "text",
+  "text": "{\"name\": \"test\", \"value\": 123, \"active\": true}"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: {"name": "test", "value": 123, "active": true} 
+
+[1A[2Kuser message: {"name": "test", "value": 123, "active": true}
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906153452,"result":{"taskId":"task-2f6d958b-594f-4437-86cb-1cde2ebe1be4","contextId":"ctx-fc507c31-5447-4460-94ee-a6c9cc90d07f","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906153452,"result":{"taskId":"task-2f6d958b-594f-4437-86cb-1cde2ebe1be4","contextId":"ctx-fc507c31-5447-4460-94ee-a6c9cc90d07f","status":{"state":"working","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:391:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with URL-like content @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "NaN"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: NaN 
+
+[1A[2Kuser message: NaN
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906153534,"result":{"taskId":"task-022844eb-6a8b-4416-9c30-33c9147e3da6","contextId":"ctx-6c82e10d-ea99-4d58-830f-54a7e38127ef","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906153534,"result":{"taskId":"task-022844eb-6a8b-4416-9c30-33c9147e3da6","contextId":"ctx-6c82e10d-ea99-4d58-830f-54a7e38127ef","status":{"state":"working","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:367:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with HTML-like content @mock
+message full: {
+  "kind": "text",
+  "text": "<div>Hello <strong>World</strong></div>"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: <div>Hello <strong>World</strong></div> 
+
+[1A[2Kuser message: <div>Hello <strong>World</strong></div>
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906153746,"result":{"taskId":"task-963dfcb6-d388-4338-b607-e5c18cb1cfb5","contextId":"ctx-fd9de90d-0ee7-4532-8f09-98feb9447535","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906153746,"result":{"taskId":"task-963dfcb6-d388-4338-b607-e5c18cb1cfb5","contextId":"ctx-fd9de90d-0ee7-4532-8f09-98feb9447535","status":{"state":"working","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "{}"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: {} 
+
+[1A[2Kuser message: {}
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906153800,"result":{"taskId":"task-f3292531-4c60-450b-9007-1f719f753ce8","contextId":"ctx-67d64a80-b1d7-4bf7-a901-fd32ba2e441b","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906153800,"result":{"taskId":"task-f3292531-4c60-450b-9007-1f719f753ce8","contextId":"ctx-67d64a80-b1d7-4bf7-a901-fd32ba2e441b","status":{"state":"working","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:379:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with script-like content @mock
+message full: {
+  "kind": "text",
+  "text": "<script>alert(\"test\")</script>"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: <script>alert("test")</script> 
+
+[1A[2Kuser message: <script>alert("test")</script>
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906153908,"result":{"taskId":"task-544044eb-7a32-4920-be3d-5c2e86389156","contextId":"ctx-750ea2dc-ed72-4a73-8eca-ba71a10a6657","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906153908,"result":{"taskId":"task-544044eb-7a32-4920-be3d-5c2e86389156","contextId":"ctx-750ea2dc-ed72-4a73-8eca-ba71a10a6657","status":{"state":"working","timestamp":"4/22/2026, 6:02:33 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:432:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with backticks and template literals @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "[]"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: [] 
+
+[1A[2Kuser message: []
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906154094,"result":{"taskId":"task-dd45b411-ecde-4998-ae72-c19d212f6e44","contextId":"ctx-681b3273-0efa-457d-9a79-2ca10f4d4e97","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906154094,"result":{"taskId":"task-dd45b411-ecde-4998-ae72-c19d212f6e44","contextId":"ctx-681b3273-0efa-457d-9a79-2ca10f4d4e97","status":{"state":"working","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"
+
+[1A[2K[99/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:29:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should receive and display simple text response @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:420:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with SQL-like content @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[100/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:46:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display code blocks correctly @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:443:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with regex patterns @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "false"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: false 
+
+[1A[2Kuser message: false
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906154348,"result":{"taskId":"task-6da9eaf1-bb7b-4cf0-9a36-35afbc03f6dd","contextId":"ctx-da2bcbe6-778e-4123-8c19-9aeedd28aa6e","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906154348,"result":{"taskId":"task-6da9eaf1-bb7b-4cf0-9a36-35afbc03f6dd","contextId":"ctx-da2bcbe6-778e-4123-8c19-9aeedd28aa6e","status":{"state":"working","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:391:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with URL-like content @mock
+message full: {
+  "kind": "text",
+  "text": "Check this out: https://example.com/path?param=value&other=123#section"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Check this out: https://example.com/path?param=value&other=123#section 
+
+[1A[2Kuser message: Check this out: https://example.com/path?param=value&other=123#section
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906154358,"result":{"taskId":"task-edb1412c-c5ac-4d4a-8b1f-551fb6d150e4","contextId":"ctx-7e7f1958-d91e-435d-bd51-b84917401132","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906154358,"result":{"taskId":"task-edb1412c-c5ac-4d4a-8b1f-551fb6d150e4","contextId":"ctx-7e7f1958-d91e-435d-bd51-b84917401132","status":{"state":"working","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:402:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with file paths @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[101/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:66:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display images correctly @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:337:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with null-like strings @mock
+message full: {
+  "kind": "text",
+  "text": "0"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: 0 
+
+[1A[2Kuser message: 0
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906154600,"result":{"taskId":"task-b20e1fbc-07cd-4dcd-91bc-dea0bebd5b1f","contextId":"ctx-2638a3a2-1a49-4fad-a51b-36f3ddf9a80d","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906154600,"result":{"taskId":"task-b20e1fbc-07cd-4dcd-91bc-dea0bebd5b1f","contextId":"ctx-2638a3a2-1a49-4fad-a51b-36f3ddf9a80d","status":{"state":"working","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:432:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with backticks and template literals @mock
+message full: {
+  "kind": "text",
+  "text": "Use `backticks` for code or `${variable}` syntax"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Use `backticks` for code or `${variable}` syntax 
+
+[1A[2Kuser message: Use `backticks` for code or `${variable}` syntax
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906154740,"result":{"taskId":"task-d79ce073-9cb5-494c-a79a-052f529b57a6","contextId":"ctx-503e44d6-6566-40eb-8e64-b2bed6905d7c","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906154740,"result":{"taskId":"task-d79ce073-9cb5-494c-a79a-052f529b57a6","contextId":"ctx-503e44d6-6566-40eb-8e64-b2bed6905d7c","status":{"state":"working","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:454:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with zero-width characters @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[102/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:89:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display structured data correctly @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:506:3 ΓÇ║ Message Performance ΓÇ║ should handle rapid input changes without lag @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:420:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with SQL-like content @mock
+message full: {
+  "kind": "text",
+  "text": "SELECT * FROM users WHERE id = 1 OR '1'='1'"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: SELECT * FROM users WHERE id = 1 OR '1'='1' 
+
+[1A[2Kuser message: SELECT * FROM users WHERE id = 1 OR '1'='1'
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906154979,"result":{"taskId":"task-e414c51f-8ef1-4c5a-b619-bfa8f84077fc","contextId":"ctx-baea11cf-abc3-4465-91ad-b8d4502afd1b","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906154979,"result":{"taskId":"task-e414c51f-8ef1-4c5a-b619-bfa8f84077fc","contextId":"ctx-baea11cf-abc3-4465-91ad-b8d4502afd1b","status":{"state":"working","timestamp":"4/22/2026, 6:02:34 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:443:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with regex patterns @mock
+message full: {
+  "kind": "text",
+  "text": "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/ 
+
+[1A[2Kuser message: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155030,"result":{"taskId":"task-13bef7ac-e893-43d1-baa7-6416c361ee49","contextId":"ctx-a7495777-f353-4c66-8d5d-e48b0a287225","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155030,"result":{"taskId":"task-13bef7ac-e893-43d1-baa7-6416c361ee49","contextId":"ctx-a7495777-f353-4c66-8d5d-e48b0a287225","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[103/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:112:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle streaming responses progressively @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:29:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should receive and display simple text response @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:402:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with file paths @mock
+message full: {
+  "kind": "text",
+  "text": "C:\\Users\\Test\\Documents\\file.txt"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: C:\Users\Test\Documents\file.txt 
+
+[1A[2Kuser message: C:\Users\Test\Documents\file.txt
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155257,"result":{"taskId":"task-bdcf2093-7084-4615-a0b7-50c0e33369f3","contextId":"ctx-687eb223-bb3a-4e4a-b382-1d53f133a7b9","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155257,"result":{"taskId":"task-bdcf2093-7084-4615-a0b7-50c0e33369f3","contextId":"ctx-687eb223-bb3a-4e4a-b382-1d53f133a7b9","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[104/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:144:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle error responses gracefully @mock
+[1A[2K[105/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:161:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle multiple messages in sequence @mock
+[1A[2Kmessage full: {
+  "kind": "text",
+  "text": "/home/user/documents/file.txt"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: /home/user/documents/file.txt 
+
+[1A[2Kuser message: /home/user/documents/file.txt
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155534,"result":{"taskId":"task-fd43fa79-fe7a-43ff-ac03-ac285a74d51c","contextId":"ctx-7f82c3a4-93d6-4863-a2f6-b4acbeaa5274","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155534,"result":{"taskId":"task-fd43fa79-fe7a-43ff-ac03-ac285a74d51c","contextId":"ctx-7f82c3a4-93d6-4863-a2f6-b4acbeaa5274","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:454:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with zero-width characters @mock
+message full: {
+  "kind": "text",
+  "text": "HelloΓÇïWorldΓÇìThere"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: HelloΓÇïWorldΓÇìThere 
+
+[1A[2Kuser message: HelloΓÇïWorldΓÇìThere
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155567,"result":{"taskId":"task-da0757df-97e7-4399-8700-d9aea3662fd9","contextId":"ctx-57db6628-f9be-4010-87e9-5240cd6270c3","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155567,"result":{"taskId":"task-da0757df-97e7-4399-8700-d9aea3662fd9","contextId":"ctx-57db6628-f9be-4010-87e9-5240cd6270c3","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:402:3 ΓÇ║ Message Boundary Edge Cases ΓÇ║ should handle messages with file paths @mock
+message full: {
+  "kind": "text",
+  "text": "..\\..\\config\\secrets.json"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: ..\..\config\secrets.json 
+
+[1A[2Kuser message: ..\..\config\secrets.json
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155843,"result":{"taskId":"task-1611374e-cbca-4c9d-8a79-580e85f11d2d","contextId":"ctx-fb265ef6-a135-42d1-8a49-fdf464a902b7","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155843,"result":{"taskId":"task-1611374e-cbca-4c9d-8a79-580e85f11d2d","contextId":"ctx-fb265ef6-a135-42d1-8a49-fdf464a902b7","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:66:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display images correctly @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:29:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should receive and display simple text response @mock
+message full: {
+  "kind": "text",
+  "text": "Hello, agent!"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Hello, agent! 
+
+[1A[2Kuser message: Hello, agent!
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155936,"result":{"taskId":"task-e646914f-a7ea-4600-89a8-3bfe6e66cbfd","contextId":"ctx-3d17cb05-d2cc-4493-9589-38c0e35005b4","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155936,"result":{"taskId":"task-e646914f-a7ea-4600-89a8-3bfe6e66cbfd","contextId":"ctx-3d17cb05-d2cc-4493-9589-38c0e35005b4","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 1"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 1 
+
+[1A[2Kuser message: Message number 1
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906155960,"result":{"taskId":"task-c58a020d-f7c7-4820-a54e-94d377ac136c","contextId":"ctx-6122e9eb-1819-4657-9ad4-5f6172454c6d","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906155960,"result":{"taskId":"task-c58a020d-f7c7-4820-a54e-94d377ac136c","contextId":"ctx-6122e9eb-1819-4657-9ad4-5f6172454c6d","status":{"state":"working","timestamp":"4/22/2026, 6:02:35 PM"},"kind":"
+
+[1A[2K[106/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:187:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle mixed content types in conversation @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:46:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display code blocks correctly @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 2"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 2 
+
+[1A[2Kuser message: Message number 2
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906156247,"result":{"taskId":"task-35a309f0-3b1e-4ef7-a504-933fd08c660b","contextId":"ctx-8535c792-66e7-40d3-a2c1-4b4cbe8935b4","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906156247,"result":{"taskId":"task-35a309f0-3b1e-4ef7-a504-933fd08c660b","contextId":"ctx-8535c792-66e7-40d3-a2c1-4b4cbe8935b4","status":{"state":"working","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"
+
+[1A[2Kmessage full: {
+  "kind": "text",
+  "text": "Message number 3"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 3 
+
+[1A[2Kuser message: Message number 3
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906156480,"result":{"taskId":"task-f0a65976-b27f-44bf-a676-aac0b9edfdc1","contextId":"ctx-d1ea6f0d-96a6-45c4-9e4c-7c3ebf43b8c3","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906156480,"result":{"taskId":"task-f0a65976-b27f-44bf-a676-aac0b9edfdc1","contextId":"ctx-d1ea6f0d-96a6-45c4-9e4c-7c3ebf43b8c3","status":{"state":"working","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:89:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display structured data correctly @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[107/224] [chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:222:3 ΓÇ║ SSE Connection Management ΓÇ║ should reconnect if connection is lost @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:66:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display images correctly @mock
+message full: {
+  "kind": "text",
+  "text": "show me image"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: show me image 
+
+[1A[2Kuser message: show me image
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906156621,"result":{"taskId":"task-5d2fecee-6bc4-44f2-8579-50cbfeef58ba","contextId":"ctx-5224a476-be07-4c69-aac4-9fef25fae948","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906156621,"result":{"taskId":"task-5d2fecee-6bc4-44f2-8579-50cbfeef58ba","contextId":"ctx-5224a476-be07-4c69-aac4-9fef25fae948","status":{"state":"working","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 4"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 4 
+
+[1A[2Kuser message: Message number 4
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906156737,"result":{"taskId":"task-abd8dd6f-002e-4b0d-9e3a-500cbf4617ea","contextId":"ctx-448a8a9d-6edc-4de9-8bc4-4b155be14e46","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906156737,"result":{"taskId":"task-abd8dd6f-002e-4b0d-9e3a-500cbf4617ea","contextId":"ctx-448a8a9d-6edc-4de9-8bc4-4b155be14e46","status":{"state":"working","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"
+
+[1A[2K[108/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:29:3 ΓÇ║ Error Handling ΓÇ║ should show error when agent card fails to load @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:161:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle multiple messages in sequence @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[109/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:56:3 ΓÇ║ Error Handling ΓÇ║ should show error when agent card is invalid JSON @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:112:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle streaming responses progressively @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:46:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display code blocks correctly @mock
+message full: {
+  "kind": "text",
+  "text": "show me code"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: show me code 
+
+[1A[2Kuser message: show me code
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906156976,"result":{"taskId":"task-3092f6d0-03f3-4013-88b4-5914b4916ef1","contextId":"ctx-4dff30fa-6e3b-4a23-a90c-e1e01dc62980","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906156976,"result":{"taskId":"task-3092f6d0-03f3-4013-88b4-5914b4916ef1","contextId":"ctx-4dff30fa-6e3b-4a23-a90c-e1e01dc62980","status":{"state":"working","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 5"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 5 
+
+[1A[2Kuser message: Message number 5
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906156984,"result":{"taskId":"task-797ef664-8d08-4abc-9615-31347533a405","contextId":"ctx-104c2e9d-0c81-4a60-a700-ffee862f2708","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906156984,"result":{"taskId":"task-797ef664-8d08-4abc-9615-31347533a405","contextId":"ctx-104c2e9d-0c81-4a60-a700-ffee862f2708","status":{"state":"working","timestamp":"4/22/2026, 6:02:36 PM"},"kind":"
+
+[1A[2Kmessage full: {
+  "kind": "text",
+  "text": "Message number 6"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 6 
+
+[1A[2Kuser message: Message number 6
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157248,"result":{"taskId":"task-93daf368-6d80-4766-8cbd-ccf5fed6bf9a","contextId":"ctx-ccc2d68a-4927-4f15-ba2f-227b99b4c203","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157248,"result":{"taskId":"task-93daf368-6d80-4766-8cbd-ccf5fed6bf9a","contextId":"ctx-ccc2d68a-4927-4f15-ba2f-227b99b4c203","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:187:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle mixed content types in conversation @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:89:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should display structured data correctly @mock
+message full: {
+  "kind": "text",
+  "text": "show structured data"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: show structured data 
+
+[1A[2Kuser message: show structured data
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157349,"result":{"taskId":"task-6ebb8efd-8f76-4517-a4ac-d50d68689b90","contextId":"ctx-6bd19a9b-83bf-40ae-81ad-550c1c95f6cc","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157349,"result":{"taskId":"task-6ebb8efd-8f76-4517-a4ac-d50d68689b90","contextId":"ctx-6bd19a9b-83bf-40ae-81ad-550c1c95f6cc","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[110/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:82:3 ΓÇ║ Error Handling ΓÇ║ should show error when session list fails to load @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:144:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle error responses gracefully @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 7"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 7 
+
+[1A[2Kuser message: Message number 7
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157497,"result":{"taskId":"task-9879c127-2474-4a0e-9237-10da355331d9","contextId":"ctx-db4417b0-01fc-40ab-9a12-6a399c864008","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157497,"result":{"taskId":"task-9879c127-2474-4a0e-9237-10da355331d9","contextId":"ctx-db4417b0-01fc-40ab-9a12-6a399c864008","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[111/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:140:3 ΓÇ║ Error Handling ΓÇ║ should handle network timeout gracefully @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:161:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle multiple messages in sequence @mock
+message full: {
+  "kind": "text",
+  "text": "First message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: First message 
+
+[1A[2Kuser message: First message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157647,"result":{"taskId":"task-4a7367d9-9aa3-4aca-aa96-d3cfe573bdd5","contextId":"ctx-2583a45a-893d-491b-a174-067a494345f9","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157647,"result":{"taskId":"task-4a7367d9-9aa3-4aca-aa96-d3cfe573bdd5","contextId":"ctx-2583a45a-893d-491b-a174-067a494345f9","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:112:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle streaming responses progressively @mock
+message full: {
+  "kind": "text",
+  "text": "stream response"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: stream response 
+
+[1A[2Kuser message: stream response
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157713,"result":{"taskId":"task-1a2e85f0-bc93-4f07-9534-cfb33ac1cdc8","contextId":"ctx-8da62685-0a08-4187-be50-7a8e4f695d66","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157713,"result":{"taskId":"task-1a2e85f0-bc93-4f07-9534-cfb33ac1cdc8","contextId":"ctx-8da62685-0a08-4187-be50-7a8e4f695d66","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 8"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 8 
+
+[1A[2Kuser message: Message number 8
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157780,"result":{"taskId":"task-b740396f-bdd8-4579-ab3a-713c226b6f0c","contextId":"ctx-073603cc-572b-4aca-bc07-adf537286ff6","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157780,"result":{"taskId":"task-b740396f-bdd8-4579-ab3a-713c226b6f0c","contextId":"ctx-073603cc-572b-4aca-bc07-adf537286ff6","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:161:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle multiple messages in sequence @mock
+message full: {
+  "kind": "text",
+  "text": "Second message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Second message 
+
+[1A[2Kuser message: Second message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906157900,"result":{"taskId":"task-4e7020c4-1c24-4c45-9ae3-930ea685c8e1","contextId":"ctx-ca738593-4946-46b5-87b7-7466d9972572","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906157900,"result":{"taskId":"task-4e7020c4-1c24-4c45-9ae3-930ea685c8e1","contextId":"ctx-ca738593-4946-46b5-87b7-7466d9972572","status":{"state":"working","timestamp":"4/22/2026, 6:02:37 PM"},"kind":"
+
+[1A[2K[112/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:185:3 ΓÇ║ Error Handling ΓÇ║ should handle missing agent card parameter @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 9"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 9 
+
+[1A[2Kuser message: Message number 9
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906158036,"result":{"taskId":"task-52cd1ca2-5b6c-4253-b5ab-eb613fee137c","contextId":"ctx-e6407e37-ab1b-4838-a5d0-3bd297c831a8","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906158036,"result":{"taskId":"task-52cd1ca2-5b6c-4253-b5ab-eb613fee137c","contextId":"ctx-e6407e37-ab1b-4838-a5d0-3bd297c831a8","status":{"state":"working","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:187:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle mixed content types in conversation @mock
+message full: {
+  "kind": "text",
+  "text": "Hello"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Hello 
+
+[1A[2Kuser message: Hello
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906158146,"result":{"taskId":"task-4f193b7c-360f-4ca4-a101-e3dfa35ff38f","contextId":"ctx-c428585e-05d5-48d1-9441-32c74dc2e336","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906158146,"result":{"taskId":"task-4f193b7c-360f-4ca4-a101-e3dfa35ff38f","contextId":"ctx-c428585e-05d5-48d1-9441-32c74dc2e336","status":{"state":"working","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:144:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle error responses gracefully @mock
+message full: {
+  "kind": "text",
+  "text": "trigger error"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: trigger error 
+
+[1A[2Kuser message: trigger error
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906158287,"error":{"code":-32000,"message":"Simulated error for testing","data":{"contextId":"ctx-21e8f479-f3ea-4170-80c7-c0dc6fe3d8fa","taskId":"task-c1061d99-0bab-4385-8fda-76ec63c22d52"}}}
+
+
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:222:3 ΓÇ║ SSE Connection Management ΓÇ║ should reconnect if connection is lost @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\message-variations.spec.ts:476:3 ΓÇ║ Message Performance ΓÇ║ should maintain responsiveness with many messages in history @mock
+message full: {
+  "kind": "text",
+  "text": "Message number 10"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Message number 10 
+
+[1A[2Kuser message: Message number 10
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906158334,"result":{"taskId":"task-4208a177-afdc-411e-b6d3-eb55fe6f8f84","contextId":"ctx-9616750d-dcc9-4029-aa66-35d78d7239c3","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906158334,"result":{"taskId":"task-4208a177-afdc-411e-b6d3-eb55fe6f8f84","contextId":"ctx-9616750d-dcc9-4029-aa66-35d78d7239c3","status":{"state":"working","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"
+
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:187:3 ΓÇ║ SSE Response Integration Tests ΓÇ║ should handle mixed content types in conversation @mock
+message full: {
+  "kind": "text",
+  "text": "show me code"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: show me code 
+
+[1A[2Kuser message: show me code
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906158472,"result":{"taskId":"task-99a1d442-1fa8-44f1-b526-a6a8e3f46f84","contextId":"ctx-f371b854-b09d-4b7a-8861-355502e149ad","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906158472,"result":{"taskId":"task-99a1d442-1fa8-44f1-b526-a6a8e3f46f84","contextId":"ctx-f371b854-b09d-4b7a-8861-355502e149ad","status":{"state":"working","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"
+
+[1A[2K[113/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:242:3 ΓÇ║ Message Error Handling ΓÇ║ should prevent sending empty messages @mock
+[1A[2K[114/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:271:3 ΓÇ║ Message Error Handling ΓÇ║ should prevent sending whitespace-only messages @mock
+[1A[2K[115/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:287:3 ΓÇ║ Message Error Handling ΓÇ║ should handle very long messages @mock
+[1A[2Kmessage full: {
+  "kind": "text",
+  "text": "show me image"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: show me image 
+
+[1A[2Kuser message: show me image
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906158773,"result":{"taskId":"task-3a07bf27-50c1-440b-928c-704e2424b04b","contextId":"ctx-f8ba7c42-b0a5-4690-8bb7-fc57eff0ebf7","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906158773,"result":{"taskId":"task-3a07bf27-50c1-440b-928c-704e2424b04b","contextId":"ctx-f8ba7c42-b0a5-4690-8bb7-fc57eff0ebf7","status":{"state":"working","timestamp":"4/22/2026, 6:02:38 PM"},"kind":"
+
+[1A[2K[116/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:332:3 ΓÇ║ Message Error Handling ΓÇ║ should handle special characters in messages @mock
+[1A[2K[chromium] ΓÇ║ tests\features\messaging\sse-responses.spec.ts:222:3 ΓÇ║ SSE Connection Management ΓÇ║ should reconnect if connection is lost @mock
+message full: {
+  "kind": "text",
+  "text": "Test reconnection"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Test reconnection 
+
+[1A[2Kuser message: Test reconnection
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906159090,"result":{"taskId":"task-4b1646ae-4e4a-4d72-a16c-f103928b876a","contextId":"ctx-7aa18306-d7bc-44bf-936f-7b9e86ca4ad9","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:39 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906159090,"result":{"taskId":"task-4b1646ae-4e4a-4d72-a16c-f103928b876a","contextId":"ctx-7aa18306-d7bc-44bf-936f-7b9e86ca4ad9","status":{"state":"working","timestamp":"4/22/2026, 6:02:39 PM"},"kind":"
+
+[1A[2Kmessage full: {
+  "kind": "text",
+  "text": "Second test"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: Second test 
+
+[1A[2Kuser message: Second test
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906159349,"result":{"taskId":"task-ec7b364b-4979-4230-8c91-b7a9bc62b68a","contextId":"ctx-dac9581c-d46c-4377-b334-717a86f6bd45","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:39 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906159349,"result":{"taskId":"task-ec7b364b-4979-4230-8c91-b7a9bc62b68a","contextId":"ctx-dac9581c-d46c-4377-b334-717a86f6bd45","status":{"state":"working","timestamp":"4/22/2026, 6:02:39 PM"},"kind":"
+
+[1A[2K[117/224] [chromium] ΓÇ║ tests\features\reliability\error-handling.spec.ts:354:3 ΓÇ║ Message Error Handling ΓÇ║ should handle emoji in messages @mock
+[1A[2K[118/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:72:3 ΓÇ║ Server Error Responses ΓÇ║ should handle 500 Internal Server Error gracefully @mock
+[1A[2K[119/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:122:3 ΓÇ║ Server Error Responses ΓÇ║ should handle 503 Service Unavailable @mock
+[1A[2K[120/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:168:3 ΓÇ║ Server Error Responses ΓÇ║ should handle network timeout @mock
+[1A[2K[121/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:217:3 ΓÇ║ Server Error Responses ΓÇ║ should handle malformed JSON response @mock
+[1A[2K[122/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:288:3 ΓÇ║ SSE Connection Failures ΓÇ║ should handle network error on initial connection @mock
+[1A[2K[123/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:336:3 ΓÇ║ Connection Recovery ΓÇ║ should recover after temporary network failure @mock
+[1A[2K[124/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:498:3 ΓÇ║ Session Loading Errors ΓÇ║ should handle session list loading failure gracefully @mock
+[1A[2K[125/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:564:3 ΓÇ║ Session Loading Errors ΓÇ║ should retry session loading after initial failure @mock
+[1A[2K[126/224] [chromium] ΓÇ║ tests\features\reliability\network-connectivity.spec.ts:651:3 ΓÇ║ Rate Limiting and Throttling ΓÇ║ should handle 429 Too Many Requests @mock
+[1A[2K[127/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:17:3 ΓÇ║ Chat History Loading ΓÇ║ should load list of existing chat sessions on initial load @mock
+[1A[2K[128/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:40:3 ΓÇ║ Chat History Loading ΓÇ║ should display existing sessions in the sidebar @mock
+[1A[2K[129/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:63:3 ΓÇ║ Chat History Loading ΓÇ║ should handle empty chat history gracefully @mock
+[1A[2K[130/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:75:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should load messages when clicking on a historical session @mock
+[1A[2K[131/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:103:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should display historical messages in correct order @mock
+[1A[2K[132/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:124:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should show both user and assistant messages from history @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:17:3 ΓÇ║ Chat History Loading ΓÇ║ should load list of existing chat sessions on initial load @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:40:3 ΓÇ║ Chat History Loading ΓÇ║ should display existing sessions in the sidebar @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[133/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:149:3 ΓÇ║ Session Switching ΓÇ║ should switch between different historical sessions @mock
+[1A[2K[134/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:183:3 ΓÇ║ Session Switching ΓÇ║ should preserve active session indicator @mock
+[1A[2K[135/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:219:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include API key in contexts/list request @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:63:3 ΓÇ║ Chat History Loading ΓÇ║ should handle empty chat history gracefully @mock
+[SSE FIXTURE] Returning empty sessions (default)
+
+[1A[2K[136/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:237:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include OBO token in contexts/list request @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:75:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should load messages when clicking on a historical session @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:124:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should show both user and assistant messages from history @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[137/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:255:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include API key in tasks/list request when loading session @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:103:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should display historical messages in correct order @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[138/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:286:3 ΓÇ║ Chat History Error Handling ΓÇ║ should handle contexts/list failure gracefully @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:183:3 ΓÇ║ Session Switching ΓÇ║ should preserve active session indicator @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:149:3 ΓÇ║ Session Switching ΓÇ║ should switch between different historical sessions @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:219:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include API key in contexts/list request @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[139/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:299:3 ΓÇ║ Chat History Error Handling ΓÇ║ should handle tasks/list failure gracefully @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:237:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include OBO token in contexts/list request @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:286:3 ΓÇ║ Chat History Error Handling ΓÇ║ should handle contexts/list failure gracefully @mock
+[SSE FIXTURE] Returning error for errorHistory test
+
+[1A[2K[140/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:326:3 ΓÇ║ Creating New Chat with Existing History ΓÇ║ should allow creating new chat while history exists @mock
+[1A[2K[141/224] [chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:349:3 ΓÇ║ Creating New Chat with Existing History ΓÇ║ should create new session when sending message in new chat @mock
+[1A[2K[142/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:73:3 ΓÇ║ Multi-Session Management ΓÇ║ should create multiple chat sessions @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:255:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include API key in tasks/list request when loading session @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:75:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should load messages when clicking on a historical session @mock
+[SSE FIXTURE] tasks/list request for context: session-2
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:124:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should show both user and assistant messages from history @mock
+[SSE FIXTURE] tasks/list request for context: session-2
+
+[1A[2K[143/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:101:3 ΓÇ║ Multi-Session Management ΓÇ║ should show session in sidebar after creation @mock
+[1A[2K[144/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:124:3 ΓÇ║ Multi-Session Management ΓÇ║ should display session title based on first message @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:299:3 ΓÇ║ Chat History Error Handling ΓÇ║ should handle tasks/list failure gracefully @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[SSE FIXTURE] Returning error for errorTasks test
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:103:3 ΓÇ║ Loading Messages for Historical Session ΓÇ║ should display historical messages in correct order @mock
+[SSE FIXTURE] tasks/list request for context: session-2
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:326:3 ΓÇ║ Creating New Chat with Existing History ΓÇ║ should allow creating new chat while history exists @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:349:3 ΓÇ║ Creating New Chat with Existing History ΓÇ║ should create new session when sending message in new chat @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:149:3 ΓÇ║ Session Switching ΓÇ║ should switch between different historical sessions @mock
+[SSE FIXTURE] tasks/list request for context: session-2
+
+[1A[2K[145/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:143:3 ΓÇ║ Multi-Session Management ΓÇ║ should maintain separate message history per session @mock
+[1A[2K[146/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:174:3 ΓÇ║ Multi-Session Management ΓÇ║ should show empty state for new session @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:255:3 ΓÇ║ Chat History with Authentication ΓÇ║ should include API key in tasks/list request when loading session @mock
+[SSE FIXTURE] tasks/list request for context: session-2
+
+[1A[2K[147/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:236:3 ΓÇ║ Session Switching ΓÇ║ should allow switching between sessions via sidebar @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:183:3 ΓÇ║ Session Switching ΓÇ║ should preserve active session indicator @mock
+[SSE FIXTURE] tasks/list request for context: session-2
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:299:3 ΓÇ║ Chat History Error Handling ΓÇ║ should handle tasks/list failure gracefully @mock
+[SSE FIXTURE] tasks/list request for context: session-1
+
+[1A[2K[SSE FIXTURE] Returning error for errorTasks test
+
+[1A[2K[148/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:273:3 ΓÇ║ Session Switching ΓÇ║ should preserve input when switching sessions @mock
+[1A[2K[149/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:295:3 ΓÇ║ Session Switching ΓÇ║ should show active session indicator @mock
+[1A[2K[150/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:429:3 ΓÇ║ Multi-Session with Streaming Messages ΓÇ║ should maintain independent chat sessions with streaming messages @mock
+[1A[2K[151/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:470:3 ΓÇ║ Multi-Session with Streaming Messages ΓÇ║ should show typing indicator on chat tab when switching sessions during streaming @mock
+[1A[2K[152/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:506:3 ΓÇ║ Multi-Session with Streaming Messages ΓÇ║ should preserve message when switching back to session after message completed streaming @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\chat-history.spec.ts:349:3 ΓÇ║ Creating New Chat with Existing History ΓÇ║ should create new session when sending message in new chat @mock
+message full: {
+  "kind": "text",
+  "text": "New chat message"
+}
+
+[1A[2KmessageType 
+
+[1A[2K[SSE FIXTURE] Generating SSE response for message: New chat message 
+
+[1A[2Kuser message: New chat message
+
+[1A[2K[SSE FIXTURE] SSE response (first 500 chars): data: {"jsonrpc":"2.0","id":1776906169042,"result":{"taskId":"task-fbf3b092-1ed9-453f-bd24-43404f22c937","contextId":"ctx-5f9b8943-b670-4d4d-b85d-ec869ad328c4","status":{"state":"submitted","timestamp":"4/22/2026, 6:02:49 PM"},"kind":"status-update","final":false}}
+
+data: {"jsonrpc":"2.0","id":1776906169042,"result":{"taskId":"task-fbf3b092-1ed9-453f-bd24-43404f22c937","contextId":"ctx-5f9b8943-b670-4d4d-b85d-ec869ad328c4","status":{"state":"working","timestamp":"4/22/2026, 6:02:49 PM"},"kind":"
+
+[1A[2K[153/224] [chromium] ΓÇ║ tests\features\sessions\multi-session.spec.ts:571:3 ΓÇ║ Multi-Session with Streaming Messages ΓÇ║ should handle multiple sessions with concurrent streaming messages @mock
+[1A[2K[154/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:75:3 ΓÇ║ Session Management ΓÇ║ should show empty state when no sessions exist @mock
+[1A[2K[155/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:84:3 ΓÇ║ Session Management ΓÇ║ should create new chat session when clicking "Start a new chat" @mock
+[1A[2K[156/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:101:3 ΓÇ║ Session Management ΓÇ║ should have "+ New Chat" button always visible in sidebar @mock
+[1A[2K[157/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:113:3 ΓÇ║ Session Management ΓÇ║ should show message input with placeholder text @mock
+[1A[2K[158/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:128:3 ΓÇ║ Session Management ΓÇ║ should enable send button when message is typed @mock
+[1A[2K[159/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:143:3 ΓÇ║ Session Management ΓÇ║ should show user message in chat after sending @mock
+[1A[2K[160/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:162:3 ΓÇ║ Session Management ΓÇ║ should show "Agent is typing..." indicator after sending message @mock
+[1A[2K[161/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:176:3 ΓÇ║ Session Management ΓÇ║ should clear message input after sending @mock
+[1A[2K[162/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:190:3 ΓÇ║ Session Management ΓÇ║ should show agent name in header @mock
+[1A[2K[163/224] [chromium] ΓÇ║ tests\features\sessions\session-management.spec.ts:200:3 ΓÇ║ Session Management ΓÇ║ should show agent description in header @mock
+[1A[2K[164/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:121:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via sidebar double-click @mock
+[1A[2K[165/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:179:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via header double-click @mock
+[1A[2K[166/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:237:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via sidebar edit button @mock
+[1A[2K[167/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:291:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via header edit button @mock
+[1A[2K[168/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:342:3 ΓÇ║ Session Rename Functionality ΓÇ║ should save rename with Enter key @mock
+[1A[2K[169/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:357:3 ΓÇ║ Session Rename Functionality ΓÇ║ should cancel rename with Escape key @mock
+[1A[2K[170/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:374:3 ΓÇ║ Session Rename Functionality ΓÇ║ should cancel rename on blur when clicking outside @mock
+[1A[2K[171/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:392:3 ΓÇ║ Session Rename Functionality ΓÇ║ should trim whitespace from session names @mock
+[1A[2K[172/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:407:3 ΓÇ║ Session Rename Functionality ΓÇ║ should handle special characters in session names @mock
+[1A[2K[173/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:422:3 ΓÇ║ Session Rename Functionality ΓÇ║ should allow renaming same session multiple times @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:121:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via sidebar double-click @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Renamed via Sidebar Double-Click'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[174/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:535:3 ΓÇ║ Session Archive Functionality ΓÇ║ should archive session via archive button @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:179:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via header double-click @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Renamed via Header Double-Click'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[175/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:583:3 ΓÇ║ Session Archive Functionality ΓÇ║ should show confirmation dialog before archiving @mock
+[1A[2K[176/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:611:3 ΓÇ║ Session Archive Functionality ΓÇ║ should update session list immediately after archiving @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:237:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via sidebar edit button @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Renamed via Sidebar Button'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:291:3 ΓÇ║ Session Rename Functionality ΓÇ║ should rename session via header edit button @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Renamed via Header Button'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[177/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:635:3 ΓÇ║ Session Archive Functionality ΓÇ║ should allow archiving multiple sessions @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:342:3 ΓÇ║ Session Rename Functionality ΓÇ║ should save rename with Enter key @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Saved with Enter'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[178/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:731:3 ΓÇ║ Rename and Archive Integration ΓÇ║ should rename session and then archive it @mock
+[1A[2K[179/224] [chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:751:3 ΓÇ║ Rename and Archive Integration ΓÇ║ should not allow renaming after archiving @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:392:3 ΓÇ║ Session Rename Functionality ΓÇ║ should trim whitespace from session names @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Spaces Trimmed'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:407:3 ΓÇ║ Session Rename Functionality ΓÇ║ should handle special characters in session names @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Test: Special & Chars! #123 @mention'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[180/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:69:3 ΓÇ║ Keyboard Navigation ΓÇ║ should navigate to "Start a new chat" button with Tab @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:374:3 ΓÇ║ Session Rename Functionality ΓÇ║ should cancel rename on blur when clicking outside @mock
+[SSE FIXTURE] context/update: { contextId: [32m'session-1'[39m, newName: [32m'New Name'[39m, isArchived: [90mundefined[39m }
+
+[1A[2K[181/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:93:3 ΓÇ║ Keyboard Navigation ΓÇ║ should activate "Start a new chat" with Enter key @mock
+[1A[2K[182/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:106:3 ΓÇ║ Keyboard Navigation ΓÇ║ should activate "Start a new chat" with Space key @mock
+[1A[2K[183/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:117:3 ΓÇ║ Keyboard Navigation ΓÇ║ should navigate chat interface with keyboard @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:535:3 ΓÇ║ Session Archive Functionality ΓÇ║ should archive session via archive button @mock
+[SSE FIXTURE] context/update (archive): { contextId: [32m'session-2'[39m, isArchived: [33mtrue[39m }
+
+[1A[2K[184/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:143:3 ΓÇ║ Keyboard Navigation ΓÇ║ should send message with Enter key from input @mock
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:422:3 ΓÇ║ Session Rename Functionality ΓÇ║ should allow renaming same session multiple times @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'First Rename'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Second Rename'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:611:3 ΓÇ║ Session Archive Functionality ΓÇ║ should update session list immediately after archiving @mock
+[SSE FIXTURE] context/update (archive): { contextId: [32m'session-2'[39m, isArchived: [33mtrue[39m }
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:635:3 ΓÇ║ Session Archive Functionality ΓÇ║ should allow archiving multiple sessions @mock
+[SSE FIXTURE] context/update (archive): { contextId: [32m'session-2'[39m, isArchived: [33mtrue[39m }
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:422:3 ΓÇ║ Session Rename Functionality ΓÇ║ should allow renaming same session multiple times @mock
+[SSE FIXTURE] context/update: {
+  contextId: [32m'session-1'[39m,
+  newName: [32m'Third Rename'[39m,
+  isArchived: [90mundefined[39m
+}
+
+[1A[2K[chromium] ΓÇ║ tests\features\sessions\session-rename.spec.ts:635:3 ΓÇ║ Session Archive Functionality ΓÇ║ should allow archiving multiple sessions @mock
+[SSE FIXTURE] context/update (archive): { contextId: [32m'session-1'[39m, isArchived: [33mtrue[39m }
+
+[1A[2K[185/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:159:3 ΓÇ║ Keyboard Navigation ΓÇ║ should create new line with Shift+Enter @mock
+[1A[2K[186/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:223:3 ΓÇ║ ARIA Labels and Semantics ΓÇ║ should have accessible button labels @mock
+[1A[2K[187/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:237:3 ΓÇ║ ARIA Labels and Semantics ΓÇ║ should have proper heading structure @mock
+[1A[2K[188/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:248:3 ΓÇ║ ARIA Labels and Semantics ΓÇ║ should have accessible form controls @mock
+[1A[2K[189/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:280:3 ΓÇ║ ARIA Labels and Semantics ΓÇ║ should have proper button types @mock
+[1A[2K[190/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:262:3 ΓÇ║ ARIA Labels and Semantics ΓÇ║ should use semantic HTML elements @mock
+[1A[2K[191/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:334:3 ΓÇ║ Focus Management ΓÇ║ should move focus to message input when chat opens @mock
+[1A[2K[192/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:353:3 ΓÇ║ Focus Management ΓÇ║ should disable input while agent is responding @mock
+[1A[2K[193/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:372:3 ΓÇ║ Focus Management ΓÇ║ should have visible focus indicators @mock
+[1A[2K[194/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:395:3 ΓÇ║ Focus Management ΓÇ║ should not trap keyboard focus @mock
+[1A[2K[195/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:468:3 ΓÇ║ Color Contrast ΓÇ║ should have readable text in empty state @mock
+[1A[2K[196/224] [chromium] ΓÇ║ tests\features\ui\accessibility.spec.ts:486:3 ΓÇ║ Color Contrast ΓÇ║ should have readable button text @mock
+[1A[2K[197/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:91:3 ΓÇ║ Rapid Interactions ΓÇ║ should handle rapid typing and sending @mock
+[1A[2K[198/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:75:3 ΓÇ║ Rapid Interactions ΓÇ║ should handle rapid send button clicks @mock
+[1A[2K[199/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:107:3 ΓÇ║ Rapid Interactions ΓÇ║ should handle rapid "Start a new chat" clicks @mock
+[1A[2K[200/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:125:3 ΓÇ║ Rapid Interactions ΓÇ║ should handle switching sessions rapidly @mock
+[1A[2K[201/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:192:3 ΓÇ║ Boundary Conditions ΓÇ║ should handle single character messages @mock
+[1A[2K[202/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:204:3 ΓÇ║ Boundary Conditions ΓÇ║ should handle messages with only numbers @mock
+[1A[2K[203/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:214:3 ΓÇ║ Boundary Conditions ΓÇ║ should handle messages with repeated characters @mock
+[1A[2K[204/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:231:3 ΓÇ║ Boundary Conditions ΓÇ║ should handle messages with only punctuation @mock
+[1A[2K[205/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:241:3 ΓÇ║ Boundary Conditions ΓÇ║ should handle zero-width characters @mock
+[1A[2K[206/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:254:3 ΓÇ║ Boundary Conditions ΓÇ║ should handle messages with tab characters @mock
+[1A[2K[207/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:310:3 ΓÇ║ Browser Behavior ΓÇ║ should handle page refresh during chat @mock
+[1A[2K[208/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:333:3 ΓÇ║ Browser Behavior ΓÇ║ should handle browser back button @mock
+[1A[2K[209/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:359:3 ΓÇ║ Browser Behavior ΓÇ║ should handle browser forward button @mock
+[1A[2K[210/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:374:3 ΓÇ║ Browser Behavior ΓÇ║ should maintain state when window loses and regains focus @mock
+[1A[2K[211/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:394:3 ΓÇ║ Browser Behavior ΓÇ║ should handle window resize @mock
+[1A[2K[212/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:458:3 ΓÇ║ Race Conditions ΓÇ║ should handle typing while previous message is sending @mock
+[1A[2K[213/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:475:3 ΓÇ║ Race Conditions ΓÇ║ should handle rapid input changes @mock
+[1A[2K[214/224] [chromium] ΓÇ║ tests\features\ui\edge-cases.spec.ts:489:3 ΓÇ║ Race Conditions ΓÇ║ should handle send button state during rapid typing @mock
+[1A[2K[215/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:74:3 ΓÇ║ Basic Chat Flow - CRITICAL ΓÇ║ should display chat interface after starting new chat @mock
+[1A[2K[216/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:91:3 ΓÇ║ Basic Chat Flow - CRITICAL ΓÇ║ should send message and display it in chat @mock
+[1A[2K[217/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:116:3 ΓÇ║ Basic Chat Flow - CRITICAL ΓÇ║ should show loading state while waiting for response @mock
+[1A[2K[218/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:130:3 ΓÇ║ Basic Chat Flow - CRITICAL ΓÇ║ should handle Enter key to send message @mock
+[1A[2K[219/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:147:3 ΓÇ║ Basic Chat Flow - CRITICAL ΓÇ║ should enable send button when text is entered @mock
+[1A[2K[220/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:166:3 ΓÇ║ Basic Chat Flow - CRITICAL ΓÇ║ should display user message in chat history @mock
+[1A[2K[221/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:230:3 ΓÇ║ Chat Interface Accessibility - CRITICAL ΓÇ║ should be keyboard accessible @mock
+[1A[2K[222/224] [chromium] ΓÇ║ tests\smoke\basic-chat.spec.ts:252:3 ΓÇ║ Chat Interface Accessibility - CRITICAL ΓÇ║ should have proper ARIA labels @mock
+[1A[2K[223/224] [chromium] ΓÇ║ tests\smoke\page-load.spec.ts:44:3 ΓÇ║ Smoke Test ΓÇ║ should load the page without errors @mock
+[1A[2K[224/224] [chromium] ΓÇ║ tests\smoke\page-load.spec.ts:60:3 ΓÇ║ Smoke Test ΓÇ║ should have correct page title @mock
+[1A[2K[225/224] (retries) [chromium] ΓÇ║ tests\smoke\page-load.spec.ts:65:3 ΓÇ║ Smoke Test ΓÇ║ should render without JavaScript errors @mock
+[1A[2K[chromium] ΓÇ║ tests\smoke\page-load.spec.ts:44:3 ΓÇ║ Smoke Test ΓÇ║ should load the page without errors @mock
+Page title: A2A Chat - Iframe
+
+[1A[2K  1 flaky
+    [chromium] ΓÇ║ tests\features\authentication\username-display.spec.ts:180:3 ΓÇ║ Username Edge Cases ΓÇ║ should handle missing name claim in JWT gracefully @mock 
+  223 passed (1.3m)
+
+  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.

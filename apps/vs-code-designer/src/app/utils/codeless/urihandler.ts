@@ -5,6 +5,7 @@
 import { ext } from '../../../extensionVariables';
 import { tryGetWebviewPanel } from './common';
 import { ExtensionCommand } from '@microsoft/vscode-extension-logic-apps';
+import { handleChatOAuthRedirect } from '../../chat/tools/workflowTools';
 import * as query from 'querystring';
 // querystring = require('querystring');
 import * as vscode from 'vscode';
@@ -19,6 +20,13 @@ export class UriHandler extends vscode.EventEmitter<vscode.Uri> implements vscod
 
 function handleOAuthRedirect(uri: vscode.Uri): void {
   const queryParams = uri.query ? (query.parse(uri.query) as Record<string, string>) : {};
+
+  // Try chat agent OAuth handler first (pid starts with 'chat-')
+  if (queryParams['pid']?.startsWith('chat-') && handleChatOAuthRedirect(queryParams)) {
+    return;
+  }
+
+  // Fall back to designer webview handler
   const designerPanel = tryGetWebviewPanel(ext.webViewKey.designerLocal, queryParams['pid']);
 
   if (designerPanel) {

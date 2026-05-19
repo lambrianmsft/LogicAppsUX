@@ -1,0 +1,72 @@
+
+> @microsoft/logicappsux@5.110.0 test:e2e:chatClient C:\dobby\repos\LogicAppsUX
+> playwright test --config=playwright.chatClient.config.ts "--reporter=json"
+
+{
+  "config": {
+    "configFile": "C:\\dobby\\repos\\LogicAppsUX\\playwright.chatClient.config.ts",
+    "rootDir": "C:/dobby/repos/LogicAppsUX/e2e/chatClient",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "threshold": 60000,
+      "max": 10
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/dobby/repos/LogicAppsUX/test-results",
+        "repeatEach": 1,
+        "retries": 3,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/dobby/repos/LogicAppsUX/e2e/chatClient",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "version": "1.49.1",
+    "workers": 12,
+    "webServer": {
+      "command": "pnpm --filter @microsoft/logic-apps-chat run build && pnpm --filter @a2achat/iframe-app run e2e",
+      "url": "http://localhost:3001/",
+      "ignoreHTTPSErrors": true,
+      "reuseExistingServer": true
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: Process from config.webServer was not able to start. Exit code: 1",
+      "stack": "Error: Process from config.webServer was not able to start. Exit code: 1"
+    }
+  ],
+  "stats": {
+    "startTime": "2026-04-23T00:48:15.374Z",
+    "duration": 8584.808,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
+ΓÇëELIFECYCLEΓÇë Command failed with exit code 1.

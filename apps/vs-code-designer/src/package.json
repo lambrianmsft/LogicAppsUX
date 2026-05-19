@@ -250,6 +250,36 @@
               "type": "string",
               "description": "Optional operation path for ApiConnection action (e.g., /v2/datasets/default/tables/Orders/items)"
             },
+            "serviceProviderConnection": {
+              "type": "object",
+              "description": "Optional chat-supplied connection details for built-in ServiceProvider connectors when a wizard should not be opened.",
+              "properties": {
+                "resourceId": {
+                  "type": "string",
+                  "description": "Optional Azure resource id to use for built-in ServiceProvider connectors."
+                },
+                "resourceName": {
+                  "type": "string",
+                  "description": "Optional Azure resource name to use for built-in ServiceProvider connectors."
+                },
+                "connectionString": {
+                  "type": "string",
+                  "description": "Optional full connection string for the built-in connector."
+                },
+                "endpoint": {
+                  "type": "string",
+                  "description": "Optional Service Bus endpoint, for example sb://contoso.servicebus.windows.net/."
+                },
+                "sharedAccessKeyName": {
+                  "type": "string",
+                  "description": "Optional Service Bus shared access key name."
+                },
+                "sharedAccessKey": {
+                  "type": "string",
+                  "description": "Optional Service Bus shared access key value."
+                }
+              }
+            },
             "configuration": {
               "type": "object",
               "description": "Optional configuration for the action"

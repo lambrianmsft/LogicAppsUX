@@ -304,6 +304,13 @@ export interface RefreshWorkflowMessage {
   };
 }
 
+export interface OpenConnectionsPanelMessage {
+  command: typeof ExtensionCommand.openConnectionsPanel;
+  data: {
+    nodeIds: string[];
+  };
+}
+
 // Rest of Message Interfaces
 export interface InjectValuesMessage {
   command: typeof ExtensionCommand.initialize_frame;

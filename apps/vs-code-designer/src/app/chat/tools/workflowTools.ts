@@ -11,7 +11,6 @@ import { ToolName } from '../chatConstants';
 import {
   azurePublicBaseUrl,
   connectionsFileName,
-  extensionCommand,
   localSettingsFileName,
   logicAppsStandardExtensionId,
   managementApiPrefix,
@@ -60,6 +59,16 @@ export interface AddActionParams {
   operationId?: string;
   method?: string;
   path?: string;
+  serviceProviderConnection?: ServiceProviderConnectionInput;
+}
+
+export interface ServiceProviderConnectionInput {
+  resourceId?: string;
+  resourceName?: string;
+  connectionString?: string;
+  endpoint?: string;
+  sharedAccessKeyName?: string;
+  sharedAccessKey?: string;
 }
 
 /**
@@ -201,12 +210,169 @@ async function addPlaceholderManagedApiConnection(projectPath: string, reference
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Managed API Connection: reuse existing / create + OAuth
+// Managed API Connection: metadata-driven reuse / create / OAuth
 // ──────────────────────────────────────────────────────────────────────────
 
-/**
- * Info about an existing Azure API connection resource
- */
+interface ManagedApiConnectionAccess {
+  connectionKey?: string;
+  connectionRuntimeUrl?: string;
+}
+
+export type ConnectorAuthType = 'simple' | 'oauthOnly' | 'credential' | 'multiAuth';
+
+interface ManagedApiConnectionParameterConstraints {
+  required?: 'true' | 'false';
+  hidden?: 'true' | 'false';
+  hideInUI?: string;
+  clearText?: boolean;
+  serialize?: boolean;
+  allowedValues?: Array<{ text?: string; value: unknown }>;
+  default?: unknown;
+}
+
+interface ManagedApiConnectionParameter {
+  type?: string;
+  parameterSource?: string;
+  allowedValues?: Array<{ text?: string; value: unknown }>;
+  oAuthSettings?: Record<string, unknown>;
+  uiDefinition?: {
+    displayName?: string;
+    description?: string;
+    tooltip?: string;
+    constraints?: ManagedApiConnectionParameterConstraints;
+    schema?: {
+      type?: string;
+      format?: string;
+      description?: string;
+    };
+  };
+}
+
+interface ManagedApiConnectionParameterSet {
+  name: string;
+  uiDefinition?: {
+    displayName?: string;
+    description?: string;
+    tooltip?: string;
+  };
+  parameters?: Record<string, ManagedApiConnectionParameter>;
+}
+
+export interface ManagedApiConnectorMetadata {
+  id?: string;
+  name?: string;
+  displayName?: string;
+  connectionParameters?: Record<string, ManagedApiConnectionParameter>;
+  connectionParameterSets?: {
+    values?: ManagedApiConnectionParameterSet[];
+  };
+  properties?: {
+    displayName?: string;
+    connectionParameters?: Record<string, ManagedApiConnectionParameter>;
+    connectionParameterSets?: {
+      values?: ManagedApiConnectionParameterSet[];
+    };
+  };
+}
+
+export interface PromptableConnectionParameter {
+  name: string;
+  displayName: string;
+  description?: string;
+  type: string;
+  required: boolean;
+  secret: boolean;
+  allowedValues?: Array<{ label: string; value: string }>;
+  defaultValue?: string;
+}
+
+export interface ResolvedConnectorParameterShape {
+  parameterSetName?: string;
+  parameters: Record<string, ManagedApiConnectionParameter>;
+  displayName?: string;
+}
+
+export interface ManagedApiConnectionTestResult {
+  success: boolean;
+  message?: string;
+}
+
+interface ManagedApiConnectionResource {
+  location?: string;
+  properties?: {
+    overallStatus?: string;
+    statuses?: Array<{
+      status?: string;
+      error?: {
+        message?: string;
+      };
+    }>;
+    testLinks?: Array<{
+      method?: string;
+      requestUri?: string;
+      body?: unknown;
+    }>;
+    testRequests?: Array<{
+      method?: string;
+      requestUri?: string;
+      body?: unknown;
+    }>;
+  };
+}
+
+interface ManagedApiConnectionCreateResult {
+  success: boolean;
+  connectionName?: string;
+  connectionResourceId?: string;
+  message?: string;
+}
+
+interface FinalizeManagedApiConnectionOptions {
+  cleanupOnFailure?: boolean;
+  connectionName?: string;
+  successMessage: string;
+}
+
+interface WorkflowToolsTestOverrides {
+  disableArmSwaggerResolution?: boolean;
+  builtInConnectors?: BuiltInConnectorInfo[];
+  builtInConnectorOperations?: Record<string, BuiltInConnectorOperation[]>;
+  fetch?: typeof fetch;
+  getAuthData?: typeof getAuthData;
+  getAuthorizationToken?: typeof getAuthorizationToken;
+  showInputBox?: (options: vscode.InputBoxOptions) => Thenable<string | undefined>;
+}
+
+const workflowToolsTestOverridesKey = '__LOGICAPPS_WORKFLOW_TOOLS_TEST_OVERRIDES__';
+
+function getWorkflowToolsTestOverrides(): WorkflowToolsTestOverrides | undefined {
+  const globalState = globalThis as typeof globalThis & {
+    [workflowToolsTestOverridesKey]?: WorkflowToolsTestOverrides;
+  };
+
+  return globalState[workflowToolsTestOverridesKey];
+}
+
+async function getWorkflowToolsAuthorizationToken(tenantId?: string): Promise<string> {
+  const override = getWorkflowToolsTestOverrides()?.getAuthorizationToken;
+  return override ? override(tenantId) : getAuthorizationToken(tenantId);
+}
+
+async function getWorkflowToolsAuthData(tenantId?: string): Promise<Awaited<ReturnType<typeof getAuthData>>> {
+  const override = getWorkflowToolsTestOverrides()?.getAuthData;
+  return override ? override(tenantId) : getAuthData(tenantId);
+}
+
+async function workflowToolsFetch(input: string, init: RequestInit): Promise<Response> {
+  const override = getWorkflowToolsTestOverrides()?.fetch;
+  return override ? override(input, init) : fetch(input, init);
+}
+
+async function workflowToolsShowInputBox(options: vscode.InputBoxOptions): Promise<string | undefined> {
+  const override = getWorkflowToolsTestOverrides()?.showInputBox;
+  return override ? override(options) : vscode.window.showInputBox(options);
+}
+
 /**
  * Info about an existing Azure API connection resource
  * @internal Exported for testing
@@ -235,11 +401,286 @@ export interface ManagedApiConnectionResolution {
 
 /**
  * Extract the short connector name from a full managedApi connector ID.
- * e.g. `/subscriptions/.../managedApis/outlook` → `outlook`
+ * e.g. `/subscriptions/.../managedApis/outlook` -> `outlook`
  * @internal Exported for testing
  */
 export function getConnectorShortName(connectorId: string): string {
   return connectorId.split('/').pop() ?? connectorId;
+}
+
+function getConnectorDisplayName(metadata: ManagedApiConnectorMetadata, fallbackName?: string): string {
+  return metadata.properties?.displayName ?? metadata.displayName ?? metadata.name ?? fallbackName ?? 'connector';
+}
+
+function getConnectorConnectionParameters(metadata: ManagedApiConnectorMetadata): Record<string, ManagedApiConnectionParameter> {
+  return metadata.properties?.connectionParameters ?? metadata.connectionParameters ?? {};
+}
+
+function getConnectorConnectionParameterSets(metadata: ManagedApiConnectorMetadata): ManagedApiConnectionParameterSet[] {
+  return metadata.properties?.connectionParameterSets?.values ?? metadata.connectionParameterSets?.values ?? [];
+}
+
+function isHiddenConnectorParameter(name: string, parameter: ManagedApiConnectionParameter): boolean {
+  const normalizedName = name.toLowerCase();
+  const constraints = parameter.uiDefinition?.constraints;
+  return (
+    normalizedName === 'token' ||
+    normalizedName.startsWith('token:') ||
+    normalizedName.includes('internal') ||
+    parameter.parameterSource === 'AppConfiguration' ||
+    constraints?.hidden === 'true' ||
+    constraints?.hideInUI === 'true' ||
+    constraints?.serialize === false
+  );
+}
+
+function isSecretConnectorParameter(parameter: ManagedApiConnectionParameter): boolean {
+  const normalizedType = parameter.type?.toLowerCase();
+  return normalizedType === 'securestring' || normalizedType === 'secureobject' || parameter.uiDefinition?.constraints?.clearText === false;
+}
+
+function isPromptableConnectorParameter(name: string, parameter: ManagedApiConnectionParameter): boolean {
+  if (isHiddenConnectorParameter(name, parameter)) {
+    return false;
+  }
+
+  const normalizedType = parameter.type?.toLowerCase();
+  return normalizedType !== 'oauthsetting' && normalizedType !== 'managedidentity' && normalizedType !== 'connection';
+}
+
+function stringifyDefaultValue(value: unknown): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function extractAllowedValues(parameter: ManagedApiConnectionParameter): Array<{ label: string; value: string }> | undefined {
+  const allowedValues = parameter.allowedValues ?? parameter.uiDefinition?.constraints?.allowedValues;
+  if (!allowedValues?.length) {
+    return undefined;
+  }
+
+  return allowedValues.map((allowedValue) => {
+    const value = typeof allowedValue.value === 'string' ? allowedValue.value : JSON.stringify(allowedValue.value);
+    return {
+      label: allowedValue.text ?? value,
+      value,
+    };
+  });
+}
+
+function normalizeJwtPayload(accessToken: string): Record<string, unknown> | undefined {
+  const payloadSegment = accessToken.split('.')[1];
+  if (!payloadSegment) {
+    return undefined;
+  }
+
+  try {
+    const normalizedPayload = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=');
+    return JSON.parse(Buffer.from(paddedPayload, 'base64').toString('utf8')) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeAccessPolicyNameSegment(value: string | undefined, fallback: string): string {
+  const sanitizedValue = (value ?? fallback)
+    .replace(/[^a-z0-9-]/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return sanitizedValue || fallback;
+}
+
+function getAzureErrorMessage(payload: unknown, fallback: string): string {
+  if (typeof payload === 'string' && payload.trim()) {
+    return payload;
+  }
+
+  if (typeof payload === 'object' && payload !== null) {
+    const record = payload as Record<string, any>;
+    return record.message ?? record.Message ?? record.error?.message ?? record.error_description ?? record.responseText ?? fallback;
+  }
+
+  return fallback;
+}
+
+async function readResponsePayload(response: Response): Promise<unknown> {
+  const responseText = await response.text().catch(() => '');
+  if (!responseText) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch {
+    return responseText;
+  }
+}
+
+function collectDefaultParameterValues(parameters: Record<string, ManagedApiConnectionParameter>): Record<string, unknown> {
+  return Object.entries(parameters).reduce((result: Record<string, unknown>, [name, parameter]) => {
+    const defaultValue = parameter.uiDefinition?.constraints?.default;
+    const normalizedType = parameter.type?.toLowerCase();
+
+    if (
+      defaultValue !== undefined &&
+      normalizedType !== 'oauthsetting' &&
+      normalizedType !== 'managedidentity' &&
+      normalizedType !== 'connection'
+    ) {
+      result[name] = defaultValue;
+    }
+
+    return result;
+  }, {});
+}
+
+function buildParameterValueSet(values: Record<string, unknown>): Record<string, { value: unknown }> {
+  return Object.entries(values).reduce((result: Record<string, { value: unknown }>, [name, value]) => {
+    result[name] = { value };
+    return result;
+  }, {});
+}
+
+function validatePromptableParameterInput(value: string, parameter: PromptableConnectionParameter): string | undefined {
+  if (!value && parameter.required) {
+    return `${parameter.displayName} is required.`;
+  }
+
+  if (!value) {
+    return undefined;
+  }
+
+  switch (parameter.type.toLowerCase()) {
+    case 'bool':
+      return ['true', 'false'].includes(value.toLowerCase()) ? undefined : 'Enter true or false.';
+    case 'int':
+      return Number.isNaN(Number(value)) ? 'Enter a valid number.' : undefined;
+    case 'array':
+    case 'object':
+    case 'secureobject':
+      try {
+        JSON.parse(value);
+        return undefined;
+      } catch {
+        return 'Enter valid JSON.';
+      }
+    default:
+      return undefined;
+  }
+}
+
+function coerceConnectorParameterValue(value: string, parameterType: string): unknown {
+  switch (parameterType.toLowerCase()) {
+    case 'bool':
+      return value.toLowerCase() === 'true';
+    case 'int': {
+      const parsedValue = Number(value);
+      return Number.isNaN(parsedValue) ? value : parsedValue;
+    }
+    case 'array':
+    case 'object':
+    case 'secureobject':
+      return JSON.parse(value);
+    default:
+      return value;
+  }
+}
+
+export function extractUserFacingParameters(
+  parameters: Record<string, ManagedApiConnectionParameter>
+): Record<string, ManagedApiConnectionParameter> {
+  return Object.entries(parameters).reduce((result: Record<string, ManagedApiConnectionParameter>, [name, parameter]) => {
+    if (!isHiddenConnectorParameter(name, parameter)) {
+      result[name] = parameter;
+    }
+    return result;
+  }, {});
+}
+
+export function extractPromptableParameters(parameters: Record<string, ManagedApiConnectionParameter>): PromptableConnectionParameter[] {
+  return Object.entries(extractUserFacingParameters(parameters))
+    .filter(([name, parameter]) => isPromptableConnectorParameter(name, parameter))
+    .map(([name, parameter]) => ({
+      name,
+      displayName: parameter.uiDefinition?.displayName ?? name,
+      description: parameter.uiDefinition?.description ?? parameter.uiDefinition?.tooltip ?? parameter.uiDefinition?.schema?.description,
+      type: parameter.type ?? parameter.uiDefinition?.schema?.type ?? 'string',
+      required: parameter.uiDefinition?.constraints?.required === 'true',
+      secret: isSecretConnectorParameter(parameter),
+      allowedValues: extractAllowedValues(parameter),
+      defaultValue: stringifyDefaultValue(parameter.uiDefinition?.constraints?.default),
+    }));
+}
+
+export function resolveConnectorParameterShape(metadata: ManagedApiConnectorMetadata): ResolvedConnectorParameterShape | undefined {
+  const connectionParameterSets = getConnectorConnectionParameterSets(metadata);
+  if (connectionParameterSets.length === 1) {
+    return {
+      parameterSetName: connectionParameterSets[0].name,
+      parameters: connectionParameterSets[0].parameters ?? {},
+      displayName: connectionParameterSets[0].uiDefinition?.displayName,
+    };
+  }
+
+  const connectionParameters = getConnectorConnectionParameters(metadata);
+  return {
+    parameters: connectionParameters,
+    displayName: getConnectorDisplayName(metadata),
+  };
+}
+
+export function classifyConnectorAuthType(metadata: ManagedApiConnectorMetadata): ConnectorAuthType {
+  const connectionParameterSets = getConnectorConnectionParameterSets(metadata);
+  if (connectionParameterSets.length > 1) {
+    return 'multiAuth';
+  }
+
+  const parameterShape = resolveConnectorParameterShape(metadata);
+  const parameters = parameterShape?.parameters ?? {};
+  const visibleParameters = Object.values(extractUserFacingParameters(parameters));
+  const hasOAuth = visibleParameters.some((parameter) => parameter.type?.toLowerCase() === 'oauthsetting' || !!parameter.oAuthSettings);
+  const promptableParameters = extractPromptableParameters(parameters);
+
+  if (hasOAuth && promptableParameters.length > 0) {
+    return 'multiAuth';
+  }
+
+  if (hasOAuth) {
+    return 'oauthOnly';
+  }
+
+  return promptableParameters.length > 0 ? 'credential' : 'simple';
+}
+
+export async function fetchConnectorMetadata(
+  connectorId: string,
+  azureContext: AzureContext
+): Promise<ManagedApiConnectorMetadata | undefined> {
+  try {
+    const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}${connectorId}?api-version=2018-07-01-preview`;
+    const response = await workflowToolsFetch(url, {
+      method: 'GET',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const payload = await readResponsePayload(response);
+      console.log(
+        `[chat-tools] Failed to fetch connector metadata for "${connectorId}": ${response.status} ${getAzureErrorMessage(payload, response.statusText)}`
+      );
+      return undefined;
+    }
+
+    return (await response.json()) as ManagedApiConnectorMetadata;
+  } catch (error) {
+    console.log(`[chat-tools] Error fetching connector metadata: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
 }
 
 /**
@@ -255,7 +696,7 @@ export async function listExistingApiConnections(azureContext: AzureContext, con
     return [];
   }
   try {
-    const token = await getAuthorizationToken(azureContext.tenantId);
+    const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
     const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
     let filterParts = `ManagedApiName eq '${connectorShortName}' and Kind eq 'V2'`;
     if (azureContext.location) {
@@ -263,7 +704,7 @@ export async function listExistingApiConnections(azureContext: AzureContext, con
     }
     const url = `${baseUrl}/subscriptions/${azureContext.subscriptionId}/resourceGroups/${azureContext.resourceGroup}/providers/Microsoft.Web/connections?api-version=2018-07-01-preview&$filter=${encodeURIComponent(filterParts)}`;
 
-    const response = await fetch(url, {
+    const response = await workflowToolsFetch(url, {
       method: 'GET',
       headers: { Authorization: token, 'Content-Type': 'application/json' },
     });
@@ -292,34 +733,57 @@ export async function listExistingApiConnections(azureContext: AzureContext, con
   }
 }
 
-/**
- * Result of fetching connection keys, including the runtime URL required for connections.json.
- * @internal Exported for testing
- */
-export interface ConnectionKeyResult {
-  connectionKey?: string;
-  connectionRuntimeUrl?: string;
+async function fetchManagedApiConnection(
+  connectionId: string,
+  azureContext: AzureContext
+): Promise<ManagedApiConnectionResource | undefined> {
+  try {
+    const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}${connectionId}?api-version=2018-07-01-preview`;
+    const response = await workflowToolsFetch(url, {
+      method: 'GET',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const payload = await readResponsePayload(response);
+      console.log(
+        `[chat-tools] Failed to fetch connection "${connectionId}": ${response.status} ${getAzureErrorMessage(payload, response.statusText)}`
+      );
+      return undefined;
+    }
+
+    return (await response.json()) as ManagedApiConnectionResource;
+  } catch (error) {
+    console.log(`[chat-tools] Error fetching connection resource: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
 }
 
 /**
- * Fetch connection keys and runtime URL for an existing API Hub connection.
+ * Fetch connection keys for an existing API Hub connection.
  *
  * POST /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Web/connections/{name}/listConnectionKeys
  * @internal Exported for testing
  */
-export async function fetchConnectionKey(connectionId: string, azureContext: AzureContext): Promise<ConnectionKeyResult | undefined> {
+export async function fetchConnectionKey(
+  connectionId: string,
+  azureContext: AzureContext
+): Promise<ManagedApiConnectionAccess | undefined> {
   try {
-    const token = await getAuthorizationToken(azureContext.tenantId);
+    const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
     const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
     const url = `${baseUrl}${connectionId}/listConnectionKeys?api-version=2018-07-01-preview`;
-    const response = await fetch(url, {
+    const response = await workflowToolsFetch(url, {
       method: 'POST',
       headers: { Authorization: token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ validityTimeSpan: '7' }),
     });
 
     if (!response.ok) {
-      console.log(`[chat-tools] Failed to fetch connection keys: ${response.status}`);
+      const payload = await readResponsePayload(response);
+      console.log(`[chat-tools] Failed to fetch connection keys: ${response.status} ${getAzureErrorMessage(payload, response.statusText)}`);
       return undefined;
     }
 
@@ -331,6 +795,383 @@ export async function fetchConnectionKey(connectionId: string, azureContext: Azu
   } catch (error) {
     console.log(`[chat-tools] Error fetching connection key: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
+  }
+}
+
+async function deleteManagedApiConnection(connectionId: string, azureContext: AzureContext): Promise<void> {
+  try {
+    const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
+    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}${connectionId}?api-version=2018-07-01-preview`;
+    const response = await workflowToolsFetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok && response.status !== 404) {
+      const payload = await readResponsePayload(response);
+      console.log(
+        `[chat-tools] Failed to delete connection "${connectionId}": ${response.status} ${getAzureErrorMessage(payload, response.statusText)}`
+      );
+    }
+  } catch (error) {
+    console.log(`[chat-tools] Error deleting connection resource: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function ensureManagedIdentityAccessPolicy(connectionId: string, azureContext: AzureContext): Promise<void> {
+  const authSession = await getWorkflowToolsAuthData(azureContext.tenantId);
+  const accessToken = authSession?.accessToken;
+  if (!accessToken) {
+    throw new Error('Could not obtain Azure authentication session for managed identity access policy creation.');
+  }
+
+  const tokenPayload = normalizeJwtPayload(accessToken);
+  const objectId = typeof tokenPayload?.oid === 'string' ? tokenPayload.oid : undefined;
+  const tenantId = typeof tokenPayload?.tid === 'string' ? tokenPayload.tid : undefined;
+  const userPrincipalName =
+    typeof tokenPayload?.upn === 'string'
+      ? tokenPayload.upn
+      : typeof tokenPayload?.unique_name === 'string'
+        ? tokenPayload.unique_name
+        : undefined;
+
+  if (!objectId || !tenantId) {
+    throw new Error('Could not extract user identity from the Azure authentication token.');
+  }
+
+  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+  const policiesUrl = `${baseUrl}${connectionId}/accessPolicies?api-version=2018-07-01-preview`;
+  const policyResponse = await workflowToolsFetch(policiesUrl, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+  });
+
+  if (policyResponse.ok) {
+    const policyPayload = (await policyResponse.json()) as {
+      value?: Array<{
+        properties?: {
+          principal?: {
+            identity?: {
+              objectId?: string;
+              tenantId?: string;
+            };
+          };
+        };
+      }>;
+    };
+
+    const hasExistingPolicy = (policyPayload.value ?? []).some(
+      (policy) =>
+        policy.properties?.principal?.identity?.objectId === objectId && policy.properties?.principal?.identity?.tenantId === tenantId
+    );
+
+    if (hasExistingPolicy) {
+      return;
+    }
+  }
+
+  const policyNamePrefix = normalizeAccessPolicyNameSegment(userPrincipalName?.split('@')[0], 'logicapps');
+  const policyName = `${policyNamePrefix}-${objectId.slice(-8)}`;
+  const createPolicyUrl = `${baseUrl}${connectionId}/accessPolicies/${encodeURIComponent(policyName)}?api-version=2016-06-01`;
+  const createResponse = await workflowToolsFetch(createPolicyUrl, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      properties: {
+        principal: {
+          type: 'ActiveDirectory',
+          identity: { objectId, tenantId },
+        },
+      },
+    }),
+  });
+
+  if (!createResponse.ok) {
+    const payload = await readResponsePayload(createResponse);
+    throw new Error(`Failed to create access policy: ${getAzureErrorMessage(payload, createResponse.statusText)}`);
+  }
+}
+
+function getConnectionStatusFailure(connection: ManagedApiConnectionResource | undefined): string | undefined {
+  const statuses = connection?.properties?.statuses ?? [];
+  for (const status of statuses) {
+    const normalizedStatus = status.status?.toLowerCase();
+    if (normalizedStatus && ['error', 'failed', 'disconnected', 'notconnected'].includes(normalizedStatus)) {
+      return status.error?.message ?? `Connection status is ${status.status}.`;
+    }
+  }
+
+  const overallStatus = connection?.properties?.overallStatus?.toLowerCase();
+  if (overallStatus && ['error', 'failed', 'disconnected', 'notconnected'].includes(overallStatus)) {
+    return `Connection overall status is ${connection?.properties?.overallStatus}.`;
+  }
+
+  return undefined;
+}
+
+export async function testManagedApiConnection(connectionId: string, azureContext: AzureContext): Promise<ManagedApiConnectionTestResult> {
+  try {
+    const connection = await fetchManagedApiConnection(connectionId, azureContext);
+    if (!connection) {
+      return { success: false, message: `Unable to retrieve connection "${connectionId}" for validation.` };
+    }
+
+    const statusFailure = getConnectionStatusFailure(connection);
+    if (statusFailure) {
+      return { success: false, message: statusFailure };
+    }
+
+    const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
+    const testLink = connection.properties?.testLinks?.[0];
+    const testRequest = connection.properties?.testRequests?.[0];
+    const testTarget = testLink ?? testRequest;
+
+    if (!testTarget?.requestUri || !testTarget.method) {
+      return { success: true };
+    }
+
+    const response = await workflowToolsFetch(testTarget.requestUri, {
+      method: testTarget.method.toUpperCase(),
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+        noBatch: 'true',
+      },
+      ...(testTarget.body
+        ? {
+            body: typeof testTarget.body === 'string' ? testTarget.body : JSON.stringify(testTarget.body),
+          }
+        : {}),
+    });
+
+    const payload = await readResponsePayload(response);
+
+    if (testLink) {
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        return {
+          success: false,
+          message: getAzureErrorMessage(payload, 'Please check your account info and/or permissions and try again.'),
+        };
+      }
+      return { success: true };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: getAzureErrorMessage(payload, 'Please check your account info and/or permissions and try again.'),
+      };
+    }
+
+    const responsePayload =
+      typeof payload === 'object' && payload !== null && 'response' in (payload as Record<string, unknown>)
+        ? ((payload as Record<string, unknown>).response as Record<string, unknown> | undefined)
+        : (payload as Record<string, unknown> | undefined);
+
+    if (responsePayload?.statusCode && responsePayload.statusCode !== 'OK') {
+      return {
+        success: false,
+        message: getAzureErrorMessage(responsePayload.body, 'Please check your account info and/or permissions and try again.'),
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Prompt for connector credentials using VS Code UI so secrets stay out of chat history.
+ * @internal Exported for testing
+ */
+export async function promptForCredentials(
+  connectorDisplayName: string,
+  parameters: PromptableConnectionParameter[],
+  preservedValues: Record<string, string>
+): Promise<Record<string, unknown> | undefined> {
+  const promptedValues: Record<string, unknown> = {};
+
+  for (const parameter of parameters) {
+    const existingValue = preservedValues[parameter.name] ?? parameter.defaultValue ?? '';
+
+    if (parameter.allowedValues?.length) {
+      const allowedValues = [...parameter.allowedValues].sort((left, right) => {
+        if (left.value === existingValue) {
+          return -1;
+        }
+        if (right.value === existingValue) {
+          return 1;
+        }
+        return 0;
+      });
+
+      const pickedValue = await vscode.window.showQuickPick(
+        allowedValues.map((allowedValue) => ({
+          label: allowedValue.label,
+          value: allowedValue.value,
+          description: parameter.description,
+        })),
+        {
+          title: `Connect ${connectorDisplayName}`,
+          placeHolder: `Select ${parameter.displayName}`,
+          ignoreFocusOut: true,
+        }
+      );
+
+      if (!pickedValue) {
+        return undefined;
+      }
+
+      preservedValues[parameter.name] = pickedValue.value;
+      promptedValues[parameter.name] = coerceConnectorParameterValue(pickedValue.value, parameter.type);
+      continue;
+    }
+
+    const value = await workflowToolsShowInputBox({
+      title: `Connect ${connectorDisplayName}`,
+      prompt: parameter.description ?? `Enter ${parameter.displayName}`,
+      placeHolder: parameter.displayName,
+      ignoreFocusOut: true,
+      password: parameter.secret,
+      value: existingValue,
+      validateInput: (inputValue) => validatePromptableParameterInput(inputValue, parameter),
+    });
+
+    if (value === undefined) {
+      return undefined;
+    }
+
+    preservedValues[parameter.name] = value;
+    promptedValues[parameter.name] = coerceConnectorParameterValue(value, parameter.type);
+  }
+
+  return promptedValues;
+}
+
+async function createManagedApiConnectionResource(
+  referenceName: string,
+  connectorId: string,
+  azureContext: AzureContext,
+  options?: {
+    parameterValues?: Record<string, unknown>;
+    parameterSetName?: string;
+  }
+): Promise<ManagedApiConnectionCreateResult> {
+  if (!azureContext.resourceGroup || !azureContext.location) {
+    return { success: false, message: 'Resource group and location required to create connection.' };
+  }
+
+  const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
+  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+  const connectionName = `${referenceName}-${Date.now().toString(36)}`;
+  const connectionResourceId =
+    `/subscriptions/${azureContext.subscriptionId}` +
+    `/resourceGroups/${azureContext.resourceGroup}` +
+    `/providers/Microsoft.Web/connections/${connectionName}`;
+  const putUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
+  const parameterValues = options?.parameterValues ?? {};
+  const putBody = {
+    properties: {
+      api: { id: connectorId },
+      displayName: referenceName,
+      ...(options?.parameterSetName
+        ? {
+            parameterValueSet: {
+              name: options.parameterSetName,
+              values: buildParameterValueSet(parameterValues),
+            },
+          }
+        : Object.keys(parameterValues).length > 0
+          ? { parameterValues }
+          : {}),
+    },
+    kind: 'V2',
+    location: azureContext.location,
+  };
+
+  try {
+    const putResponse = await workflowToolsFetch(putUrl, {
+      method: 'PUT',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(putBody),
+    });
+
+    if (!putResponse.ok) {
+      const payload = await readResponsePayload(putResponse);
+      return {
+        success: false,
+        message: `Failed to create connection in Azure: ${getAzureErrorMessage(payload, putResponse.statusText)}`,
+      };
+    }
+
+    return {
+      success: true,
+      connectionName,
+      connectionResourceId,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Network error creating connection in Azure: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+async function finalizeManagedApiConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  connectionResourceId: string,
+  azureContext: AzureContext,
+  options: FinalizeManagedApiConnectionOptions
+): Promise<ManagedApiConnectionResolution> {
+  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
+  const fail = async (message: string): Promise<ManagedApiConnectionResolution> => {
+    if (options.cleanupOnFailure) {
+      await deleteManagedApiConnection(connectionResourceId, azureContext);
+    }
+    return { success: false, message };
+  };
+
+  try {
+    if (useMSI) {
+      await ensureManagedIdentityAccessPolicy(connectionResourceId, azureContext);
+    }
+
+    const testResult = await testManagedApiConnection(connectionResourceId, azureContext);
+    if (!testResult.success) {
+      return fail(`Connection validation failed: ${testResult.message ?? 'Unknown error.'}`);
+    }
+
+    const connectionAccess = await fetchConnectionKey(connectionResourceId, azureContext);
+    if (!connectionAccess?.connectionRuntimeUrl) {
+      return fail('Azure did not return a connection runtime URL for the resolved connection.');
+    }
+
+    if (!useMSI && !connectionAccess.connectionKey) {
+      return fail('Azure did not return a connection key for the resolved connection.');
+    }
+
+    await addRealManagedApiConnection(
+      projectPath,
+      referenceName,
+      connectorId,
+      connectionResourceId,
+      connectionAccess.connectionKey,
+      useMSI,
+      connectionAccess.connectionRuntimeUrl
+    );
+
+    return {
+      success: true,
+      connectionId: connectionResourceId,
+      connectionName: options.connectionName,
+      message: options.successMessage,
+    };
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -353,7 +1194,6 @@ export async function addRealManagedApiConnection(
   const connectionsPath = path.join(projectPath, connectionsFileName);
   const localSettingsPath = path.join(projectPath, localSettingsFileName);
 
-  // Read and update connections.json
   let connectionsData: Record<string, unknown> = {};
   try {
     if (await fse.pathExists(connectionsPath)) {
@@ -367,26 +1207,24 @@ export async function addRealManagedApiConnection(
   }
   const managed = connectionsData.managedApiConnections as Record<string, unknown>;
 
-  const connectionEntry: Record<string, unknown> = {
-    api: { id: connectorId },
-    connection: { id: connectionResourceId },
-  };
-
-  if (connectionRuntimeUrl) {
-    connectionEntry.connectionRuntimeUrl = connectionRuntimeUrl;
-  }
-
   if (useMSI) {
-    connectionEntry.authentication = { type: 'ManagedServiceIdentity' };
+    managed[referenceName] = {
+      api: { id: connectorId },
+      connection: { id: connectionResourceId },
+      connectionRuntimeUrl,
+      authentication: { type: 'ManagedServiceIdentity' },
+    };
   } else {
     const appSettingKey = `${referenceName}-connectionKey`;
-    connectionEntry.authentication = { type: 'Raw', scheme: 'Key', parameter: `@appsetting('${appSettingKey}')` };
+    managed[referenceName] = {
+      api: { id: connectorId },
+      connection: { id: connectionResourceId },
+      connectionRuntimeUrl,
+      authentication: { type: 'Raw', scheme: 'Key', parameter: `@appsetting('${appSettingKey}')` },
+    };
   }
-
-  managed[referenceName] = connectionEntry;
   await fse.writeJson(connectionsPath, connectionsData, { spaces: 2 });
 
-  // Store the connection key in local.settings.json (only for Raw Keys, not MSI)
   if (!useMSI && connectionKey) {
     const appSettingKey = `${referenceName}-connectionKey`;
     let localSettings: Record<string, unknown> = {};
@@ -403,12 +1241,12 @@ export async function addRealManagedApiConnection(
     (localSettings.Values as Record<string, string>)[appSettingKey] = connectionKey;
     await fse.writeJson(localSettingsPath, localSettings, { spaces: 2 });
   }
-  console.log(`[chat-tools] Added real managed API connection for "${referenceName}" → ${connectionResourceId} (MSI=${useMSI})`);
+  console.log(`[chat-tools] Added real managed API connection for "${referenceName}" -> ${connectionResourceId} (MSI=${useMSI})`);
 }
 
 /**
  * Try to reuse an existing Azure API connection from the resource group.
- * Auto-picks the first match and mentions alternatives in the result message.
+ * Auto-picks the first valid match and mentions alternatives in the result message.
  * @internal Exported for testing
  */
 export async function tryReuseExistingConnection(
@@ -424,39 +1262,32 @@ export async function tryReuseExistingConnection(
     return { success: false };
   }
 
-  // Auto-pick the first connection
-  const picked = existing[0];
-  console.log(`[chat-tools] Reusing existing connection "${picked.name}" for "${referenceName}"`);
+  const failureReasons: string[] = [];
+  for (const picked of existing) {
+    console.log(`[chat-tools] Attempting to reuse existing connection "${picked.name}" for "${referenceName}"`);
 
-  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
+    const result = await finalizeManagedApiConnection(projectPath, referenceName, connectorId, picked.id, azureContext, {
+      connectionName: picked.displayName || picked.name,
+      successMessage: `Connected using existing connection "${picked.displayName || picked.name}" in resource group "${azureContext.resourceGroup}".`,
+    });
 
-  // Fetch connection key and runtime URL (MSI doesn't need a key)
-  const keyResult = useMSI ? undefined : await fetchConnectionKey(picked.id, azureContext);
-  await addRealManagedApiConnection(
-    projectPath,
-    referenceName,
-    connectorId,
-    picked.id,
-    keyResult?.connectionKey,
-    useMSI,
-    keyResult?.connectionRuntimeUrl
-  );
+    if (result.success) {
+      if (existing.length > 1) {
+        const others = existing
+          .filter((candidate) => candidate.id !== picked.id)
+          .map((candidate) => candidate.displayName || candidate.name)
+          .join(', ');
+        result.message += others ? ` (Also available: ${others})` : '';
+      }
+      return result;
+    }
 
-  // Build response message with alternatives
-  let message = `Connected using existing connection "${picked.displayName || picked.name}" in resource group "${azureContext.resourceGroup}".`;
-  if (existing.length > 1) {
-    const others = existing
-      .slice(1)
-      .map((c) => c.displayName || c.name)
-      .join(', ');
-    message += ` (Also available: ${others})`;
+    failureReasons.push(`"${picked.displayName || picked.name}": ${result.message}`);
   }
 
   return {
-    success: true,
-    connectionId: picked.id,
-    connectionName: picked.displayName || picked.name,
-    message,
+    success: false,
+    message: `Found existing ${shortName} connection(s), but none were reusable. ${failureReasons.join(' ')}`.trim(),
   };
 }
 
@@ -497,16 +1328,100 @@ export function handleChatOAuthRedirect(queryParams: Record<string, string>): bo
   return true;
 }
 
+async function createSimpleManagedApiConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  azureContext: AzureContext,
+  metadata: ManagedApiConnectorMetadata
+): Promise<ManagedApiConnectionResolution> {
+  const parameterShape = resolveConnectorParameterShape(metadata);
+  const parameterValues = collectDefaultParameterValues(parameterShape?.parameters ?? {});
+  const createResult = await createManagedApiConnectionResource(referenceName, connectorId, azureContext, {
+    parameterValues,
+    parameterSetName: parameterShape?.parameterSetName,
+  });
+
+  if (!createResult.success || !createResult.connectionResourceId) {
+    return {
+      success: false,
+      message: createResult.message ?? `Failed to create a connection for "${getConnectorDisplayName(metadata, referenceName)}".`,
+    };
+  }
+
+  return finalizeManagedApiConnection(projectPath, referenceName, connectorId, createResult.connectionResourceId, azureContext, {
+    cleanupOnFailure: true,
+    connectionName: createResult.connectionName,
+    successMessage: `Created connection "${createResult.connectionName}" in resource group "${azureContext.resourceGroup}".`,
+  });
+}
+
+async function createCredentialBasedConnection(
+  projectPath: string,
+  referenceName: string,
+  connectorId: string,
+  azureContext: AzureContext,
+  metadata: ManagedApiConnectorMetadata
+): Promise<ManagedApiConnectionResolution> {
+  const parameterShape = resolveConnectorParameterShape(metadata);
+  if (!parameterShape) {
+    return {
+      success: false,
+      message: `Connector "${getConnectorDisplayName(metadata, referenceName)}" did not expose any configurable parameters.`,
+    };
+  }
+
+  const promptableParameters = extractPromptableParameters(parameterShape.parameters);
+  if (promptableParameters.length === 0) {
+    return createSimpleManagedApiConnection(projectPath, referenceName, connectorId, azureContext, metadata);
+  }
+
+  const connectorDisplayName = getConnectorDisplayName(metadata, referenceName);
+  const preservedValues: Record<string, string> = {};
+  const defaultValues = collectDefaultParameterValues(parameterShape.parameters);
+
+  while (true) {
+    const promptedValues = await promptForCredentials(connectorDisplayName, promptableParameters, preservedValues);
+    if (!promptedValues) {
+      return { success: false, message: `Credential entry for "${connectorDisplayName}" was cancelled.` };
+    }
+
+    const createResult = await createManagedApiConnectionResource(referenceName, connectorId, azureContext, {
+      parameterValues: { ...defaultValues, ...promptedValues },
+      parameterSetName: parameterShape.parameterSetName,
+    });
+
+    if (!createResult.success || !createResult.connectionResourceId) {
+      const retryResult = await vscode.window.showWarningMessage(
+        `Failed to create ${connectorDisplayName} connection: ${createResult.message ?? 'Unknown error.'}`,
+        'Retry',
+        'Cancel'
+      );
+
+      if (retryResult === 'Retry') {
+        continue;
+      }
+
+      return { success: false, message: createResult.message ?? `Failed to create ${connectorDisplayName} connection.` };
+    }
+
+    return finalizeManagedApiConnection(projectPath, referenceName, connectorId, createResult.connectionResourceId, azureContext, {
+      cleanupOnFailure: true,
+      connectionName: createResult.connectionName,
+      successMessage: `Created connection "${createResult.connectionName}" in resource group "${azureContext.resourceGroup}".`,
+    });
+  }
+}
+
 /**
  * Create a new API connection in Azure via ARM and complete OAuth consent inline.
  *
  * 1. PUT connection resource to ARM
- * 2. POST listConsentLinks → get consent URL
+ * 2. POST listConsentLinks -> get consent URL
  * 3. Open browser for user to authenticate
  * 4. Wait for logicapps://authcomplete callback
  * 5. POST confirmConsentCode
- * 6. Fetch connection key
- * 7. Write connections.json + local.settings.json
+ * 6. Validate connection and write local files
  */
 async function createAndAuthManagedApiConnection(
   projectPath: string,
@@ -514,69 +1429,32 @@ async function createAndAuthManagedApiConnection(
   connectorId: string,
   azureContext: AzureContext
 ): Promise<ManagedApiConnectionResolution> {
-  if (!azureContext.resourceGroup || !azureContext.location) {
-    return { success: false, message: 'Resource group and location required to create connection.' };
+  const createResult = await createManagedApiConnectionResource(referenceName, connectorId, azureContext);
+  if (!createResult.success || !createResult.connectionResourceId) {
+    return { success: false, message: createResult.message };
   }
 
-  const token = await getAuthorizationToken(azureContext.tenantId);
-  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
-  const connectionName = `${referenceName}-${Date.now().toString(36)}`;
-  const connectionResourceId =
-    `/subscriptions/${azureContext.subscriptionId}` +
-    `/resourceGroups/${azureContext.resourceGroup}` +
-    `/providers/Microsoft.Web/connections/${connectionName}`;
-
-  // Step 1: PUT to create the connection resource
-  const putUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
-  const putBody = {
-    properties: {
-      api: { id: connectorId },
-      displayName: referenceName,
-    },
-    kind: 'V2',
-    location: azureContext.location,
+  const connectionResourceId = createResult.connectionResourceId;
+  const failAndCleanup = async (message: string): Promise<ManagedApiConnectionResolution> => {
+    await deleteManagedApiConnection(connectionResourceId, azureContext);
+    return { success: false, message };
   };
 
-  try {
-    const putResponse = await fetch(putUrl, {
-      method: 'PUT',
-      headers: { Authorization: token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(putBody),
-    });
-
-    if (!putResponse.ok) {
-      const errorText = await putResponse.text().catch(() => '');
-      console.log(`[chat-tools] Failed to create connection resource: ${putResponse.status} ${errorText}`);
-      return { success: false, message: `Failed to create connection in Azure (${putResponse.status}).` };
-    }
-  } catch (error) {
-    console.log(`[chat-tools] Error creating connection: ${error instanceof Error ? error.message : String(error)}`);
-    return { success: false, message: 'Network error creating connection in Azure.' };
-  }
-
-  // Step 2: Get consent URL via listConsentLinks
-  const authSession = await getAuthData(azureContext.tenantId);
+  const token = await getWorkflowToolsAuthorizationToken(azureContext.tenantId);
+  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
+  const authSession = await getWorkflowToolsAuthData(azureContext.tenantId);
   const accessToken = authSession?.accessToken;
   if (!accessToken) {
-    return { success: false, message: 'Could not obtain Azure authentication session.' };
+    return failAndCleanup('Could not obtain Azure authentication session.');
   }
 
-  // Decode JWT to get objectId and tenantId
-  let userObjectId: string | undefined;
-  let userTenantId: string | undefined;
-  try {
-    const payloadBase64 = accessToken.split('.')[1];
-    const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
-    userObjectId = payload.oid;
-    userTenantId = payload.tid;
-  } catch {
-    console.log('[chat-tools] Failed to decode JWT for OAuth consent');
-  }
+  const tokenPayload = normalizeJwtPayload(accessToken);
+  const userObjectId = typeof tokenPayload?.oid === 'string' ? tokenPayload.oid : undefined;
+  const userTenantId = typeof tokenPayload?.tid === 'string' ? tokenPayload.tid : undefined;
   if (!userObjectId || !userTenantId) {
-    return { success: false, message: 'Could not extract user identity from auth token.' };
+    return failAndCleanup('Could not extract user identity from the Azure authentication token.');
   }
 
-  // Build the OAuth redirect URL
   const pid = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const callbackUri = await (vscode.env as any).asExternalUri(
     vscode.Uri.parse(`${vscode.env.uriScheme}://${logicAppsStandardExtensionId}/authcomplete`)
@@ -584,16 +1462,13 @@ async function createAndAuthManagedApiConnection(
   const redirectUrl = `${callbackUri.toString(true)}?pid=${pid}`;
 
   const consentUrl = await fetchConsentUrl(connectionResourceId, userObjectId, userTenantId, redirectUrl, token, baseUrl);
-
   if (!consentUrl) {
-    return { success: false, message: 'Could not obtain OAuth consent URL from Azure.' };
+    return failAndCleanup('Could not obtain OAuth consent URL from Azure.');
   }
 
-  // Step 3+4: Open browser and wait for callback
   const codePromise = new Promise<string>((resolve, reject) => {
     pendingOAuthCallbacks.set(pid, { resolve, reject });
 
-    // 5-minute timeout
     setTimeout(() => {
       if (pendingOAuthCallbacks.has(pid)) {
         pendingOAuthCallbacks.delete(pid);
@@ -609,36 +1484,21 @@ async function createAndAuthManagedApiConnection(
   try {
     authCode = await codePromise;
   } catch (error) {
-    return { success: false, message: error instanceof Error ? error.message : 'OAuth authentication failed.' };
+    return failAndCleanup(error instanceof Error ? error.message : 'OAuth authentication failed.');
   }
 
-  // Step 5: Confirm consent code
   if (authCode !== 'valid') {
     const confirmOk = await confirmConsentCode(connectionResourceId, authCode, userObjectId, userTenantId, token, baseUrl);
     if (!confirmOk) {
-      return { success: false, message: 'Failed to confirm OAuth authorization code.' };
+      return failAndCleanup('Failed to confirm OAuth authorization code.');
     }
   }
 
-  // Step 6+7: Fetch connection key and write to connections.json + local.settings.json
-  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
-  const keyResult = useMSI ? undefined : await fetchConnectionKey(connectionResourceId, azureContext);
-  await addRealManagedApiConnection(
-    projectPath,
-    referenceName,
-    connectorId,
-    connectionResourceId,
-    keyResult?.connectionKey,
-    useMSI,
-    keyResult?.connectionRuntimeUrl
-  );
-
-  return {
-    success: true,
-    connectionId: connectionResourceId,
-    connectionName,
-    message: `Created and authenticated connection "${referenceName}" in resource group "${azureContext.resourceGroup}".`,
-  };
+  return finalizeManagedApiConnection(projectPath, referenceName, connectorId, connectionResourceId, azureContext, {
+    cleanupOnFailure: true,
+    connectionName: createResult.connectionName,
+    successMessage: `Created and authenticated connection "${referenceName}" in resource group "${azureContext.resourceGroup}".`,
+  });
 }
 
 /**
@@ -664,14 +1524,15 @@ async function fetchConsentUrl(
         },
       ],
     };
-    const response = await fetch(url, {
+    const response = await workflowToolsFetch(url, {
       method: 'POST',
       headers: { Authorization: token, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      console.log(`[chat-tools] Failed to get consent links: ${response.status}`);
+      const payload = await readResponsePayload(response);
+      console.log(`[chat-tools] Failed to get consent links: ${response.status} ${getAzureErrorMessage(payload, response.statusText)}`);
       return undefined;
     }
 
@@ -697,14 +1558,15 @@ async function confirmConsentCode(
   try {
     const url = `${baseUrl}${connectionResourceId}/confirmConsentCode?api-version=2018-07-01-preview`;
     const body = { code, objectId, tenantId };
-    const response = await fetch(url, {
+    const response = await workflowToolsFetch(url, {
       method: 'POST',
       headers: { Authorization: token, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      console.log(`[chat-tools] Failed to confirm consent code: ${response.status}`);
+      const payload = await readResponsePayload(response);
+      console.log(`[chat-tools] Failed to confirm consent code: ${response.status} ${getAzureErrorMessage(payload, response.statusText)}`);
       return false;
     }
     return true;
@@ -714,407 +1576,11 @@ async function confirmConsentCode(
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// Connector Parameter Discovery & Classification
-// ──────────────────────────────────────────────────────────────────────────
-
-/**
- * A single connection parameter from connector metadata.
- * @internal Exported for testing
- */
-export interface ConnectorConnectionParameter {
-  type: string;
-  uiDefinition?: {
-    displayName?: string;
-    description?: string;
-    tooltip?: string;
-    constraints?: {
-      required?: string;
-      hidden?: string;
-      allowedValues?: Array<{ text?: string; value?: string }>;
-    };
-  };
-  allowedValues?: Array<{ value: string }>;
-}
-
-/**
- * Connector metadata returned from the managed API endpoint.
- * @internal Exported for testing
- */
-export interface ConnectorMetadata {
-  name: string;
-  displayName?: string;
-  connectionParameters?: Record<string, ConnectorConnectionParameter>;
-  connectionParameterSets?: {
-    uiDefinition?: { displayName?: string; description?: string };
-    values: Array<{
-      name: string;
-      uiDefinition?: { displayName?: string; description?: string };
-      parameters: Record<string, ConnectorConnectionParameter>;
-    }>;
-  };
-}
-
-/**
- * Auth classification for a connector's connection requirements.
- * - 'simple': No user-facing parameters needed (auto-create)
- * - 'oauthOnly': Only OAuth parameters (auto-create with browser consent)
- * - 'credential': Single-auth with user-facing credential fields (prompt user)
- * - 'multiAuth': Multiple authentication options / parameter sets (fall back to designer)
- * @internal Exported for testing
- */
-export type ConnectorAuthType = 'simple' | 'oauthOnly' | 'credential' | 'multiAuth';
-
-const HIDDEN_PARAMETER_PREFIXES = ['token', 'token:'];
-
-/**
- * Determine whether a connection parameter should be hidden from the user.
- * Hides internal params like token, token:*, hidden-constrained, and prerequisite connection params.
- * Note: oauthSetting is NOT hidden — it's visible for classification purposes but not promptable.
- * @internal Exported for testing
- */
-export function isHiddenParam(key: string, param: ConnectorConnectionParameter): boolean {
-  const lowerKey = key.toLowerCase();
-  if (HIDDEN_PARAMETER_PREFIXES.some((prefix) => lowerKey === prefix || lowerKey.startsWith(`${prefix}:`))) {
-    return true;
-  }
-  if (param.uiDefinition?.constraints?.hidden === 'true') {
-    return true;
-  }
-  if (param.type?.toLowerCase() === 'connection') {
-    return true;
-  }
-  return false;
-}
-
-/**
- * Extract user-facing parameters from connector metadata, filtering out hidden/internal ones.
- * Returns parameters that are visible in the connection creation UI (including OAuth).
- * @internal Exported for testing
- */
-export function extractUserFacingParameters(
-  connectionParameters: Record<string, ConnectorConnectionParameter>
-): Record<string, ConnectorConnectionParameter> {
-  const result: Record<string, ConnectorConnectionParameter> = {};
-  for (const [key, param] of Object.entries(connectionParameters)) {
-    if (!isHiddenParam(key, param)) {
-      result[key] = param;
-    }
-  }
-  return result;
-}
-
-/**
- * Extract promptable (non-OAuth) parameters that the user needs to fill in.
- * Filters out hidden params AND oauthSetting params, leaving only credential fields.
- * @internal Exported for testing
- */
-export function extractPromptableParameters(
-  connectionParameters: Record<string, ConnectorConnectionParameter>
-): Record<string, ConnectorConnectionParameter> {
-  const result: Record<string, ConnectorConnectionParameter> = {};
-  for (const [key, param] of Object.entries(connectionParameters)) {
-    if (!isHiddenParam(key, param) && param.type?.toLowerCase() !== 'oauthsetting') {
-      result[key] = param;
-    }
-  }
-  return result;
-}
-
-/**
- * Classify a connector's auth requirements based on its connection parameters.
- * @internal Exported for testing
- */
-export function classifyConnectorAuthType(metadata: ConnectorMetadata): ConnectorAuthType {
-  // Multi-auth: has connectionParameterSets with multiple values
-  if (metadata.connectionParameterSets?.values && metadata.connectionParameterSets.values.length > 1) {
-    return 'multiAuth';
-  }
-
-  // Single parameter set: treat like flat parameters using the single set's params
-  if (metadata.connectionParameterSets?.values?.length === 1) {
-    const singleSetParams = metadata.connectionParameterSets.values[0].parameters;
-    const userFacing = extractUserFacingParameters(singleSetParams);
-    if (Object.keys(userFacing).length === 0) {
-      return 'simple';
-    }
-    const allOAuth = Object.values(userFacing).every((p) => p.type?.toLowerCase() === 'oauthsetting');
-    return allOAuth ? 'oauthOnly' : 'credential';
-  }
-
-  const connectionParameters = metadata.connectionParameters;
-  if (!connectionParameters) {
-    return 'simple';
-  }
-
-  const userFacing = extractUserFacingParameters(connectionParameters);
-  if (Object.keys(userFacing).length === 0) {
-    return 'simple';
-  }
-
-  const allOAuth = Object.values(userFacing).every((p) => p.type?.toLowerCase() === 'oauthsetting');
-  if (allOAuth) {
-    return 'oauthOnly';
-  }
-
-  return 'credential';
-}
-
-/**
- * Fetch connector metadata from the managed API endpoint.
- * Returns connection parameter definitions for the given connector.
- * @internal Exported for testing
- */
-export async function fetchConnectorMetadata(connectorId: string, azureContext: AzureContext): Promise<ConnectorMetadata | undefined> {
-  try {
-    const token = await getAuthorizationToken(azureContext.tenantId);
-    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
-
-    // connectorId is like /subscriptions/.../managedApis/sql
-    const url = `${baseUrl}${connectorId}?api-version=2018-07-01-preview`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: token, 'Content-Type': 'application/json' },
-    });
-
-    if (!response.ok) {
-      console.log(`[chat-tools] Failed to fetch connector metadata: ${response.status}`);
-      return undefined;
-    }
-
-    const data = (await response.json()) as {
-      name?: string;
-      properties?: {
-        displayName?: string;
-        connectionParameters?: Record<string, ConnectorConnectionParameter>;
-        connectionParameterSets?: ConnectorMetadata['connectionParameterSets'];
-      };
-    };
-
-    return {
-      name: data.name ?? getConnectorShortName(connectorId),
-      displayName: data.properties?.displayName,
-      connectionParameters: data.properties?.connectionParameters,
-      connectionParameterSets: data.properties?.connectionParameterSets,
-    };
-  } catch (error) {
-    console.log(`[chat-tools] Error fetching connector metadata: ${error instanceof Error ? error.message : String(error)}`);
-    return undefined;
-  }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// Credential-Based Connection Creation
-// ──────────────────────────────────────────────────────────────────────────
-
-/**
- * Prompt the user for connection credential values using VS Code secure input boxes.
- * Returns the collected parameter values, or undefined if the user cancels.
- * @internal Exported for testing (returns the prompt logic for mocking)
- */
-async function promptForCredentials(
-  connectorDisplayName: string,
-  parameters: Record<string, ConnectorConnectionParameter>
-): Promise<Record<string, string> | undefined> {
-  const values: Record<string, string> = {};
-
-  for (const [key, param] of Object.entries(parameters)) {
-    const displayName = param.uiDefinition?.displayName ?? key;
-    const description = param.uiDefinition?.description ?? '';
-    const isSecret = param.type?.toLowerCase() === 'securestring' || param.type?.toLowerCase() === 'secureobject';
-    const isRequired = param.uiDefinition?.constraints?.required !== 'false';
-
-    // For enum-like params with allowed values, show quick pick
-    const allowedValues =
-      param.uiDefinition?.constraints?.allowedValues ?? param.allowedValues?.map((v) => ({ value: v.value, text: v.value }));
-    if (allowedValues && allowedValues.length > 0) {
-      const items = allowedValues.map((v) => ({
-        label: v.text ?? v.value ?? '',
-        value: v.value ?? v.text ?? '',
-      }));
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: `Select ${displayName} for ${connectorDisplayName}`,
-        ignoreFocusOut: true,
-      });
-      if (!selected) {
-        return undefined;
-      }
-      values[key] = selected.value;
-      continue;
-    }
-
-    const input = await vscode.window.showInputBox({
-      prompt: description || `Enter ${displayName} for ${connectorDisplayName}`,
-      placeHolder: displayName,
-      ignoreFocusOut: true,
-      password: isSecret,
-      validateInput: (value) => {
-        if (isRequired && (!value || value.trim().length === 0)) {
-          return `${displayName} is required`;
-        }
-        return undefined;
-      },
-    });
-
-    if (input === undefined) {
-      return undefined;
-    }
-    values[key] = input;
-  }
-
-  return values;
-}
-
-/**
- * Create a managed API connection with user-provided credential parameter values.
- * Uses ARM PUT with parameterValues in the request body.
- */
-async function createCredentialBasedConnection(
-  projectPath: string,
-  referenceName: string,
-  connectorId: string,
-  azureContext: AzureContext,
-  parameterValues: Record<string, string>
-): Promise<ManagedApiConnectionResolution> {
-  if (!azureContext.resourceGroup || !azureContext.location) {
-    return { success: false, message: 'Resource group and location required to create connection.' };
-  }
-
-  const token = await getAuthorizationToken(azureContext.tenantId);
-  const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
-  const connectionName = `${referenceName}-${Date.now().toString(36)}`;
-  const connectionResourceId =
-    `/subscriptions/${azureContext.subscriptionId}` +
-    `/resourceGroups/${azureContext.resourceGroup}` +
-    `/providers/Microsoft.Web/connections/${connectionName}`;
-
-  // PUT to create the connection resource with parameter values
-  const putUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
-  const putBody = {
-    properties: {
-      api: { id: connectorId },
-      displayName: referenceName,
-      parameterValues,
-    },
-    kind: 'V2',
-    location: azureContext.location,
-  };
-
-  try {
-    const putResponse = await fetch(putUrl, {
-      method: 'PUT',
-      headers: { Authorization: token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(putBody),
-    });
-
-    if (!putResponse.ok) {
-      const errorText = await putResponse.text().catch(() => '');
-      console.log(`[chat-tools] Failed to create credential connection: ${putResponse.status} ${errorText}`);
-      return { success: false, message: `Failed to create connection in Azure (${putResponse.status}). Please check your credentials.` };
-    }
-  } catch (error) {
-    console.log(`[chat-tools] Error creating credential connection: ${error instanceof Error ? error.message : String(error)}`);
-    return { success: false, message: 'Network error creating connection in Azure.' };
-  }
-
-  // Test the connection before persisting locally
-  await testManagedApiConnection(connectionResourceId, azureContext);
-
-  // Fetch connection key + runtime URL and write to local files
-  const useMSI = isMSIAuthEnabled(azureContext.authenticationMethod);
-  const keyResult = useMSI ? undefined : await fetchConnectionKey(connectionResourceId, azureContext);
-  await addRealManagedApiConnection(
-    projectPath,
-    referenceName,
-    connectorId,
-    connectionResourceId,
-    keyResult?.connectionKey,
-    useMSI,
-    keyResult?.connectionRuntimeUrl
-  );
-
-  return {
-    success: true,
-    connectionId: connectionResourceId,
-    connectionName,
-    message: `Created connection "${referenceName}" with provided credentials in resource group "${azureContext.resourceGroup}".`,
-  };
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// Post-Creation Connection Testing
-// ──────────────────────────────────────────────────────────────────────────
-
-/**
- * Test a managed API connection after creation.
- * Non-blocking: logs a warning on failure but does not prevent connection use.
- * @internal Exported for testing
- */
-export async function testManagedApiConnection(connectionResourceId: string, azureContext: AzureContext): Promise<boolean> {
-  try {
-    const token = await getAuthorizationToken(azureContext.tenantId);
-    const baseUrl = azureContext.managementBaseUrl.replace(/\/+$/, '');
-
-    // First, get the connection details to find testLinks
-    const getUrl = `${baseUrl}${connectionResourceId}?api-version=2018-07-01-preview`;
-    const getResponse = await fetch(getUrl, {
-      method: 'GET',
-      headers: { Authorization: token, 'Content-Type': 'application/json' },
-    });
-
-    if (!getResponse.ok) {
-      console.log(`[chat-tools] Could not fetch connection for testing: ${getResponse.status}`);
-      return false;
-    }
-
-    const connectionData = (await getResponse.json()) as {
-      properties?: {
-        statuses?: Array<{ status?: string; error?: { message?: string } }>;
-        testLinks?: Array<{ requestUri?: string; method?: string }>;
-        testRequests?: Array<{ requestUri?: string; method?: string }>;
-      };
-    };
-
-    // Check existing status first
-    const statuses = connectionData.properties?.statuses ?? [];
-    const hasError = statuses.some((s) => s.status?.toLowerCase() === 'error');
-    if (hasError) {
-      const errorMsg = statuses.find((s) => s.status?.toLowerCase() === 'error')?.error?.message ?? 'Unknown error';
-      console.log(`[chat-tools] Connection test: status indicates error — ${errorMsg}`);
-      vscode.window.showWarningMessage(`Connection created but may have issues: ${errorMsg}`);
-      return false;
-    }
-
-    // Try testLinks if available
-    const testLink = connectionData.properties?.testLinks?.[0] ?? connectionData.properties?.testRequests?.[0];
-    if (testLink?.requestUri) {
-      const testResponse = await fetch(testLink.requestUri, {
-        method: testLink.method ?? 'GET',
-        headers: { Authorization: token, 'Content-Type': 'application/json' },
-      });
-      if (!testResponse.ok) {
-        console.log(`[chat-tools] Connection test failed: ${testResponse.status}`);
-        vscode.window.showWarningMessage('Connection was created but the connection test failed. You may need to verify your credentials.');
-        return false;
-      }
-    }
-
-    console.log(`[chat-tools] Connection test passed for ${connectionResourceId}`);
-    return true;
-  } catch (error) {
-    console.log(`[chat-tools] Connection test error: ${error instanceof Error ? error.message : String(error)}`);
-    return false;
-  }
-}
-
 /**
  * Attempt to resolve a managed API connection automatically:
  *  1. Try reusing an existing connection in the resource group
- *  2. Discover connector parameters and classify auth type
- *  3. For credential-based: prompt user via VS Code input and create
- *  4. For OAuth: create connection and do inline OAuth consent
- *  5. For multi-auth: fall back to placeholder (caller opens designer)
- *  6. Fall back to placeholder (caller handles this)
+ *  2. Use connector metadata to determine whether to auto-create, prompt for credentials, or run OAuth
+ *  3. Fall back to placeholder (caller handles this)
  */
 async function tryResolveManagedApiConnection(
   projectPath: string,
@@ -1126,79 +1592,49 @@ async function tryResolveManagedApiConnection(
     return { success: false, message: 'No Azure context configured in local.settings.json.' };
   }
 
-  // Step 1: Try reusing existing connection from resource group
   if (azureContext.resourceGroup) {
     const reuseResult = await tryReuseExistingConnection(projectPath, referenceName, connectorId, azureContext);
     if (reuseResult.success) {
       return reuseResult;
     }
-  }
 
-  // Step 2: Discover connector parameters and classify auth type
-  if (azureContext.resourceGroup && azureContext.location) {
-    const metadata = await fetchConnectorMetadata(connectorId, azureContext);
-    if (metadata) {
-      const authType = classifyConnectorAuthType(metadata);
-      console.log(`[chat-tools] Connector "${metadata.displayName ?? metadata.name}" classified as: ${authType}`);
-
-      switch (authType) {
-        case 'simple': {
-          // No credentials needed — create connection with empty params
-          const createResult = await createCredentialBasedConnection(projectPath, referenceName, connectorId, azureContext, {});
-          if (createResult.success) {
-            return createResult;
-          }
-          break;
-        }
-
-        case 'credential': {
-          // Prompt user for credentials via VS Code secure input
-          const params = metadata.connectionParameters ? extractPromptableParameters(metadata.connectionParameters) : {};
-          const connectorDisplayName = metadata.displayName ?? metadata.name;
-          const credentials = await promptForCredentials(connectorDisplayName, params);
-
-          if (credentials) {
-            const createResult = await createCredentialBasedConnection(projectPath, referenceName, connectorId, azureContext, credentials);
-            if (createResult.success) {
-              return createResult;
-            }
-            // Creation failed — message already set in createResult
-            return createResult;
-          }
-          // User cancelled — fall through to placeholder
-          return { success: false, message: 'Credential entry was cancelled.' };
-        }
-
-        case 'oauthOnly': {
-          // Use existing OAuth flow
-          const createResult = await createAndAuthManagedApiConnection(projectPath, referenceName, connectorId, azureContext);
-          if (createResult.success) {
-            return createResult;
-          }
-          console.log(`[chat-tools] Inline OAuth failed: ${createResult.message}`);
-          break;
-        }
-
-        case 'multiAuth': {
-          // Too complex for chat — fall back to designer panel
-          const paramSetNames = metadata.connectionParameterSets?.values?.map((v) => v.uiDefinition?.displayName ?? v.name) ?? [];
-          return {
-            success: false,
-            message: `This connector supports multiple authentication types (${paramSetNames.join(', ')}). Please use the designer to configure the connection.`,
-          };
-        }
-      }
-    } else {
-      // Metadata fetch failed — try legacy OAuth path as fallback
-      const createResult = await createAndAuthManagedApiConnection(projectPath, referenceName, connectorId, azureContext);
-      if (createResult.success) {
-        return createResult;
-      }
-      console.log(`[chat-tools] Inline OAuth fallback failed: ${createResult.message}`);
+    if (reuseResult.message) {
+      console.log(`[chat-tools] Existing connection reuse failed: ${reuseResult.message}`);
     }
   }
 
-  return { success: false, message: 'Could not resolve connection automatically.' };
+  const connectorMetadata = await fetchConnectorMetadata(connectorId, azureContext);
+  if (!connectorMetadata) {
+    const oauthFallback = await createAndAuthManagedApiConnection(projectPath, referenceName, connectorId, azureContext);
+    if (oauthFallback.success) {
+      return oauthFallback;
+    }
+
+    return {
+      success: false,
+      message: `Could not inspect connector authentication metadata automatically. ${oauthFallback.message ?? ''}`.trim(),
+    };
+  }
+
+  const connectorDisplayName = getConnectorDisplayName(connectorMetadata, getConnectorShortName(connectorId));
+  switch (classifyConnectorAuthType(connectorMetadata)) {
+    case 'simple':
+      return createSimpleManagedApiConnection(projectPath, referenceName, connectorId, azureContext, connectorMetadata);
+    case 'credential':
+      return createCredentialBasedConnection(projectPath, referenceName, connectorId, azureContext, connectorMetadata);
+    case 'oauthOnly':
+      return createAndAuthManagedApiConnection(projectPath, referenceName, connectorId, azureContext);
+    case 'multiAuth':
+      return {
+        success: false,
+        message: `Connector "${connectorDisplayName}" supports multiple authentication modes. Open the designer to choose the authentication flow.`,
+      };
+    default:
+      return {
+        success: false,
+        message: `Could not determine how to authenticate connector "${connectorDisplayName}".`,
+      };
+  }
 }
 
 /**
@@ -1209,8 +1645,20 @@ interface ServiceProviderConnectionResult {
   success: boolean;
   /** Whether the connection already existed (no prompt needed) */
   alreadyExists?: boolean;
+  /** Whether chat needs additional user input before the connection can be created */
+  requiresUserInput?: boolean;
   /** Error message if creation failed */
   error?: string;
+  /** Success note surfaced back to the chat tool result */
+  completionNote?: string;
+}
+
+interface ExplicitServiceProviderConnectionResolution {
+  usesExplicitInput: boolean;
+  connectionString?: string;
+  missingFields?: Array<keyof ServiceProviderConnectionInput>;
+  resourceId?: string;
+  resourceName?: string;
 }
 
 /**
@@ -1252,6 +1700,158 @@ const serviceProviderToAzureResourceType: Record<string, { resourceType: string;
     apiVersion: '2022-10-01-preview',
   },
 };
+
+function getOptionalTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeServiceProviderConnectionInput(
+  input?: ServiceProviderConnectionInput | Record<string, unknown>
+): ServiceProviderConnectionInput | undefined {
+  if (!input || typeof input !== 'object') {
+    return undefined;
+  }
+
+  const inputRecord = input as Record<string, unknown>;
+  const normalized: ServiceProviderConnectionInput = {
+    resourceId: getOptionalTrimmedString(inputRecord.resourceId),
+    resourceName: getOptionalTrimmedString(inputRecord.resourceName),
+    connectionString: getOptionalTrimmedString(inputRecord.connectionString),
+    endpoint: getOptionalTrimmedString(inputRecord.endpoint),
+    sharedAccessKeyName: getOptionalTrimmedString(inputRecord.sharedAccessKeyName),
+    sharedAccessKey: getOptionalTrimmedString(inputRecord.sharedAccessKey),
+  };
+
+  return Object.values(normalized).some((value) => Boolean(value)) ? normalized : undefined;
+}
+
+export function buildServiceBusConnectionString(endpoint: string, sharedAccessKeyName: string, sharedAccessKey: string): string {
+  const trimmedEndpoint = endpoint.trim();
+  const endpointPart = /^endpoint=/i.test(trimmedEndpoint) ? trimmedEndpoint : `Endpoint=${trimmedEndpoint}`;
+  return `${endpointPart};SharedAccessKeyName=${sharedAccessKeyName.trim()};SharedAccessKey=${sharedAccessKey.trim()}`;
+}
+
+function resolveExplicitServiceProviderConnection(
+  serviceProviderId: string,
+  input?: ServiceProviderConnectionInput
+): ExplicitServiceProviderConnectionResolution {
+  const normalizedInput = normalizeServiceProviderConnectionInput(input);
+  if (!normalizedInput) {
+    return { usesExplicitInput: false };
+  }
+
+  if (normalizedInput.connectionString) {
+    return {
+      usesExplicitInput: true,
+      connectionString: normalizedInput.connectionString,
+      resourceId: normalizedInput.resourceId,
+      resourceName: normalizedInput.resourceName,
+    };
+  }
+
+  const hasResourceSelection = Boolean(normalizedInput.resourceId || normalizedInput.resourceName);
+  const normalizedServiceProviderId = serviceProviderId.toLowerCase();
+  const hasServiceBusFields = Boolean(normalizedInput.endpoint || normalizedInput.sharedAccessKeyName || normalizedInput.sharedAccessKey);
+
+  if (normalizedServiceProviderId === '/serviceproviders/servicebus' && hasServiceBusFields) {
+    const missingFields: Array<keyof ServiceProviderConnectionInput> = [];
+
+    if (!normalizedInput.endpoint) {
+      missingFields.push('endpoint');
+    }
+    if (!normalizedInput.sharedAccessKeyName) {
+      missingFields.push('sharedAccessKeyName');
+    }
+    if (!normalizedInput.sharedAccessKey) {
+      missingFields.push('sharedAccessKey');
+    }
+
+    if (missingFields.length === 0) {
+      return {
+        usesExplicitInput: true,
+        connectionString: buildServiceBusConnectionString(
+          normalizedInput.endpoint!,
+          normalizedInput.sharedAccessKeyName!,
+          normalizedInput.sharedAccessKey!
+        ),
+        resourceId: normalizedInput.resourceId,
+        resourceName: normalizedInput.resourceName,
+      };
+    }
+
+    return {
+      usesExplicitInput: true,
+      missingFields,
+      resourceId: normalizedInput.resourceId,
+      resourceName: normalizedInput.resourceName,
+    };
+  }
+
+  if (hasResourceSelection) {
+    return {
+      usesExplicitInput: true,
+      resourceId: normalizedInput.resourceId,
+      resourceName: normalizedInput.resourceName,
+    };
+  }
+
+  return {
+    usesExplicitInput: true,
+    missingFields: ['connectionString'],
+  };
+}
+
+function buildServiceProviderFieldPath(fieldName: keyof ServiceProviderConnectionInput): string {
+  return `serviceProviderConnection.${fieldName}`;
+}
+
+function buildServiceProviderConnectionPromptMessage(
+  connectorDisplayName: string,
+  serviceProviderId: string,
+  options?: {
+    availableResources?: AzureResourceInfo[];
+    missingFields?: Array<keyof ServiceProviderConnectionInput>;
+    requestedResourceId?: string;
+    requestedResourceName?: string;
+  }
+): string {
+  const lines = [`I need connection details before I can add the ${connectorDisplayName} action.`];
+
+  if (options?.requestedResourceId || options?.requestedResourceName) {
+    const requestedResource = options.requestedResourceName ?? options.requestedResourceId;
+    lines.push(`I couldn't find the requested Azure resource "${requestedResource}".`);
+  }
+
+  if (options?.availableResources?.length) {
+    const resourceNames = options.availableResources
+      .slice(0, 5)
+      .map((resource) => resource.name)
+      .join(', ');
+    lines.push(`Available ${connectorDisplayName} resources: ${resourceNames}.`);
+    lines.push(
+      `Reply with ${buildServiceProviderFieldPath('resourceName')} or ${buildServiceProviderFieldPath('resourceId')} to use one of those resources.`
+    );
+  }
+
+  if (options?.missingFields?.length) {
+    lines.push(`Missing fields: ${options.missingFields.map(buildServiceProviderFieldPath).join(', ')}.`);
+  }
+
+  if (serviceProviderId.toLowerCase() === '/serviceproviders/servicebus') {
+    lines.push(
+      `Reply with either ${buildServiceProviderFieldPath('connectionString')}, or with ${buildServiceProviderFieldPath('endpoint')}, ${buildServiceProviderFieldPath('sharedAccessKeyName')}, and ${buildServiceProviderFieldPath('sharedAccessKey')}.`
+    );
+  } else {
+    lines.push(`Reply with ${buildServiceProviderFieldPath('connectionString')}.`);
+  }
+
+  return lines.join(' ');
+}
 
 /**
  * Azure context resolved from local.settings.json
@@ -1542,7 +2142,8 @@ async function createServiceProviderConnection(
   projectPath: string,
   connectionName: string,
   serviceProviderId: string,
-  connectorDisplayName: string
+  connectorDisplayName: string,
+  serviceProviderConnection?: ServiceProviderConnectionInput
 ): Promise<ServiceProviderConnectionResult> {
   const connectionsPath = path.join(projectPath, connectionsFileName);
   const localSettingsPath = path.join(projectPath, localSettingsFileName);
@@ -1571,8 +2172,23 @@ async function createServiceProviderConnection(
   // Try to get Azure context from local settings
   const azureContext = await getAzureContextFromLocalSettings(projectPath);
   let connectionString: string | undefined;
+  let completionNote: string | undefined;
+  const explicitConnection = resolveExplicitServiceProviderConnection(serviceProviderId, serviceProviderConnection);
 
-  if (azureContext?.subscriptionId) {
+  if (explicitConnection.connectionString) {
+    connectionString = explicitConnection.connectionString;
+    completionNote = `Created connection for "${connectionName}" from chat-provided connection details.`;
+  } else if (explicitConnection.usesExplicitInput && explicitConnection.missingFields?.length) {
+    return {
+      success: false,
+      requiresUserInput: true,
+      error: buildServiceProviderConnectionPromptMessage(connectorDisplayName, serviceProviderId, {
+        missingFields: explicitConnection.missingFields,
+      }),
+    };
+  }
+
+  if (!connectionString && azureContext?.subscriptionId) {
     // Map service provider to Azure resource type
     const resourceMapping = serviceProviderToAzureResourceType[serviceProviderId];
     if (resourceMapping) {
@@ -1586,73 +2202,73 @@ async function createServiceProviderConnection(
       );
 
       if (resources.length > 0) {
-        // Show quick pick for resource selection
-        const items = resources.map((r) => ({
-          label: r.name,
-          description: r.location,
-          detail: r.id,
-          resource: r,
-        }));
+        const selectedResource =
+          explicitConnection.resourceId || explicitConnection.resourceName
+            ? resources.find((resource) => {
+                const matchesId =
+                  explicitConnection.resourceId && resource.id.toLowerCase() === explicitConnection.resourceId.toLowerCase();
+                const matchesName =
+                  explicitConnection.resourceName && resource.name.toLowerCase() === explicitConnection.resourceName.toLowerCase();
+                return Boolean(matchesId || matchesName);
+              })
+            : resources.length === 1
+              ? resources[0]
+              : undefined;
 
-        const selected = await vscode.window.showQuickPick(items, {
-          placeHolder: `Select a ${connectorDisplayName} resource`,
-          title: `Connect to ${connectorDisplayName}`,
-          ignoreFocusOut: true,
-        });
+        if (!selectedResource && (explicitConnection.resourceId || explicitConnection.resourceName)) {
+          return {
+            success: false,
+            requiresUserInput: true,
+            error: buildServiceProviderConnectionPromptMessage(connectorDisplayName, serviceProviderId, {
+              requestedResourceId: explicitConnection.resourceId,
+              requestedResourceName: explicitConnection.resourceName,
+              availableResources: resources,
+            }),
+          };
+        }
 
-        if (selected) {
-          // Fetch connection string from selected resource
+        if (!selectedResource && resources.length > 1) {
+          return {
+            success: false,
+            requiresUserInput: true,
+            error: buildServiceProviderConnectionPromptMessage(connectorDisplayName, serviceProviderId, {
+              availableResources: resources,
+            }),
+          };
+        }
+
+        if (selectedResource) {
           connectionString = await getConnectionStringForResource(
-            selected.resource.id,
-            selected.resource.type,
+            selectedResource.id,
+            selectedResource.type,
             azureContext.tenantId,
             azureContext.managementBaseUrl
           );
 
           if (connectionString) {
-            console.log(`[chat-tools] Retrieved connection string from ${selected.resource.name}`);
+            completionNote = `Created connection for "${connectionName}" from Azure resource "${selectedResource.name}".`;
+            console.log(`[chat-tools] Retrieved connection string from ${selectedResource.name}`);
           } else {
-            // Show error if we couldn't get the connection string
-            vscode.window.showWarningMessage(
-              `Could not retrieve connection string from ${selected.resource.name}. You may need to configure it manually in the designer.`
-            );
-            return { success: false, error: 'Could not retrieve connection string from selected resource' };
+            return {
+              success: false,
+              requiresUserInput: true,
+              error: `Could not retrieve connection details from Azure resource "${selectedResource.name}". ${buildServiceProviderConnectionPromptMessage(
+                connectorDisplayName,
+                serviceProviderId
+              )}`,
+            };
           }
-        } else {
-          // User cancelled the picker
-          return { success: false, error: 'Resource selection was cancelled' };
         }
-      } else {
-        // No resources found - let user know
-        const message = `No ${connectorDisplayName} resources found in your subscription. Would you like to enter a connection string manually?`;
-        const manualEntry = await vscode.window.showInformationMessage(message, 'Enter manually', 'Cancel');
-        if (manualEntry !== 'Enter manually') {
-          return { success: false, error: 'No resources found and manual entry declined' };
-        }
-        // Fall through to manual entry below
       }
     }
   }
 
-  // If we don't have a connection string yet (no Azure context, unsupported resource type, or empty resource list),
-  // fall back to manual entry
   if (!connectionString) {
-    connectionString = await vscode.window.showInputBox({
-      prompt: `Enter the connection string for ${connectorDisplayName}`,
-      placeHolder: 'e.g., Endpoint=sb://...;SharedAccessKeyName=...;SharedAccessKey=...',
-      ignoreFocusOut: true,
-      password: true,
-      validateInput: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Connection string cannot be empty';
-        }
-        return undefined;
-      },
-    });
-
-    if (connectionString === undefined) {
-      return { success: false, error: 'Connection string input was cancelled' };
-    }
+    return {
+      success: false,
+      requiresUserInput: true,
+      error: buildServiceProviderConnectionPromptMessage(connectorDisplayName, serviceProviderId),
+    };
   }
 
   // Create the app setting key for the connection string
@@ -1686,7 +2302,7 @@ async function createServiceProviderConnection(
   await fse.writeJson(connectionsPath, connectionsData, { spaces: 2 });
   console.log(`[chat-tools] Created service provider connection for "${connectionName}"`);
 
-  return { success: true };
+  return { success: true, completionNote };
 }
 
 /**
@@ -1804,6 +2420,38 @@ async function listBuiltInConnectors(baseUrl: string): Promise<BuiltInConnectorI
   }
 }
 
+async function getBuiltInConnectorsForProject(projectPath: string): Promise<BuiltInConnectorInfo[]> {
+  const overrideConnectors = getWorkflowToolsTestOverrides()?.builtInConnectors;
+  if (overrideConnectors) {
+    return overrideConnectors;
+  }
+
+  const baseUrl = getDesignTimeBaseUrl(projectPath);
+  if (!baseUrl) {
+    console.log('[chat-tools] Design time runtime not available for built-in connector discovery');
+    return [];
+  }
+
+  return listBuiltInConnectors(baseUrl);
+}
+
+async function getBuiltInConnectorOperationsForProject(projectPath: string, connectorName: string): Promise<BuiltInConnectorOperation[]> {
+  const overrideOperations = getWorkflowToolsTestOverrides()?.builtInConnectorOperations;
+  if (overrideOperations) {
+    const matchedEntry = Object.entries(overrideOperations).find(([name]) => name.toLowerCase() === connectorName.toLowerCase());
+    if (matchedEntry) {
+      return matchedEntry[1];
+    }
+  }
+
+  const baseUrl = getDesignTimeBaseUrl(projectPath);
+  if (!baseUrl) {
+    return [];
+  }
+
+  return listBuiltInConnectorOperations(baseUrl, connectorName);
+}
+
 function matchBuiltInConnector(hint: string, connectors: BuiltInConnectorInfo[]): BuiltInConnectorInfo | undefined {
   const n = hint
     .trim()
@@ -1823,18 +2471,14 @@ async function resolveBuiltInServiceProviderAction(
   actionName: string,
   connectorHint: string,
   projectConnections: ProjectConnectionsInfo,
-  configuration?: Record<string, unknown>
+  configuration?: Record<string, unknown>,
+  serviceProviderConnection?: ServiceProviderConnectionInput
 ): Promise<{ action?: Record<string, unknown>; completionSuffix?: string; error?: string } | undefined> {
   if (!projectConnections.projectPath) {
     return undefined;
   }
-  const baseUrl = getDesignTimeBaseUrl(projectConnections.projectPath);
-  if (!baseUrl) {
-    console.log('[chat-tools] Design time runtime not available for built-in connector discovery');
-    return undefined;
-  }
 
-  const connectors = await listBuiltInConnectors(baseUrl);
+  const connectors = await getBuiltInConnectorsForProject(projectConnections.projectPath);
   const matched = matchBuiltInConnector(connectorHint, connectors);
   if (!matched) {
     return undefined;
@@ -1842,7 +2486,7 @@ async function resolveBuiltInServiceProviderAction(
 
   console.log(`[chat-tools] Matched built-in connector: ${matched.name} (${matched.id})`);
 
-  const operations = await listBuiltInConnectorOperations(baseUrl, matched.name);
+  const operations = await getBuiltInConnectorOperationsForProject(projectConnections.projectPath, matched.name);
   const actionOps = operations.filter((op) => !op.properties?.trigger);
   if (actionOps.length === 0) {
     return { error: `Built-in connector "${matched.displayName ?? matched.name}" has no action operations.` };
@@ -1877,14 +2521,17 @@ async function resolveBuiltInServiceProviderAction(
         projectConnections.projectPath,
         connectionName,
         serviceProviderId,
-        connectorDisplayName
+        connectorDisplayName,
+        serviceProviderConnection
       );
       if (result.success) {
         if (result.alreadyExists) {
           connectionNote = '';
         } else {
-          connectionNote = ` Created connection for "${connectionName}" with the provided connection string.`;
+          connectionNote = ` ${result.completionNote ?? `Created connection for "${connectionName}".`}`;
         }
+      } else if (result.requiresUserInput) {
+        return { error: result.error };
       } else {
         // User cancelled or error occurred - fall back to placeholder
         await addPlaceholderServiceProviderConnection(projectConnections.projectPath, connectionName, serviceProviderId);
@@ -1935,6 +2582,51 @@ function normalizeTypeToken(actionType: string): string {
 export function isTriggerType(actionType: string): boolean {
   const normalized = normalizeTypeToken(actionType);
   return normalized === 'request' || normalized === 'manual' || normalized === 'recurrence';
+}
+
+/**
+ * Compute a default `runAfter` value for a newly added action.
+ *
+ * When the caller passes an explicit `runAfter` (either top-level on the configuration
+ * or nested under `inputs`), it is preserved verbatim — including `{}` to opt into
+ * parallel execution. Otherwise, when prior actions already exist in the workflow,
+ * the new action is chained after the last one in insertion order so Response-style
+ * actions don't race with their dependencies.
+ *
+ * @internal Exported for testing
+ */
+export function inferDefaultRunAfter(
+  existingActions: Record<string, unknown> | undefined,
+  callerConfig: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  if (callerConfig) {
+    if (Object.prototype.hasOwnProperty.call(callerConfig, 'runAfter')) {
+      const explicit = callerConfig.runAfter;
+      if (typeof explicit === 'object' && explicit !== null) {
+        return explicit as Record<string, unknown>;
+      }
+    }
+
+    const inputs = callerConfig.inputs;
+    if (inputs && typeof inputs === 'object' && Object.prototype.hasOwnProperty.call(inputs, 'runAfter')) {
+      const nested = (inputs as Record<string, unknown>).runAfter;
+      if (typeof nested === 'object' && nested !== null) {
+        return nested as Record<string, unknown>;
+      }
+    }
+  }
+
+  if (!existingActions || typeof existingActions !== 'object') {
+    return {};
+  }
+
+  const actionNames = Object.keys(existingActions);
+  if (actionNames.length === 0) {
+    return {};
+  }
+
+  const lastActionName = actionNames[actionNames.length - 1];
+  return { [lastActionName]: ['Succeeded'] };
 }
 
 /**
@@ -2239,7 +2931,7 @@ export function validateApiConnectionReferenceExists(
  * Build a Seattle weather connector action in ApiConnection shape.
  * @internal Exported for testing
  */
-export function buildSeattleWeatherConnectorAction(referenceName: string): Record<string, unknown> {
+export function buildSeattleWeatherConnectorAction(referenceName: string, runAfter?: Record<string, unknown>): Record<string, unknown> {
   return {
     type: 'ApiConnection',
     inputs: {
@@ -2254,7 +2946,7 @@ export function buildSeattleWeatherConnectorAction(referenceName: string): Recor
         units: 'I',
       },
     },
-    runAfter: {},
+    runAfter: runAfter ?? {},
   };
 }
 
@@ -2522,7 +3214,7 @@ export function resolveOfflineManagedConnectorOperation(
 
 async function createArmHttpClient(projectConnections: ProjectConnectionsInfo): Promise<HttpClient | undefined> {
   try {
-    const accessToken = await getAuthorizationToken(projectConnections.workflowTenantId);
+    const accessToken = await getWorkflowToolsAuthorizationToken(projectConnections.workflowTenantId);
     const managementBaseUri = normalizeManagementBaseUri(projectConnections.workflowManagementBaseUri);
     console.log(
       `[chat-tools] ARM client: baseUri=${managementBaseUri}, tenantId=${projectConnections.workflowTenantId ?? '(none)'}, tokenLength=${accessToken?.length ?? 0}`
@@ -3041,6 +3733,11 @@ async function resolveManagedApiOperationFromSwagger(
 ): Promise<{ method: string; path: string; operationId?: string; failureReason?: string } | undefined> {
   let failureReason = '';
 
+  if (getWorkflowToolsTestOverrides()?.disableArmSwaggerResolution) {
+    failureReason = 'ARM swagger resolution disabled by workflow tools test override.';
+    return { method: '', path: '', failureReason };
+  }
+
   const client = await createArmHttpClient(projectConnections);
   if (!client) {
     failureReason = `ARM client creation failed (managementBaseUri=${projectConnections.workflowManagementBaseUri ?? 'NOT SET'}, tenantId=${projectConnections.workflowTenantId ?? 'NOT SET'})`;
@@ -3209,23 +3906,23 @@ async function resolveGenericApiConnectionAction(
   }
 
   if (isNewConnectorReference && resolvedConnectorId && projectConnections.projectPath) {
-    // Try to resolve the connection automatically (reuse existing or create + OAuth)
+    // Try to resolve the connection automatically (reuse existing, metadata-driven create, or OAuth)
     let connectionNote = '';
     try {
       const resolution = await tryResolveManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
       if (resolution.success) {
         connectionNote = ` ${resolution.message}`;
       } else {
-        // Fall back to placeholder
         await addPlaceholderManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
-        connectionNote = ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to authenticate.`;
+        const failureReason = resolution.message ? ` Automatic resolution failed: ${resolution.message}` : '';
+        connectionNote = ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to finish authentication or choose a different auth mode.${failureReason}`;
       }
     } catch (error) {
       console.error(`[chat-tools] Failed to resolve managed API connection: ${error instanceof Error ? error.message : String(error)}`);
-      // Fall back to placeholder on unexpected errors
       try {
         await addPlaceholderManagedApiConnection(projectConnections.projectPath, effectiveReference, resolvedConnectorId);
-        connectionNote = ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to authenticate.`;
+        const failureReason = error instanceof Error ? ` Automatic resolution failed: ${error.message}` : '';
+        connectionNote = ` Added placeholder connection for "${effectiveReference}" in connections.json. Open designer to finish authentication or choose a different auth mode.${failureReason}`;
       } catch {
         // Ignore secondary placeholder error
       }
@@ -3425,7 +4122,7 @@ class CreateWorkflowTool implements vscode.LanguageModelTool<CreateWorkflowParam
     options: vscode.LanguageModelToolInvocationOptions<CreateWorkflowParams>,
     _token: vscode.CancellationToken
   ): Promise<vscode.LanguageModelToolResult> {
-    const { name } = options.input;
+    const { name, type } = options.input;
 
     try {
       // Validate workflow name
@@ -3437,20 +4134,43 @@ class CreateWorkflowTool implements vscode.LanguageModelTool<CreateWorkflowParam
         ]);
       }
 
-      // Get workspace folder
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      if (!workspaceFolder) {
+      // Find Logic App projects in the workspace
+      const workspaceSearchRoots = getWorkspaceSearchRoots();
+      if (workspaceSearchRoots.length === 0) {
         return new vscode.LanguageModelToolResult([
           new vscode.LanguageModelTextPart('No workspace folder found. Please open a Logic App workspace first.'),
         ]);
       }
 
-      // Execute the create workflow command - this opens the workflow creation wizard
-      await vscode.commands.executeCommand(extensionCommand.createWorkflow);
+      const projectPaths = await findLogicAppProjectsInWorkspace(workspaceSearchRoots);
+      if (projectPaths.length === 0) {
+        return new vscode.LanguageModelToolResult([
+          new vscode.LanguageModelTextPart('No Logic App projects found in this workspace. Use /createProject to create one first.'),
+        ]);
+      }
 
+      // Use the first project (or could be extended for multi-project disambiguation)
+      const projectPath = projectPaths[0];
+      const workflowDir = path.join(projectPath, name);
+
+      // Check if workflow already exists
+      if (await fse.pathExists(workflowDir)) {
+        return new vscode.LanguageModelToolResult([
+          new vscode.LanguageModelTextPart(`A workflow named "${name}" already exists in the project.`),
+        ]);
+      }
+
+      // Create the workflow directory and write workflow.json
+      await fse.ensureDir(workflowDir);
+      const workflowDefinition = createWorkflowDefinition(type || 'stateful');
+      const workflowJsonPath = path.join(workflowDir, workflowFileName);
+      await fse.writeJson(workflowJsonPath, workflowDefinition, { spaces: 2 });
+
+      const projectName = path.basename(projectPath);
       return new vscode.LanguageModelToolResult([
         new vscode.LanguageModelTextPart(
-          `Opened the workflow creation wizard. Please enter "${name}" as the workflow name and complete the wizard to create your workflow.`
+          `Successfully created workflow "${name}" (${type || 'stateful'}) in project "${projectName}". ` +
+            `The workflow file is at: ${workflowJsonPath}`
         ),
       ]);
     } catch (error) {
@@ -3589,6 +4309,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
       operationId,
       method,
       path: operationPath,
+      serviceProviderConnection,
     } = options.input;
 
     try {
@@ -3635,6 +4356,19 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
       let operationTypeName = actionType;
       let completionSuffix = '';
 
+      // Compute a default `runAfter` once, based on the workflow's existing actions.
+      // Builders that consume `configuration.runAfter` (ApiConnection / ServiceProvider /
+      // generic action builders) will pick this up; explicit caller `runAfter` is preserved.
+      const existingActions =
+        definition?.definition?.actions && typeof definition.definition.actions === 'object'
+          ? (definition.definition.actions as Record<string, unknown>)
+          : undefined;
+      const inferredRunAfter = inferDefaultRunAfter(existingActions, configuration);
+      const effectiveConfiguration: Record<string, unknown> = {
+        ...(configuration ?? {}),
+        runAfter: inferredRunAfter,
+      };
+
       if (isTrigger) {
         if (!definition.definition.triggers) {
           definition.definition.triggers = {};
@@ -3648,7 +4382,13 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
         // Try built-in ServiceProvider connector first
         const connectorHint = connectorReference || connectorId || '';
         if (connectorHint) {
-          const builtInResult = await resolveBuiltInServiceProviderAction(actionName, connectorHint, projectConnections, configuration);
+          const builtInResult = await resolveBuiltInServiceProviderAction(
+            actionName,
+            connectorHint,
+            projectConnections,
+            effectiveConfiguration,
+            serviceProviderConnection
+          );
           if (builtInResult?.action) {
             nodeToWrite = builtInResult.action;
             operationTypeName = 'ServiceProvider';
@@ -3661,7 +4401,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
             await fse.writeJson(workflowPath, definition, { spaces: 2 });
             return new vscode.LanguageModelToolResult([
               new vscode.LanguageModelTextPart(
-                `Successfully added action "${actionName}" of type "${operationTypeName}" to workflow "${workflowName}". Open the designer to configure additional settings.${completionSuffix}`
+                `Successfully added action "${actionName}" of type "${operationTypeName}" to workflow "${workflowName}".${completionSuffix}`
               ),
             ]);
           }
@@ -3674,7 +4414,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
         const genericResolvedAction = await resolveGenericApiConnectionAction(
           actionType,
           actionName,
-          configuration,
+          effectiveConfiguration,
           projectConnections,
           {
             connectorReference,
@@ -3694,25 +4434,61 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
           operationTypeName = 'ApiConnection';
           completionSuffix = genericResolvedAction.completionSuffix ?? '';
         } else if (shouldAutoUseWeatherConnector(actionType, actionName, configuration)) {
-          if (!projectConnections.weatherManagedReference) {
-            const refsHint =
-              projectConnections.managedApiReferences.length > 0
-                ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
-                : ' No managed connection references found in connections.json.';
+          // Weather intent detected. Prefer an existing weather managed reference if present;
+          // otherwise fall through to the generic resolver with a synthesized `msnweather` hint
+          // so ARM discovery + placeholder provisioning can run (matching how every other
+          // managed connector is handled).
+          if (projectConnections.weatherManagedReference) {
+            nodeToWrite = buildSeattleWeatherConnectorAction(projectConnections.weatherManagedReference, inferredRunAfter);
+            operationTypeName = 'ApiConnection';
+            completionSuffix = ` Used connector reference "${projectConnections.weatherManagedReference}" from connections.json for a Logic Apps weather action.`;
+          } else {
+            const weatherResolution = await resolveGenericApiConnectionAction(
+              'ApiConnection',
+              actionName,
+              effectiveConfiguration,
+              projectConnections,
+              {
+                connectorReference: connectorReference || 'msnweather',
+                connectorId: connectorId || 'msnweather',
+                operationId: operationId || 'CurrentWeather',
+                method: method || 'get',
+                path: operationPath,
+              },
+              false
+            );
 
-            return new vscode.LanguageModelToolResult([
-              new vscode.LanguageModelTextPart(
-                `Weather action requested but no weather managed API connection was found in connections.json.${refsHint}`
-              ),
-            ]);
+            if (weatherResolution.error) {
+              const refsHint =
+                projectConnections.managedApiReferences.length > 0
+                  ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
+                  : ' No managed connection references found in connections.json.';
+              return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(
+                  `Weather action requested but no weather managed API connection could be resolved (msnweather). ${weatherResolution.error}${refsHint}`
+                ),
+              ]);
+            }
+
+            if (!weatherResolution.action) {
+              const refsHint =
+                projectConnections.managedApiReferences.length > 0
+                  ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
+                  : ' No managed connection references found in connections.json.';
+              return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(
+                  `Weather action requested but no weather managed API connection was found in connections.json and msnweather could not be auto-provisioned (no Azure context available in local.settings.json).${refsHint}`
+                ),
+              ]);
+            }
+
+            nodeToWrite = weatherResolution.action;
+            operationTypeName = 'ApiConnection';
+            completionSuffix = weatherResolution.completionSuffix ?? '';
           }
-
-          nodeToWrite = buildSeattleWeatherConnectorAction(projectConnections.weatherManagedReference);
-          operationTypeName = 'ApiConnection';
-          completionSuffix = ` Used connector reference "${projectConnections.weatherManagedReference}" from connections.json for a Logic Apps weather action.`;
         } else {
           if (normalizedType === 'apiconnection') {
-            const validationError = validateApiConnectionConfiguration(extractActionInputs(configuration));
+            const validationError = validateApiConnectionConfiguration(extractActionInputs(effectiveConfiguration));
             if (validationError) {
               const refs = projectConnections.managedApiReferences;
               const refsHint =
@@ -3724,7 +4500,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
             }
 
             const referenceValidationError = validateApiConnectionReferenceExists(
-              extractActionInputs(configuration),
+              extractActionInputs(effectiveConfiguration),
               projectConnections.managedApiReferencesWithApiId
             );
             if (referenceValidationError) {
@@ -3733,13 +4509,13 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
           }
 
           if (normalizedType === 'serviceprovider') {
-            const validationError = validateServiceProviderConfiguration(extractActionInputs(configuration));
+            const validationError = validateServiceProviderConfiguration(extractActionInputs(effectiveConfiguration));
             if (validationError) {
               return new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(validationError)]);
             }
           }
 
-          nodeToWrite = buildActionDefinition(actionType, configuration);
+          nodeToWrite = buildActionDefinition(actionType, effectiveConfiguration);
         }
 
         if (!definition.definition.actions) {
@@ -3841,20 +4617,59 @@ class ModifyActionTool implements vscode.LanguageModelTool<ModifyActionParams> {
           if (genericResolvedAction.action) {
             definition.definition.actions[actionName] = genericResolvedAction.action;
           } else if (shouldAutoUseWeatherConnector(mergedType, actionName, mergedAction)) {
-            if (!projectConnections.weatherManagedReference) {
-              const refsHint =
-                projectConnections.managedApiReferences.length > 0
-                  ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
-                  : ' No managed connection references found in connections.json.';
+            // Weather intent: prefer an existing weather managed reference, else fall through
+            // to the generic resolver with a synthesized msnweather hint so ARM discovery /
+            // placeholder provisioning runs (same behavior as AddActionTool).
+            if (projectConnections.weatherManagedReference) {
+              const existingRunAfter =
+                typeof mergedAction.runAfter === 'object' && mergedAction.runAfter !== null
+                  ? (mergedAction.runAfter as Record<string, unknown>)
+                  : undefined;
+              definition.definition.actions[actionName] = buildSeattleWeatherConnectorAction(
+                projectConnections.weatherManagedReference,
+                existingRunAfter
+              );
+            } else {
+              const weatherResolution = await resolveGenericApiConnectionAction(
+                'ApiConnection',
+                actionName,
+                mergedAction,
+                projectConnections,
+                {
+                  connectorReference: 'msnweather',
+                  connectorId: 'msnweather',
+                  operationId: 'CurrentWeather',
+                  method: 'get',
+                },
+                false
+              );
 
-              return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(
-                  `Weather action requested but no weather managed API connection was found in connections.json.${refsHint}`
-                ),
-              ]);
+              if (weatherResolution.error) {
+                const refsHint =
+                  projectConnections.managedApiReferences.length > 0
+                    ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
+                    : ' No managed connection references found in connections.json.';
+                return new vscode.LanguageModelToolResult([
+                  new vscode.LanguageModelTextPart(
+                    `Weather action requested but no weather managed API connection could be resolved (msnweather). ${weatherResolution.error}${refsHint}`
+                  ),
+                ]);
+              }
+
+              if (!weatherResolution.action) {
+                const refsHint =
+                  projectConnections.managedApiReferences.length > 0
+                    ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
+                    : ' No managed connection references found in connections.json.';
+                return new vscode.LanguageModelToolResult([
+                  new vscode.LanguageModelTextPart(
+                    `Weather action requested but no weather managed API connection was found in connections.json and msnweather could not be auto-provisioned (no Azure context available in local.settings.json).${refsHint}`
+                  ),
+                ]);
+              }
+
+              definition.definition.actions[actionName] = weatherResolution.action;
             }
-
-            definition.definition.actions[actionName] = buildSeattleWeatherConnectorAction(projectConnections.weatherManagedReference);
           } else {
             if (normalizedMergedType === 'apiconnection') {
               const validationError = validateApiConnectionConfiguration(extractActionInputs(mergedAction));

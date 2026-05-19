@@ -27,6 +27,8 @@ export interface IDesignerPanelMetadata {
   schemaArtifacts: FileDetails[];
   mapArtifacts: Record<string, FileDetails[]>;
   extensionBundleVersion?: string;
+  /** Node IDs with incomplete/placeholder connections that need user input */
+  pendingConnectionNodes?: string[];
 }
 
 export interface CompleteFileSystemConnectionData {

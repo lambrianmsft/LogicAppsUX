@@ -283,6 +283,29 @@ suite('Tool Registration & Schema', () => {
     assert.ok(schema.required.includes('workflowName'), 'workflowName should be required');
     assert.ok(schema.required.includes('actionName'), 'actionName should be required');
   });
+
+  test('addAction schema should expose serviceProviderConnection fields for chat-supplied connector details', () => {
+    const tool = vscode.lm.tools.find((t) => t.name === TOOL_NAMES.addAction);
+    assert.ok(tool, 'Tool not found');
+    const schema = tool!.inputSchema as {
+      properties: Record<string, { properties?: Record<string, unknown> }>;
+    };
+
+    assert.ok(schema.properties.serviceProviderConnection, 'Schema should expose serviceProviderConnection');
+    assert.ok(
+      schema.properties.serviceProviderConnection.properties?.connectionString,
+      'Schema should expose serviceProviderConnection.connectionString'
+    );
+    assert.ok(schema.properties.serviceProviderConnection.properties?.endpoint, 'Schema should expose serviceProviderConnection.endpoint');
+    assert.ok(
+      schema.properties.serviceProviderConnection.properties?.sharedAccessKeyName,
+      'Schema should expose serviceProviderConnection.sharedAccessKeyName'
+    );
+    assert.ok(
+      schema.properties.serviceProviderConnection.properties?.sharedAccessKey,
+      'Schema should expose serviceProviderConnection.sharedAccessKey'
+    );
+  });
 });
 
 // ============================================================================
@@ -1567,6 +1590,7 @@ suite('Chat-driven Natural Language Help', () => {
 suite('addAction — ServiceProvider Connectors', () => {
   let toolsReady = false;
   const addedActions: string[] = [];
+  const serviceProviderConnectionNames = ['AzureBlob', 'serviceBus'];
 
   suiteSetup(async function () {
     this.timeout(90_000);
@@ -1574,6 +1598,7 @@ suite('addAction — ServiceProvider Connectors', () => {
     if (activated) {
       toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
     }
+    removeServiceProviderConnectionArtifacts(serviceProviderConnectionNames);
   });
 
   suiteTeardown(async () => {
@@ -1593,6 +1618,8 @@ suite('addAction — ServiceProvider Connectors', () => {
         }
       }
     }
+
+    removeServiceProviderConnectionArtifacts(serviceProviderConnectionNames);
   });
 
   test('should add an Azure Blob ServiceProvider action (Plan 6.1)', async function () {
@@ -1626,12 +1653,48 @@ suite('addAction — ServiceProvider Connectors', () => {
     }
   });
 
-  test('should add a Service Bus ServiceProvider action (Plan 6.2)', async function () {
+  test('should ask for Service Bus connection fields in chat-compatible tool output when the supplied fields are incomplete', async function () {
     if (!toolsReady) {
       this.skip();
       return;
     }
     this.timeout(30_000);
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const name = 'TestNeedSBConnectionFields';
+    addedActions.push(name);
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'ServiceProvider',
+      actionName: name,
+      connectorReference: 'serviceBus',
+      serviceProviderConnection: {
+        endpoint: 'sb://contoso.servicebus.windows.net/',
+      },
+    });
+    console.log(`addAction (ServiceBus SP missing fields) result: ${text}`);
+    assert.ok(text.includes('serviceProviderConnection.sharedAccessKeyName'), 'Tool should ask for sharedAccessKeyName in chat');
+    assert.ok(text.includes('serviceProviderConnection.sharedAccessKey'), 'Tool should ask for sharedAccessKey in chat');
+    assert.strictEqual(
+      readWorkflowAction(workflowPath, name),
+      undefined,
+      'Action should not be written until connection details are complete'
+    );
+    assert.strictEqual(
+      readConnectionsData().serviceProviderConnections?.serviceBus,
+      undefined,
+      'Service provider connection should not be created from incomplete chat details'
+    );
+  });
+
+  test('should add a Service Bus ServiceProvider action from chat-supplied connection fields (Plan 6.2)', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(30_000);
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
     const name = 'TestSendSBMessage';
     addedActions.push(name);
     const text = await invokeTool(TOOL_NAMES.addAction, {
@@ -1639,9 +1702,34 @@ suite('addAction — ServiceProvider Connectors', () => {
       actionType: 'ServiceProvider',
       actionName: name,
       connectorReference: 'serviceBus',
+      serviceProviderConnection: {
+        endpoint: 'sb://contoso.servicebus.windows.net/',
+        sharedAccessKeyName: 'RootManageSharedAccessKey',
+        sharedAccessKey: 'test-key',
+      },
     });
-    console.log(`addAction (ServiceBus SP) result: ${text}`);
-    assert.ok(text.length > 0, 'Should return a response');
+    console.log(`addAction (ServiceBus SP explicit fields) result: ${text}`);
+    assert.ok(text.includes('Created connection for "serviceBus"'), 'Tool should report that it created the Service Bus connection');
+
+    const action = readWorkflowAction(workflowPath, name);
+    assert.ok(action, 'Service Bus action should be written once connection fields are supplied');
+    assert.strictEqual(action.type, 'ServiceProvider');
+    assert.strictEqual(action.inputs?.serviceProviderConfiguration?.connectionName, 'serviceBus');
+
+    const serviceBusConnection = readConnectionsData().serviceProviderConnections?.serviceBus;
+    assert.ok(serviceBusConnection, 'connections.json should contain the Service Bus service provider connection');
+    assert.strictEqual(
+      serviceBusConnection.parameterValues?.connectionString,
+      "@appsetting('serviceBus_connectionString')",
+      'Service Bus connection should reference local.settings.json instead of opening a wizard'
+    );
+
+    const values = readLocalSettingsValues();
+    assert.strictEqual(
+      values.serviceBus_connectionString,
+      'Endpoint=sb://contoso.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test-key',
+      'Service Bus connection string should be stored in local.settings.json from chat-supplied fields'
+    );
   });
 
   test('should verify connections.json created with ServiceProvider entries (Plan 6.4)', async function () {
@@ -1938,5 +2026,1476 @@ suite('Chat-driven ServiceProvider Action', () => {
       console.log('No new actions — LLM may need design-time runtime or follow-up');
     }
     assert.ok(true, 'Chat ServiceProvider test completed');
+  });
+});
+
+interface AzureContextConfig {
+  subscriptionId: string;
+  resourceGroup: string;
+  tenantId?: string;
+  location?: string;
+  managementBaseUrl: string;
+}
+
+interface ExistingManagedConnection {
+  id: string;
+  name: string;
+  displayName?: string;
+  connectorId?: string;
+}
+
+function readLocalSettingsValues(): Record<string, string> {
+  const wsPath = getWorkspacePath();
+  const localSettingsPath = path.join(wsPath, 'local.settings.json');
+  const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+  return settings.Values || {};
+}
+
+function getAzureContextConfig(): AzureContextConfig | undefined {
+  const values = readLocalSettingsValues();
+  if (!values.WORKFLOWS_SUBSCRIPTION_ID || !values.WORKFLOWS_RESOURCE_GROUP_NAME) {
+    return undefined;
+  }
+
+  return {
+    subscriptionId: values.WORKFLOWS_SUBSCRIPTION_ID,
+    resourceGroup: values.WORKFLOWS_RESOURCE_GROUP_NAME,
+    tenantId: values.WORKFLOWS_TENANT_ID,
+    location: values.WORKFLOWS_LOCATION_NAME,
+    managementBaseUrl: (values.WORKFLOWS_MANAGEMENT_BASE_URI || 'https://management.azure.com').replace(/\/+$/, ''),
+  };
+}
+
+function readConnectionsData(): Record<string, any> {
+  const wsPath = getWorkspacePath();
+  const connectionsPath = path.join(wsPath, 'connections.json');
+  if (!fs.existsSync(connectionsPath)) {
+    return {};
+  }
+
+  return JSON.parse(fs.readFileSync(connectionsPath, 'utf-8'));
+}
+
+function getManagedConnectionRefsForConnector(connectorShortName: string): string[] {
+  const normalizedConnector = connectorShortName.toLowerCase();
+  const managedApiConnections = readConnectionsData().managedApiConnections || {};
+
+  return Object.keys(managedApiConnections).filter((referenceName) => {
+    const connection = managedApiConnections[referenceName];
+    const apiId = String(connection?.api?.id || '').toLowerCase();
+    return apiId.endsWith(`/managedapis/${normalizedConnector}`) || referenceName.toLowerCase() === normalizedConnector;
+  });
+}
+
+function removeManagedConnectionArtifacts(referenceNames: string[]): void {
+  const wsPath = getWorkspacePath();
+  if (!wsPath || referenceNames.length === 0) {
+    return;
+  }
+
+  const connectionsPath = path.join(wsPath, 'connections.json');
+  if (fs.existsSync(connectionsPath)) {
+    const connections = JSON.parse(fs.readFileSync(connectionsPath, 'utf-8'));
+    if (connections.managedApiConnections) {
+      for (const referenceName of referenceNames) {
+        delete connections.managedApiConnections[referenceName];
+      }
+      fs.writeFileSync(connectionsPath, JSON.stringify(connections, null, 2));
+    }
+  }
+
+  const localSettingsPath = path.join(wsPath, 'local.settings.json');
+  if (fs.existsSync(localSettingsPath)) {
+    const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+    if (settings.Values) {
+      for (const referenceName of referenceNames) {
+        delete settings.Values[`${referenceName}-connectionKey`];
+      }
+      fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
+    }
+  }
+}
+
+function removeServiceProviderConnectionArtifacts(connectionNames: string[]): void {
+  const wsPath = getWorkspacePath();
+  if (!wsPath || connectionNames.length === 0) {
+    return;
+  }
+
+  const connectionsPath = path.join(wsPath, 'connections.json');
+  if (fs.existsSync(connectionsPath)) {
+    const connections = JSON.parse(fs.readFileSync(connectionsPath, 'utf-8'));
+    if (connections.serviceProviderConnections) {
+      for (const connectionName of connectionNames) {
+        delete connections.serviceProviderConnections[connectionName];
+      }
+      fs.writeFileSync(connectionsPath, JSON.stringify(connections, null, 2));
+    }
+  }
+
+  const localSettingsPath = path.join(wsPath, 'local.settings.json');
+  if (fs.existsSync(localSettingsPath)) {
+    const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+    if (settings.Values) {
+      for (const connectionName of connectionNames) {
+        delete settings.Values[`${connectionName}_connectionString`];
+      }
+      fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
+    }
+  }
+}
+
+async function listExistingManagedConnections(connectorShortName: string): Promise<ExistingManagedConnection[]> {
+  const azureContext = getAzureContextConfig();
+  if (!azureContext) {
+    return [];
+  }
+
+  const session = await vscode.authentication.getSession('microsoft', ['https://management.azure.com/.default'], { createIfNone: false });
+  if (!session) {
+    return [];
+  }
+
+  let filterParts = `ManagedApiName eq '${connectorShortName}' and Kind eq 'V2'`;
+  if (azureContext.location) {
+    filterParts = `Location eq '${azureContext.location}' and ${filterParts}`;
+  }
+
+  const listUrl =
+    `${azureContext.managementBaseUrl}/subscriptions/${azureContext.subscriptionId}` +
+    `/resourceGroups/${azureContext.resourceGroup}` +
+    `/providers/Microsoft.Web/connections?api-version=2018-07-01-preview&$filter=${encodeURIComponent(filterParts)}`;
+
+  const response = await fetch(listUrl, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = (await response.json()) as {
+    value?: Array<{
+      id: string;
+      name: string;
+      properties?: { displayName?: string; api?: { id?: string } };
+    }>;
+  };
+
+  return (payload.value || []).map((connection) => ({
+    id: connection.id,
+    name: connection.name,
+    displayName: connection.properties?.displayName,
+    connectorId: connection.properties?.api?.id,
+  }));
+}
+
+async function pickReusableManagedConnector(
+  preferredConnectors: string[]
+): Promise<{ connectorShortName: string; connections: ExistingManagedConnection[] } | undefined> {
+  for (const connectorShortName of preferredConnectors) {
+    const connections = await listExistingManagedConnections(connectorShortName);
+    if (connections.length > 0) {
+      return { connectorShortName, connections };
+    }
+  }
+
+  return undefined;
+}
+
+async function waitForManagedConnectionRef(
+  connectorShortName: string,
+  excludedRefs: string[],
+  timeoutMs = 60_000
+): Promise<string | undefined> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const refs = getManagedConnectionRefsForConnector(connectorShortName);
+    const newRef = refs.find((referenceName) => !excludedRefs.includes(referenceName));
+    if (newRef) {
+      return newRef;
+    }
+
+    await sleep(500);
+  }
+
+  return undefined;
+}
+
+function buildManagedConnectorChatPrompt(connectorShortName: string, actionName: string): string {
+  switch (connectorShortName.toLowerCase()) {
+    case 'office365':
+      return `@logicapps add an Office 365 send email action called ${actionName} to Stateful1 using connector reference office365`;
+    case 'servicebus':
+      return `@logicapps add a Service Bus send message action called ${actionName} to Stateful1 using connector reference servicebus`;
+    case 'sql':
+      return `@logicapps add a SQL get rows action called ${actionName} to Stateful1 using connector reference sql`;
+    default:
+      return `@logicapps add an ApiConnection action called ${actionName} to Stateful1 using connector reference ${connectorShortName}`;
+  }
+}
+
+function readWorkflowAction(workflowPath: string, actionName: string): any {
+  const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+  return workflow.definition?.actions?.[actionName];
+}
+
+function cleanupWorkflowActions(actionNames: string[]): void {
+  const wsPath = getWorkspacePath();
+  if (!wsPath || actionNames.length === 0) {
+    return;
+  }
+
+  const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+  if (!fs.existsSync(workflowPath)) {
+    return;
+  }
+
+  try {
+    const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+    for (const actionName of actionNames) {
+      delete workflow.definition?.actions?.[actionName];
+    }
+    fs.writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+  } catch {
+    /* ignore */
+  }
+}
+
+function createFakeAzureSession(accessToken = 'test-access-token'): vscode.AuthenticationSession {
+  return {
+    id: 'test-session',
+    accessToken,
+    account: {
+      id: 'test-account',
+      label: 'Test Account',
+    },
+    scopes: ['https://management.azure.com/.default'],
+  };
+}
+
+function createJsonResponse(body: unknown, init?: ResponseInit): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+}
+
+type WorkflowToolsTestOverrides = {
+  disableArmSwaggerResolution?: boolean;
+  fetch?: typeof fetch;
+  getAuthData?: (tenantId?: string) => Promise<vscode.AuthenticationSession | undefined>;
+  getAuthorizationToken?: (tenantId?: string) => Promise<string>;
+  showInputBox?: (options: vscode.InputBoxOptions) => Thenable<string | undefined>;
+};
+
+const WORKFLOW_TOOLS_TEST_OVERRIDES_KEY = '__LOGICAPPS_WORKFLOW_TOOLS_TEST_OVERRIDES__';
+
+function stubWorkflowToolsTestOverrides(overrides: WorkflowToolsTestOverrides): () => void {
+  const globalState = globalThis as typeof globalThis & Record<string, unknown>;
+  const previousValue = globalState[WORKFLOW_TOOLS_TEST_OVERRIDES_KEY] as WorkflowToolsTestOverrides | undefined;
+  globalState[WORKFLOW_TOOLS_TEST_OVERRIDES_KEY] = overrides;
+
+  return () => {
+    if (previousValue) {
+      globalState[WORKFLOW_TOOLS_TEST_OVERRIDES_KEY] = previousValue;
+      return;
+    }
+
+    delete globalState[WORKFLOW_TOOLS_TEST_OVERRIDES_KEY];
+  };
+}
+
+async function verifyConnectionExistsInAzure(connectionId: string): Promise<void> {
+  const azureContext = getAzureContextConfig();
+  assert.ok(azureContext, 'Azure context must be configured for managed connection chat tests');
+
+  const session = await vscode.authentication.getSession('microsoft', ['https://management.azure.com/.default'], { createIfNone: false });
+  if (!session) {
+    return;
+  }
+
+  const getUrl = `${azureContext.managementBaseUrl}${connectionId}?api-version=2018-07-01-preview`;
+  const response = await fetch(getUrl, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+
+  assert.strictEqual(response.status, 200, `Connection should exist in Azure. Got: ${response.status}`);
+}
+
+// ============================================================================
+// 22. Tool-driven Managed Connection Reuse — Raw Keys
+// ============================================================================
+suite('Tool-driven Managed Connection Reuse — Raw Keys', () => {
+  let toolsReady = false;
+  let reusableConnector: { connectorShortName: string; connections: ExistingManagedConnection[] } | undefined;
+  const testActionName = `ToolRawKeys_${Date.now().toString(36)}`;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+    if (!toolsReady) {
+      return;
+    }
+
+    reusableConnector = await pickReusableManagedConnector(['servicebus', 'office365', 'sql']);
+    if (reusableConnector) {
+      removeManagedConnectionArtifacts([reusableConnector.connectorShortName]);
+    }
+  });
+
+  suiteTeardown(() => {
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should reuse an existing Azure managed connection through the addAction tool', async function () {
+    if (!toolsReady || !reusableConnector || !reusableConnector.connections[0]?.connectorId) {
+      this.skip();
+      return;
+    }
+    this.timeout(120_000);
+
+    const values = readLocalSettingsValues();
+    assert.strictEqual(values.WORKFLOWS_AUTHENTICATION_METHOD || 'rawKeys', 'rawKeys');
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const baselineRefs = getManagedConnectionRefsForConnector(reusableConnector.connectorShortName);
+
+    addedActions.push(testActionName);
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'ApiConnection',
+      actionName: testActionName,
+      connectorReference: reusableConnector.connectorShortName,
+      connectorId: reusableConnector.connections[0].connectorId,
+      method: 'get',
+      path: '/',
+    });
+    console.log(`addAction (managed connection raw reuse) result: ${text}`);
+    assert.ok(text.length > 0, 'Tool should return a response');
+
+    const action = readWorkflowAction(workflowPath, testActionName);
+    assert.ok(action, `Expected ${testActionName} to be added via addAction`);
+    assert.strictEqual(action.type, 'ApiConnection');
+    assert.strictEqual(action.inputs?.host?.connection?.referenceName, reusableConnector.connectorShortName);
+
+    const connectionRef = await waitForManagedConnectionRef(reusableConnector.connectorShortName, baselineRefs);
+    assert.ok(connectionRef, `Expected a managed connection reference for ${reusableConnector.connectorShortName}`);
+    addedConnectionRefs.push(connectionRef!);
+
+    const managedConnection = readConnectionsData().managedApiConnections?.[connectionRef!];
+    assert.ok(managedConnection, 'connections.json should contain the managed connection written by addAction');
+    assert.strictEqual(managedConnection.authentication?.type, 'Raw');
+    assert.strictEqual(managedConnection.authentication?.scheme, 'Key');
+    assert.ok(managedConnection.authentication?.parameter?.includes('@appsetting('));
+    assert.ok(managedConnection.connection?.id, 'Resolved managed connection should have a non-empty ARM id');
+    assert.ok(
+      typeof managedConnection.connectionRuntimeUrl === 'string' && managedConnection.connectionRuntimeUrl.length > 0,
+      'Resolved managed connection should persist connectionRuntimeUrl'
+    );
+
+    const updatedValues = readLocalSettingsValues();
+    assert.ok(updatedValues[`${connectionRef!}-connectionKey`], 'Raw Keys flow should store a connection key in local.settings.json');
+
+    await verifyConnectionExistsInAzure(managedConnection.connection.id);
+  });
+});
+
+// ============================================================================
+// 23. Tool-driven Managed Connection Reuse — MSI
+// ============================================================================
+suite('Tool-driven Managed Connection Reuse — MSI', () => {
+  let toolsReady = false;
+  let reusableConnector: { connectorShortName: string; connections: ExistingManagedConnection[] } | undefined;
+  let originalAuthMethod: string | undefined;
+  const testActionName = `ToolMsi_${Date.now().toString(36)}`;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+    if (!toolsReady) {
+      return;
+    }
+
+    reusableConnector = await pickReusableManagedConnector(['servicebus', 'office365', 'sql']);
+    if (!reusableConnector) {
+      return;
+    }
+
+    const wsPath = getWorkspacePath();
+    const localSettingsPath = path.join(wsPath, 'local.settings.json');
+    const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+    settings.Values = settings.Values || {};
+    originalAuthMethod = settings.Values.WORKFLOWS_AUTHENTICATION_METHOD;
+    settings.Values.WORKFLOWS_AUTHENTICATION_METHOD = 'managedServiceIdentity';
+    fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
+
+    removeManagedConnectionArtifacts([reusableConnector.connectorShortName]);
+  });
+
+  suiteTeardown(() => {
+    const wsPath = getWorkspacePath();
+    if (wsPath) {
+      const localSettingsPath = path.join(wsPath, 'local.settings.json');
+      if (fs.existsSync(localSettingsPath)) {
+        try {
+          const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+          settings.Values = settings.Values || {};
+          if (originalAuthMethod !== undefined) {
+            settings.Values.WORKFLOWS_AUTHENTICATION_METHOD = originalAuthMethod;
+          } else {
+            settings.Values.WORKFLOWS_AUTHENTICATION_METHOD = 'rawKeys';
+          }
+          fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should write MSI auth through the addAction tool when the workflow auth mode is managed identity', async function () {
+    if (!toolsReady || !reusableConnector || !reusableConnector.connections[0]?.connectorId) {
+      this.skip();
+      return;
+    }
+    this.timeout(120_000);
+
+    const values = readLocalSettingsValues();
+    assert.strictEqual(values.WORKFLOWS_AUTHENTICATION_METHOD, 'managedServiceIdentity');
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const baselineRefs = getManagedConnectionRefsForConnector(reusableConnector.connectorShortName);
+
+    addedActions.push(testActionName);
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'ApiConnection',
+      actionName: testActionName,
+      connectorReference: reusableConnector.connectorShortName,
+      connectorId: reusableConnector.connections[0].connectorId,
+      method: 'get',
+      path: '/',
+    });
+    console.log(`addAction (managed connection MSI reuse) result: ${text}`);
+    assert.ok(text.length > 0, 'Tool should return a response');
+
+    const action = readWorkflowAction(workflowPath, testActionName);
+    assert.ok(action, `Expected ${testActionName} to be added via addAction`);
+    assert.strictEqual(action.type, 'ApiConnection');
+    assert.strictEqual(action.inputs?.host?.connection?.referenceName, reusableConnector.connectorShortName);
+
+    const connectionRef = await waitForManagedConnectionRef(reusableConnector.connectorShortName, baselineRefs);
+    assert.ok(connectionRef, `Expected a managed connection reference for ${reusableConnector.connectorShortName}`);
+    addedConnectionRefs.push(connectionRef!);
+
+    const managedConnection = readConnectionsData().managedApiConnections?.[connectionRef!];
+    assert.ok(managedConnection, 'connections.json should contain the managed connection written by addAction');
+    assert.strictEqual(managedConnection.authentication?.type, 'ManagedServiceIdentity');
+    assert.strictEqual(managedConnection.authentication?.scheme, undefined);
+    assert.strictEqual(managedConnection.authentication?.parameter, undefined);
+    assert.ok(managedConnection.connection?.id, 'Resolved MSI connection should still point at an Azure ARM connection resource');
+    assert.ok(
+      typeof managedConnection.connectionRuntimeUrl === 'string' && managedConnection.connectionRuntimeUrl.length > 0,
+      'Resolved MSI connection should persist connectionRuntimeUrl'
+    );
+
+    const updatedValues = readLocalSettingsValues();
+    assert.strictEqual(
+      updatedValues[`${connectionRef!}-connectionKey`],
+      undefined,
+      'MSI flow should not persist a connection key to local.settings.json'
+    );
+
+    await verifyConnectionExistsInAzure(managedConnection.connection.id);
+  });
+});
+
+// ============================================================================
+// 24. Tool-driven Managed Connection Create — Credential Parameter Set
+// ============================================================================
+suite('Tool-driven Managed Connection Create — Credential Parameter Set', () => {
+  let toolsReady = false;
+  const connectorShortName = 'servicebus';
+  const testActionName = `ToolCredential_${Date.now().toString(36)}`;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+
+    removeManagedConnectionArtifacts([connectorShortName]);
+  });
+
+  suiteTeardown(() => {
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should create a managed connection through the addAction tool using prompted credential parameters', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(120_000);
+
+    const azureContext = getAzureContextConfig();
+    assert.ok(azureContext, 'Azure context must be configured for managed connection tool tests');
+    const connectorId = `/subscriptions/${azureContext.subscriptionId}/providers/Microsoft.Web/locations/${azureContext.location}/managedApis/${connectorShortName}`;
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const baselineRefs = getManagedConnectionRefsForConnector(connectorShortName);
+    const promptOptions: vscode.InputBoxOptions[] = [];
+    let createdConnectionId = '';
+    let createRequestBody: Record<string, any> | undefined;
+    const fakeSession = createFakeAzureSession();
+    let inputIndex = 0;
+
+    const restoreOverrides = stubWorkflowToolsTestOverrides({
+      disableArmSwaggerResolution: true,
+      getAuthData: async () => fakeSession,
+      getAuthorizationToken: async () => `Bearer ${fakeSession.accessToken}`,
+      showInputBox: async (options) => {
+        promptOptions.push(options);
+        const responses = ['super-secret-api-key'];
+        const response = responses[Math.min(inputIndex, responses.length - 1)];
+        inputIndex += 1;
+        return response;
+      },
+      fetch: async (input, init) => {
+        const requestUrl = input instanceof Request ? input.url : input.toString();
+        const normalizedRequestUrl = requestUrl.toLowerCase();
+        const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        const bodyText = typeof init?.body === 'string' ? init.body : undefined;
+
+        if (method === 'GET' && normalizedRequestUrl.includes('/providers/microsoft.web/connections?')) {
+          return createJsonResponse({ value: [] });
+        }
+
+        if (
+          method === 'GET' &&
+          normalizedRequestUrl === `${azureContext.managementBaseUrl}${connectorId}?api-version=2018-07-01-preview`.toLowerCase()
+        ) {
+          return createJsonResponse({
+            id: connectorId,
+            properties: {
+              displayName: 'Credential Test Connector',
+              connectionParameterSets: {
+                values: [
+                  {
+                    name: 'ApiKeyAuth',
+                    parameters: {
+                      apiKey: {
+                        type: 'secureString',
+                        uiDefinition: {
+                          displayName: 'API key',
+                          description: 'Enter the connector API key',
+                          constraints: {
+                            required: 'true',
+                          },
+                        },
+                      },
+                      token: {
+                        type: 'secureString',
+                        uiDefinition: {
+                          constraints: {
+                            hidden: 'true',
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        }
+
+        if (method === 'PUT' && requestUrl.includes('/providers/Microsoft.Web/connections/')) {
+          createRequestBody = bodyText ? (JSON.parse(bodyText) as Record<string, any>) : {};
+          createdConnectionId = requestUrl.replace(`${azureContext.managementBaseUrl}`, '').replace(/\?api-version=.*$/, '');
+          return createJsonResponse({ id: createdConnectionId });
+        }
+
+        if (
+          method === 'GET' &&
+          createdConnectionId &&
+          requestUrl === `${azureContext.managementBaseUrl}${createdConnectionId}?api-version=2018-07-01-preview`
+        ) {
+          return createJsonResponse({
+            properties: {
+              overallStatus: 'Connected',
+              testRequests: [
+                {
+                  method: 'POST',
+                  requestUri: 'https://credentialtest.local/validate',
+                },
+              ],
+            },
+          });
+        }
+
+        if (method === 'POST' && requestUrl === 'https://credentialtest.local/validate') {
+          return createJsonResponse({
+            response: {
+              statusCode: 'OK',
+            },
+          });
+        }
+
+        if (
+          method === 'POST' &&
+          createdConnectionId &&
+          requestUrl === `${azureContext.managementBaseUrl}${createdConnectionId}/listConnectionKeys?api-version=2018-07-01-preview`
+        ) {
+          return createJsonResponse({
+            connectionKey: 'credential-connection-key',
+            runtimeUrls: ['https://credentialtest.runtime'],
+          });
+        }
+
+        throw new Error(`Unexpected fetch call: ${method} ${requestUrl}`);
+      },
+    });
+
+    try {
+      addedActions.push(testActionName);
+      const text = await invokeTool(TOOL_NAMES.addAction, {
+        workflowName: 'Stateful1',
+        actionType: 'ApiConnection',
+        actionName: testActionName,
+        connectorId,
+        method: 'post',
+        path: "/@{encodeURIComponent(encodeURIComponent('queue-name'))}/messages",
+      });
+      console.log(`addAction (managed connection credential create) result: ${text}`);
+      assert.ok(text.length > 0, 'Tool should return a response');
+
+      const action = readWorkflowAction(workflowPath, testActionName);
+      assert.ok(action, `Expected ${testActionName} to be added via addAction`);
+      assert.strictEqual(action.type, 'ApiConnection');
+      assert.strictEqual(action.inputs?.host?.connection?.referenceName, connectorShortName);
+
+      const connectionRef = await waitForManagedConnectionRef(connectorShortName, baselineRefs);
+      assert.ok(connectionRef, `Expected a managed connection reference for ${connectorShortName}`);
+      addedConnectionRefs.push(connectionRef!);
+
+      const managedConnection = readConnectionsData().managedApiConnections?.[connectionRef!];
+      assert.ok(managedConnection, 'connections.json should contain the managed connection created through the credential flow');
+      assert.strictEqual(managedConnection.authentication?.type, 'Raw');
+      assert.strictEqual(managedConnection.authentication?.scheme, 'Key');
+      assert.strictEqual(managedConnection.connectionRuntimeUrl, 'https://credentialtest.runtime');
+      assert.ok(managedConnection.connection?.id, 'Credential flow should persist the created Azure connection id');
+
+      const updatedValues = readLocalSettingsValues();
+      assert.strictEqual(
+        updatedValues[`${connectionRef!}-connectionKey`],
+        'credential-connection-key',
+        'Credential flow should persist the connection key to local.settings.json'
+      );
+
+      assert.ok(createRequestBody, 'The credential flow should issue a create-connection PUT request');
+      assert.deepStrictEqual(createRequestBody?.properties?.parameterValueSet, {
+        name: 'ApiKeyAuth',
+        values: {
+          apiKey: {
+            value: 'super-secret-api-key',
+          },
+        },
+      });
+      assert.ok(
+        !('parameterValues' in (createRequestBody?.properties ?? {})),
+        'Single parameter-set connectors should not fall back to flat parameterValues'
+      );
+      assert.strictEqual(promptOptions.length, 1, 'Only the visible credential parameter should be prompted');
+      assert.strictEqual(promptOptions[0].password, true, 'Secure connector parameters should use password input');
+    } finally {
+      restoreOverrides();
+    }
+  });
+});
+
+// ============================================================================
+// 25. Tool-driven Managed Connection Fallback — Multi-auth Placeholder
+// ============================================================================
+suite('Tool-driven Managed Connection Fallback — Multi-auth Placeholder', () => {
+  let toolsReady = false;
+  const connectorShortName = 'sql';
+  const testActionName = `ToolMultiAuth_${Date.now().toString(36)}`;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+
+    removeManagedConnectionArtifacts([connectorShortName]);
+  });
+
+  suiteTeardown(() => {
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should add a placeholder connection and surface the multi-auth reason when the connector supports multiple auth modes', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(120_000);
+
+    const azureContext = getAzureContextConfig();
+    assert.ok(azureContext, 'Azure context must be configured for managed connection tool tests');
+    const connectorId = `/subscriptions/${azureContext.subscriptionId}/providers/Microsoft.Web/locations/${azureContext.location}/managedApis/${connectorShortName}`;
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const baselineRefs = getManagedConnectionRefsForConnector(connectorShortName);
+    let createAttempted = false;
+    const fakeSession = createFakeAzureSession();
+    const restoreOverrides = stubWorkflowToolsTestOverrides({
+      disableArmSwaggerResolution: true,
+      getAuthData: async () => fakeSession,
+      getAuthorizationToken: async () => `Bearer ${fakeSession.accessToken}`,
+      fetch: async (input, init) => {
+        const requestUrl = input instanceof Request ? input.url : input.toString();
+        const normalizedRequestUrl = requestUrl.toLowerCase();
+        const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+
+        if (method === 'GET' && normalizedRequestUrl.includes('/providers/microsoft.web/connections?')) {
+          return createJsonResponse({ value: [] });
+        }
+
+        if (
+          method === 'GET' &&
+          normalizedRequestUrl === `${azureContext.managementBaseUrl}${connectorId}?api-version=2018-07-01-preview`.toLowerCase()
+        ) {
+          return createJsonResponse({
+            id: connectorId,
+            properties: {
+              displayName: 'Multi Auth Test Connector',
+              connectionParameterSets: {
+                values: [
+                  {
+                    name: 'OAuth',
+                    parameters: {
+                      token: {
+                        type: 'oauthSetting',
+                        uiDefinition: {
+                          displayName: 'OAuth token',
+                        },
+                      },
+                    },
+                  },
+                  {
+                    name: 'ApiKey',
+                    parameters: {
+                      apiKey: {
+                        type: 'secureString',
+                        uiDefinition: {
+                          displayName: 'API key',
+                          constraints: {
+                            required: 'true',
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        }
+
+        if (method === 'PUT' && requestUrl.includes('/providers/Microsoft.Web/connections/')) {
+          createAttempted = true;
+          throw new Error(`Unexpected connection creation call for multi-auth connector: ${requestUrl}`);
+        }
+
+        throw new Error(`Unexpected fetch call: ${method} ${requestUrl}`);
+      },
+    });
+
+    try {
+      addedActions.push(testActionName);
+      const text = await invokeTool(TOOL_NAMES.addAction, {
+        workflowName: 'Stateful1',
+        actionType: 'ApiConnection',
+        actionName: testActionName,
+        connectorId,
+        method: 'get',
+        path: "/v2/datasets/@{encodeURIComponent(encodeURIComponent('default'))},@{encodeURIComponent(encodeURIComponent('default'))}/tables/@{encodeURIComponent(encodeURIComponent('[dbo].[Orders]'))}/items",
+      });
+      console.log(`addAction (managed connection multi-auth fallback) result: ${text}`);
+      assert.ok(
+        text.toLowerCase().includes('placeholder'),
+        `Tool response should explain that a placeholder connection was added. Got: ${text}`
+      );
+      assert.ok(
+        text.toLowerCase().includes('multiple authentication modes'),
+        `Tool response should preserve the multi-auth failure reason. Got: ${text}`
+      );
+      assert.strictEqual(createAttempted, false, 'The multi-auth fallback should not attempt to create an Azure connection automatically');
+
+      const action = readWorkflowAction(workflowPath, testActionName);
+      assert.ok(action, `Expected ${testActionName} to be added via addAction`);
+      assert.strictEqual(action.type, 'ApiConnection');
+      assert.strictEqual(action.inputs?.host?.connection?.referenceName, connectorShortName);
+
+      const connectionRef = await waitForManagedConnectionRef(connectorShortName, baselineRefs);
+      assert.ok(connectionRef, `Expected a managed connection reference for ${connectorShortName}`);
+      addedConnectionRefs.push(connectionRef!);
+
+      const managedConnection = readConnectionsData().managedApiConnections?.[connectionRef!];
+      assert.ok(managedConnection, 'connections.json should contain the placeholder managed connection');
+      assert.strictEqual(managedConnection.connection?.id, '', 'Multi-auth fallback should keep the placeholder connection id empty');
+      assert.strictEqual(managedConnection.connectionRuntimeUrl, undefined);
+      assert.strictEqual(managedConnection.authentication?.type, 'Raw');
+      assert.strictEqual(managedConnection.authentication?.scheme, 'Key');
+      assert.ok(managedConnection.authentication?.parameter?.includes('@appsetting('));
+    } finally {
+      restoreOverrides();
+    }
+  });
+});
+
+// ============================================================================
+// 26. Chat-driven Managed Connection Reuse — Raw Keys
+// ============================================================================
+suite('Chat-driven Managed Connection Reuse — Raw Keys', () => {
+  let toolsReady = false;
+  let reusableConnector: { connectorShortName: string; connections: ExistingManagedConnection[] } | undefined;
+  const testActionName = `ChatRawKeys_${Date.now().toString(36)}`;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+    if (!toolsReady) {
+      return;
+    }
+
+    reusableConnector = await pickReusableManagedConnector(['servicebus', 'office365', 'sql']);
+    if (reusableConnector) {
+      removeManagedConnectionArtifacts([reusableConnector.connectorShortName]);
+    }
+  });
+
+  suiteTeardown(() => {
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should reuse an existing Azure managed connection through the chat participant', async function () {
+    if (!toolsReady || !reusableConnector) {
+      this.skip();
+      return;
+    }
+    this.timeout(120_000);
+
+    const models = await vscode.lm.selectChatModels();
+    if (models.length === 0) {
+      this.skip();
+      return;
+    }
+
+    const values = readLocalSettingsValues();
+    assert.strictEqual(values.WORKFLOWS_AUTHENTICATION_METHOD || 'rawKeys', 'rawKeys');
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const workflowBefore = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+    const baselineActions = Object.keys(workflowBefore.definition?.actions || {});
+    const baselineRefs = getManagedConnectionRefsForConnector(reusableConnector.connectorShortName);
+
+    addedActions.push(testActionName);
+    await sendChatAndWait(buildManagedConnectorChatPrompt(reusableConnector.connectorShortName, testActionName), {
+      waitForActionChange: { path: workflowPath, baseline: baselineActions },
+    });
+
+    const action = readWorkflowAction(workflowPath, testActionName);
+    assert.ok(action, `Expected ${testActionName} to be added via chat`);
+    assert.strictEqual(action.type, 'ApiConnection', 'Chat should add an ApiConnection action');
+    assert.strictEqual(
+      action.inputs?.host?.connection?.referenceName,
+      reusableConnector.connectorShortName,
+      'Action should point at the managed connector reference written by the chat flow'
+    );
+
+    const connectionRef = await waitForManagedConnectionRef(reusableConnector.connectorShortName, baselineRefs);
+    assert.ok(connectionRef, `Expected a managed connection reference for ${reusableConnector.connectorShortName}`);
+    addedConnectionRefs.push(connectionRef!);
+
+    const managedConnection = readConnectionsData().managedApiConnections?.[connectionRef!];
+    assert.ok(managedConnection, 'connections.json should contain the managed connection written by chat');
+    assert.strictEqual(managedConnection.authentication?.type, 'Raw');
+    assert.strictEqual(managedConnection.authentication?.scheme, 'Key');
+    assert.ok(managedConnection.authentication?.parameter?.includes('@appsetting('));
+    assert.ok(managedConnection.connection?.id, 'Resolved managed connection should have a non-empty ARM id');
+    assert.ok(
+      typeof managedConnection.connectionRuntimeUrl === 'string' && managedConnection.connectionRuntimeUrl.length > 0,
+      'Resolved managed connection should persist connectionRuntimeUrl'
+    );
+    assert.ok(
+      reusableConnector.connections.some((connection) => connection.id === managedConnection.connection.id),
+      'Chat flow should reuse one of the existing Azure managed connections'
+    );
+
+    const updatedValues = readLocalSettingsValues();
+    assert.ok(updatedValues[`${connectionRef!}-connectionKey`], 'Raw Keys flow should store a connection key in local.settings.json');
+
+    await verifyConnectionExistsInAzure(managedConnection.connection.id);
+  });
+});
+
+// ============================================================================
+// 27. Chat-driven Managed Connection Reuse — MSI
+// ============================================================================
+suite('Chat-driven Managed Connection Reuse — MSI', () => {
+  let toolsReady = false;
+  let reusableConnector: { connectorShortName: string; connections: ExistingManagedConnection[] } | undefined;
+  let originalAuthMethod: string | undefined;
+  const testActionName = `ChatMsi_${Date.now().toString(36)}`;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+    if (!toolsReady) {
+      return;
+    }
+
+    reusableConnector = await pickReusableManagedConnector(['servicebus', 'office365', 'sql']);
+    if (!reusableConnector) {
+      return;
+    }
+
+    const wsPath = getWorkspacePath();
+    const localSettingsPath = path.join(wsPath, 'local.settings.json');
+    const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+    settings.Values = settings.Values || {};
+    originalAuthMethod = settings.Values.WORKFLOWS_AUTHENTICATION_METHOD;
+    settings.Values.WORKFLOWS_AUTHENTICATION_METHOD = 'managedServiceIdentity';
+    fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
+
+    removeManagedConnectionArtifacts([reusableConnector.connectorShortName]);
+  });
+
+  suiteTeardown(() => {
+    const wsPath = getWorkspacePath();
+    if (wsPath) {
+      const localSettingsPath = path.join(wsPath, 'local.settings.json');
+      if (fs.existsSync(localSettingsPath)) {
+        try {
+          const settings = JSON.parse(fs.readFileSync(localSettingsPath, 'utf-8'));
+          settings.Values = settings.Values || {};
+          if (originalAuthMethod !== undefined) {
+            settings.Values.WORKFLOWS_AUTHENTICATION_METHOD = originalAuthMethod;
+          } else {
+            settings.Values.WORKFLOWS_AUTHENTICATION_METHOD = 'rawKeys';
+          }
+          fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should write MSI auth through the chat participant when the workflow auth mode is managed identity', async function () {
+    if (!toolsReady || !reusableConnector) {
+      this.skip();
+      return;
+    }
+    this.timeout(120_000);
+
+    const models = await vscode.lm.selectChatModels();
+    if (models.length === 0) {
+      this.skip();
+      return;
+    }
+
+    const values = readLocalSettingsValues();
+    assert.strictEqual(values.WORKFLOWS_AUTHENTICATION_METHOD, 'managedServiceIdentity');
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const workflowBefore = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+    const baselineActions = Object.keys(workflowBefore.definition?.actions || {});
+    const baselineRefs = getManagedConnectionRefsForConnector(reusableConnector.connectorShortName);
+
+    addedActions.push(testActionName);
+    await sendChatAndWait(buildManagedConnectorChatPrompt(reusableConnector.connectorShortName, testActionName), {
+      waitForActionChange: { path: workflowPath, baseline: baselineActions },
+    });
+
+    const action = readWorkflowAction(workflowPath, testActionName);
+    assert.ok(action, `Expected ${testActionName} to be added via chat`);
+    assert.strictEqual(action.type, 'ApiConnection');
+    assert.strictEqual(action.inputs?.host?.connection?.referenceName, reusableConnector.connectorShortName);
+
+    const connectionRef = await waitForManagedConnectionRef(reusableConnector.connectorShortName, baselineRefs);
+    assert.ok(connectionRef, `Expected a managed connection reference for ${reusableConnector.connectorShortName}`);
+    addedConnectionRefs.push(connectionRef!);
+
+    const managedConnection = readConnectionsData().managedApiConnections?.[connectionRef!];
+    assert.ok(managedConnection, 'connections.json should contain the managed connection written by chat');
+    assert.strictEqual(managedConnection.authentication?.type, 'ManagedServiceIdentity');
+    assert.strictEqual(managedConnection.authentication?.scheme, undefined);
+    assert.strictEqual(managedConnection.authentication?.parameter, undefined);
+    assert.ok(managedConnection.connection?.id, 'Resolved MSI connection should still point at an Azure ARM connection resource');
+    assert.ok(
+      typeof managedConnection.connectionRuntimeUrl === 'string' && managedConnection.connectionRuntimeUrl.length > 0,
+      'Resolved MSI connection should persist connectionRuntimeUrl'
+    );
+    assert.ok(
+      reusableConnector.connections.some((connection) => connection.id === managedConnection.connection.id),
+      'MSI chat flow should still reuse one of the existing Azure managed connections'
+    );
+
+    const updatedValues = readLocalSettingsValues();
+    assert.strictEqual(
+      updatedValues[`${connectionRef!}-connectionKey`],
+      undefined,
+      'MSI flow should not persist a connection key to local.settings.json'
+    );
+
+    await verifyConnectionExistsInAzure(managedConnection.connection.id);
+  });
+});
+
+// ============================================================================
+// 28. addAction — runAfter Auto-chain
+// Regression coverage: when a Response action consumes the output of a prior
+// action, the chat tool must chain runAfter to the previous action by default
+// instead of leaving the action in parallel with everything else.
+// ============================================================================
+suite('addAction — runAfter Auto-chain', () => {
+  let toolsReady = false;
+  const addedActions: string[] = [];
+  const addedTriggers: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+  });
+
+  suiteTeardown(() => {
+    const wsPath = getWorkspacePath();
+    if (!wsPath) {
+      return;
+    }
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    if (!fs.existsSync(workflowPath)) {
+      return;
+    }
+    try {
+      const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+      for (const name of addedActions) {
+        delete workflow.definition?.actions?.[name];
+      }
+      for (const name of addedTriggers) {
+        delete workflow.definition?.triggers?.[name];
+      }
+      fs.writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+    } catch {
+      /* ignore */
+    }
+  });
+
+  test('should default runAfter to {} for the first action in a workflow', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(30_000);
+
+    const composeName = 'AutoChain_FirstCompose';
+    addedActions.push(composeName);
+
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'Compose',
+      actionName: composeName,
+      configuration: { inputs: 'hello' },
+    });
+    assert.ok(text.toLowerCase().includes('added') || text.toLowerCase().includes('success'), `Should confirm action added. Got: ${text}`);
+
+    const wsPath = getWorkspacePath();
+    const workflow = JSON.parse(fs.readFileSync(path.join(wsPath, 'Stateful1', 'workflow.json'), 'utf-8'));
+    const action = workflow.definition?.actions?.[composeName];
+    assert.ok(action, `${composeName} should exist in actions`);
+    assert.deepStrictEqual(action.runAfter, {}, 'First action with no prior actions should have empty runAfter');
+  });
+
+  test('should chain runAfter to the most recent action when caller omits runAfter', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(30_000);
+
+    const responseName = 'AutoChain_ChainedResponse';
+    addedActions.push(responseName);
+
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'Response',
+      actionName: responseName,
+      configuration: { inputs: { statusCode: 200, body: 'ok' } },
+    });
+    assert.ok(text.toLowerCase().includes('added') || text.toLowerCase().includes('success'), `Should confirm action added. Got: ${text}`);
+
+    const wsPath = getWorkspacePath();
+    const workflow = JSON.parse(fs.readFileSync(path.join(wsPath, 'Stateful1', 'workflow.json'), 'utf-8'));
+    const action = workflow.definition?.actions?.[responseName];
+    assert.ok(action, `${responseName} should exist in actions`);
+    assert.ok(
+      action.runAfter && typeof action.runAfter === 'object',
+      `runAfter should be an object. Got: ${JSON.stringify(action.runAfter)}`
+    );
+    const runAfterKeys = Object.keys(action.runAfter);
+    assert.strictEqual(runAfterKeys.length, 1, `Expected runAfter to chain after a single action. Got: ${JSON.stringify(action.runAfter)}`);
+    assert.ok(
+      workflow.definition?.actions?.[runAfterKeys[0]],
+      `runAfter key "${runAfterKeys[0]}" should reference an existing action in the workflow`
+    );
+    assert.deepStrictEqual(action.runAfter[runAfterKeys[0]], ['Succeeded']);
+  });
+
+  test('should preserve explicit runAfter:{} override (parallel execution)', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(30_000);
+
+    const parallelName = 'AutoChain_ExplicitParallelResponse';
+    addedActions.push(parallelName);
+
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'Response',
+      actionName: parallelName,
+      configuration: { inputs: { statusCode: 202 }, runAfter: {} },
+    });
+    assert.ok(text.toLowerCase().includes('added') || text.toLowerCase().includes('success'), `Should confirm action added. Got: ${text}`);
+
+    const wsPath = getWorkspacePath();
+    const workflow = JSON.parse(fs.readFileSync(path.join(wsPath, 'Stateful1', 'workflow.json'), 'utf-8'));
+    const action = workflow.definition?.actions?.[parallelName];
+    assert.ok(action, `${parallelName} should exist in actions`);
+    assert.deepStrictEqual(action.runAfter, {}, 'Explicit runAfter:{} should be preserved verbatim');
+  });
+
+  test('should preserve explicit runAfter pointing at a specific previous action', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(30_000);
+
+    const explicitName = 'AutoChain_ExplicitChainResponse';
+    addedActions.push(explicitName);
+
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'Response',
+      actionName: explicitName,
+      configuration: {
+        inputs: { statusCode: 200, body: 'explicit' },
+        runAfter: { AutoChain_FirstCompose: ['Succeeded'] },
+      },
+    });
+    assert.ok(text.toLowerCase().includes('added') || text.toLowerCase().includes('success'), `Should confirm action added. Got: ${text}`);
+
+    const wsPath = getWorkspacePath();
+    const workflow = JSON.parse(fs.readFileSync(path.join(wsPath, 'Stateful1', 'workflow.json'), 'utf-8'));
+    const action = workflow.definition?.actions?.[explicitName];
+    assert.ok(action, `${explicitName} should exist in actions`);
+    assert.deepStrictEqual(
+      action.runAfter,
+      { AutoChain_FirstCompose: ['Succeeded'] },
+      'Explicit runAfter should be preserved verbatim regardless of auto-chain default'
+    );
+  });
+});
+
+// ============================================================================
+// 29. addAction — Weather without connections.json reference
+// Regression coverage: when a user asks for a weather action and connections.json
+// has no weather reference, the tool must no longer return the literal
+// "no weather managed API connection was found in connections.json" error. It
+// must route through the generic ApiConnection resolver so ARM discovery /
+// placeholder provisioning runs.
+// ============================================================================
+suite('addAction — Weather without connections.json reference', () => {
+  let toolsReady = false;
+  const addedActions: string[] = [];
+  const addedConnectionRefs: string[] = [];
+  let baselineWeatherRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(90_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+
+    // Capture any pre-existing weather refs so cleanup only removes test artifacts.
+    baselineWeatherRefs = getManagedConnectionRefsForConnector('msnweather');
+  });
+
+  suiteTeardown(() => {
+    cleanupWorkflowActions(addedActions);
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should not return the legacy "no weather managed API connection" error for fresh requests', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(60_000);
+
+    const actionName = 'WeatherFallback_NoConnError';
+    addedActions.push(actionName);
+
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'ApiConnection',
+      actionName,
+      configuration: {
+        inputs: {
+          host: { connection: { referenceName: 'msnweather' } },
+          method: 'get',
+          path: '/current/Seattle, WA',
+        },
+      },
+    });
+
+    assert.ok(
+      !/no weather managed API connection was found in connections\.json\./i.test(text),
+      `Tool should no longer surface the legacy bail-out. Got: ${text}`
+    );
+
+    const newRefs = getManagedConnectionRefsForConnector('msnweather').filter((name) => !baselineWeatherRefs.includes(name));
+    addedConnectionRefs.push(...newRefs);
+  });
+
+  test('should preserve caller-supplied path (no {Location} placeholder, no 98101 hardcode override)', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+    this.timeout(60_000);
+
+    const actionName = 'WeatherFallback_CallerPath';
+    addedActions.push(actionName);
+
+    const callerPath = '/current/Seattle, WA';
+    const text = await invokeTool(TOOL_NAMES.addAction, {
+      workflowName: 'Stateful1',
+      actionType: 'ApiConnection',
+      actionName,
+      configuration: {
+        inputs: {
+          host: { connection: { referenceName: 'msnweather' } },
+          method: 'get',
+          path: callerPath,
+        },
+      },
+    });
+    assert.ok(/added|success|resolved|placeholder/i.test(text), `Tool should produce a success or resolution message. Got: ${text}`);
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+    const action = readWorkflowAction(workflowPath, actionName);
+    assert.ok(action, `${actionName} should exist in actions`);
+    assert.strictEqual(action.type, 'ApiConnection', 'Action type should be ApiConnection');
+
+    const writtenPath = action.inputs?.path;
+    assert.strictEqual(typeof writtenPath, 'string', 'Path must be a string');
+    assert.strictEqual(writtenPath, callerPath, `Caller-supplied path must be preserved. Got: ${writtenPath}`);
+    assert.ok(
+      !/\{[A-Za-z_][A-Za-z0-9_]*\}/.test(writtenPath.replace(/@\{[^}]+\}/g, '')),
+      `Path must not contain unsubstituted {Placeholder} tokens. Got: ${writtenPath}`
+    );
+
+    const newRefs = getManagedConnectionRefsForConnector('msnweather').filter(
+      (name) => !baselineWeatherRefs.includes(name) && !addedConnectionRefs.includes(name)
+    );
+    addedConnectionRefs.push(...newRefs);
+  });
+});
+
+// ============================================================================
+// 30. Chat-driven Weather Regression — original chat transcript scenario
+// Requires Copilot + Azure context. End-to-end: trigger + weather action +
+// Response, all with runAfter properly chained and Seattle resolved in path.
+// ============================================================================
+suite('Chat-driven Weather Regression', () => {
+  let toolsReady = false;
+  const triggerName = 'WeatherRegression_HttpTrigger';
+  const weatherActionName = 'WeatherRegression_GetWeather';
+  const responseActionName = 'WeatherRegression_Respond';
+  const addedActions = [weatherActionName, responseActionName];
+  const addedTriggers = [triggerName];
+  const addedConnectionRefs: string[] = [];
+  let baselineWeatherRefs: string[] = [];
+
+  suiteSetup(async function () {
+    this.timeout(120_000);
+    const activated = await waitForExtensionActivation(60_000);
+    if (activated) {
+      toolsReady = await waitForToolImplementation(TOOL_NAMES.listWorkflows, 15_000);
+    }
+    baselineWeatherRefs = getManagedConnectionRefsForConnector('msnweather');
+  });
+
+  suiteTeardown(() => {
+    const wsPath = getWorkspacePath();
+    if (wsPath) {
+      const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+      if (fs.existsSync(workflowPath)) {
+        try {
+          const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+          for (const name of addedActions) {
+            delete workflow.definition?.actions?.[name];
+          }
+          for (const name of addedTriggers) {
+            delete workflow.definition?.triggers?.[name];
+          }
+          fs.writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    removeManagedConnectionArtifacts(addedConnectionRefs);
+  });
+
+  test('should produce trigger → weather → response with chained runAfter and Seattle resolved', async function () {
+    if (!toolsReady) {
+      this.skip();
+      return;
+    }
+
+    const azureContext = getAzureContextConfig();
+    if (!azureContext) {
+      this.skip();
+      return;
+    }
+
+    const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+    if (!models || models.length === 0) {
+      this.skip();
+      return;
+    }
+
+    this.timeout(180_000);
+
+    const wsPath = getWorkspacePath();
+    const workflowPath = path.join(wsPath, 'Stateful1', 'workflow.json');
+
+    // Baseline: capture existing action names so we can detect new additions.
+    const baselineWorkflow = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+    const baselineActionNames = Object.keys(baselineWorkflow.definition?.actions ?? {});
+
+    await sendChatAndWait(
+      `@logicapps in Stateful1, when we get an HTTP request, return the weather in Seattle. Use the msnweather managed connector. Name the trigger ${triggerName}, the weather action ${weatherActionName}, and the response action ${responseActionName}.`,
+      { waitForActionChange: { path: workflowPath, baseline: baselineActionNames }, minWait: 30_000 }
+    );
+
+    const workflow = JSON.parse(fs.readFileSync(workflowPath, 'utf-8'));
+
+    // Trigger assertions
+    const triggers = workflow.definition?.triggers ?? {};
+    const triggerEntries = Object.entries(triggers).filter(([, value]: [string, any]) => value?.type === 'Request');
+    assert.ok(triggerEntries.length >= 1, `Expected at least one Request trigger. Got: ${JSON.stringify(Object.keys(triggers))}`);
+
+    // Find the weather action (ApiConnection referencing something containing "weather").
+    const actions = workflow.definition?.actions ?? {};
+    const weatherEntry = Object.entries(actions).find(([name, value]: [string, any]) => {
+      if (value?.type !== 'ApiConnection') {
+        return false;
+      }
+      const ref = value?.inputs?.host?.connection?.referenceName;
+      return addedActions.includes(name) || (typeof ref === 'string' && ref.toLowerCase().includes('weather'));
+    });
+    assert.ok(weatherEntry, `Expected a weather ApiConnection action. Got actions: ${JSON.stringify(Object.keys(actions))}`);
+    const [actualWeatherName, weatherAction] = weatherEntry as [string, any];
+
+    // The weather action's path must not contain an unsubstituted {Placeholder} token,
+    // and should reference Seattle (literal) or 98101 (canonical builder fallback).
+    const weatherPath = weatherAction?.inputs?.path;
+    assert.strictEqual(typeof weatherPath, 'string', `weather inputs.path should be a string. Got: ${weatherPath}`);
+    const pathWithoutExpressions = (weatherPath as string).replace(/@\{[^}]+\}/g, '');
+    assert.ok(
+      !/\{[A-Za-z_][A-Za-z0-9_]*\}/.test(pathWithoutExpressions),
+      `Weather action path must not contain unsubstituted {Placeholder} tokens. Got: ${weatherPath}`
+    );
+    assert.ok(/seattle|98101/i.test(weatherPath as string), `Weather action path should reference Seattle or 98101. Got: ${weatherPath}`);
+
+    // Find a Response action.
+    const responseEntry = Object.entries(actions).find(([, value]: [string, any]) => value?.type === 'Response');
+    assert.ok(responseEntry, `Expected a Response action. Got actions: ${JSON.stringify(Object.keys(actions))}`);
+    const [, responseAction] = responseEntry as [string, any];
+
+    // The Response must runAfter the weather action — NOT in parallel.
+    const responseRunAfter = responseAction?.runAfter;
+    assert.ok(
+      responseRunAfter && typeof responseRunAfter === 'object' && Object.keys(responseRunAfter).length > 0,
+      `Response runAfter must not be empty. Got: ${JSON.stringify(responseRunAfter)}`
+    );
+    assert.ok(
+      Object.prototype.hasOwnProperty.call(responseRunAfter, actualWeatherName),
+      `Response runAfter must chain after "${actualWeatherName}". Got: ${JSON.stringify(responseRunAfter)}`
+    );
+
+    // Track any new msnweather managed connection refs for cleanup.
+    const newRefs = getManagedConnectionRefsForConnector('msnweather').filter((name) => !baselineWeatherRefs.includes(name));
+    addedConnectionRefs.push(...newRefs);
   });
 });

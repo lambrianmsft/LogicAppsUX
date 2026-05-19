@@ -27,6 +27,8 @@ import type {
   PackageExistenceResultMessage,
   UpdateRuntimeBaseUrlMessage,
   UpdateCallbackInfoMessage,
+  OpenConnectionsPanelMessage,
+  GetDesignerVersionMessage,
 } from './run-service';
 import {
   changeCustomXsltPathList,
@@ -80,7 +82,7 @@ import type { ReactNode } from 'react';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { WebviewApi } from 'vscode-webview';
-import { store as DesignerStore, resetDesignerDirtyState, resetWorkflowState } from '@microsoft/logic-apps-designer';
+import { store as DesignerStore, resetDesignerDirtyState, resetWorkflowState, openPanel } from '@microsoft/logic-apps-designer';
 import {
   initializeProject,
   setProjectPath,
@@ -99,7 +101,9 @@ type DesignerMessageType =
   | ResetDesignerDirtyStateMessage
   | CompleteFileSystemConnectionMessage
   | UpdatePanelMetadataMessage
-  | RefreshWorkflowMessage;
+  | RefreshWorkflowMessage
+  | OpenConnectionsPanelMessage
+  | GetDesignerVersionMessage;
 type DataMapperMessageType =
   | FetchSchemaMessage
   | LoadDataMapMessage
@@ -197,6 +201,14 @@ export const WebViewCommunication: React.FC<{ children: ReactNode }> = ({ childr
           }
           case ExtensionCommand.getDesignerVersion: {
             dispatch(changeDesignerVersion(message.data));
+            break;
+          }
+          case ExtensionCommand.openConnectionsPanel: {
+            // Open the connections panel for the specified nodes
+            const nodeIds = message.data?.nodeIds ?? [];
+            if (nodeIds.length > 0) {
+              designerDispatch(openPanel({ nodeIds, panelMode: 'Connection' }));
+            }
             break;
           }
           default:

@@ -79,6 +79,35 @@ The extension is packaged with dependencies:
 pnpm run test:extension-unit
 ```
 
+### Chat E2E Tests (with Copilot/LLM — the "F5 experience")
+
+These tests exercise the `@logicapps` chat participant end-to-end with real Copilot models.
+
+**Steps:**
+1. Compile tests: `npx tsc -p tsconfig.e2e.json`
+2. Build extension: `pnpm run build:extension` (from repo root)
+3. In VS Code, select **"Chat Tests (Extension Host)"** from the debug dropdown and press F5
+4. Monitor results in `chat-test-results.log` (look for `=== DONE`)
+
+**Why F5?** Chat tests require `vscode.lm.selectChatModels()` to return real Copilot models. Copilot is built into VS Code (not in `~/.vscode/extensions`), so only the F5 `extensionHost` debug launch works — it runs from the current VS Code process and inherits auth. The `code` CLI and `@vscode/test-cli` spawn separate instances without Copilot access.
+
+**Key files:**
+- Launch config: `LogicAppsUX/.vscode/launch.json` → "Chat Tests (Extension Host)"
+- Test runner: `src/test/e2e/runChatTests.ts`
+- Test file: `src/test/e2e/integration/chatParticipant.test.ts`
+- Results log: `chat-test-results.log`
+
+**Without Copilot (tool-only tests):**
+```bash
+npx vscode-test --label chatTests   # from apps/vs-code-designer/
+```
+Runs 53 tool registration/schema/addAction tests. 11 LLM-dependent tests fail (expected).
+
+**Pitfalls:**
+- The nested `apps/vs-code-designer/.vscode/launch.json` doesn't work in multi-root workspaces — use the **root** `.vscode/launch.json`
+- `.vscode-test.mjs` committed version is correct; don't add user-data copying machinery
+- Expect 67 pass, 2 pending, 0 fail when run with Copilot
+
 ### E2E Tests (vscode-extension-tester)
 ```bash
 pnpm run vscode:designer:e2e:ui      # With UI

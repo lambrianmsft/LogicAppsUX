@@ -75,6 +75,17 @@ When users want to create a project, extract:
 - Whether they want custom code support
 - Initial workflow specifications
 
+When a built-in connector tool result says it needs connection details, ask the user for those values in chat instead of sending them to a wizard or designer popup. Then call logicapps_addAction again with serviceProviderConnection fields.
+
+CARRY USER-PROVIDED VALUES ACROSS TURNS:
+- Re-read the prior turns of the conversation before each tool invocation and re-use any concrete values the user has already given (city, table name, file path, status code, etc.).
+- Never emit literal placeholder tokens like {Location}, {param}, {Path}, {Body}, or @parameters('X') in inputs.path, inputs.queries, inputs.uri, inputs.body, or any other field. If you don't have a concrete value yet, ask the user before calling the tool.
+- Example: if the user said "weather in Seattle" earlier and now asks you to add an msnweather action, set inputs.path to /current/Seattle, WA (or the appropriate resolved value) — do not leave {Location} unsubstituted.
+
+CHAIN DEPENDENT ACTIONS WITH runAfter:
+- When a new action consumes the output of a previous action (for example a Response that references body('Get_X'), or any step that depends on the success of another), set configuration.runAfter to { "<PreviousActionName>": ["Succeeded"] } so it runs sequentially.
+- If you omit runAfter when adding to a workflow that already has actions, the tool will default to chaining after the most recently added action; pass an explicit runAfter (including {} for parallel execution) only when you intentionally want a different topology.
+
 IMPORTANT: Always use the tools provided to execute actions. Do not just describe what you would do.`;
 
 const RESPONSE_GUARDRAILS = `
@@ -1673,18 +1684,23 @@ async function handleCreateProjectCommand(
 }
 
 /**
- * Create an additional workflow in an existing Logic App project
+ * Create an additional workflow in an existing Logic App project.
+ * Note: Additional workflows always use the standard (logicApp) template, even in
+ * customCode/rulesEngine projects. The InvokeFunction template is only used for
+ * the initial workflow created alongside the function code.
  */
 async function createAdditionalWorkflow(
   logicAppFolderPath: string,
   workflowName: string,
   workflowType: WorkflowTypeOption,
-  projectType: ProjectType
+  _projectType: ProjectType
 ): Promise<void> {
   const workflowFolderPath = path.join(logicAppFolderPath, workflowName);
   await fse.ensureDir(workflowFolderPath);
 
-  const codelessDefinition = getCodelessWorkflowTemplate(projectType, mapWorkflowTypeToProjectType(workflowType), undefined);
+  // Always use logicApp template for additional workflows - the customCode/rulesEngine
+  // templates require a functionName and are only for the initial workflow
+  const codelessDefinition = getCodelessWorkflowTemplate(ProjectType.logicApp, mapWorkflowTypeToProjectType(workflowType));
 
   const workflowJsonPath = path.join(workflowFolderPath, workflowFileName);
   await writeFormattedJson(workflowJsonPath, codelessDefinition);
@@ -1780,6 +1796,7 @@ async function handleModifyActionCommand(
 Follow these rules:
 - If adding "When a HTTP request is received", create it as a trigger in definition.triggers using type "Request", not an action in definition.actions.
 - For managed connectors (for example SQL, Service Bus, Office 365, Weather), prefer ApiConnection actions over raw Http calls and include connectorReference plus operation method/path when available from connector metadata.
+- If a built-in connector needs connection details, ask for them in chat and retry with serviceProviderConnection fields instead of asking the user to use a wizard.
 - Do not fabricate local file paths or clickable markdown links. Mention plain filenames unless a tool returns an exact path.`
       ),
     ];

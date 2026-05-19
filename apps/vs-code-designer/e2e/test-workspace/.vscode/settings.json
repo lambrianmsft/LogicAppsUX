@@ -1,4 +1,5 @@
 {
+  "azureLogicAppsStandard.silentAuth": true,
   "editor.formatOnSave": true,
   "files.exclude": {
     "**/.git": true,

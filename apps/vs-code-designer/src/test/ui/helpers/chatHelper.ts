@@ -753,6 +753,18 @@ export async function responseContainsAll(driver: WebDriver, expectedTexts: stri
 }
 
 /**
+ * Checks if the last chat response excludes all of the specified texts.
+ */
+export async function responseContainsNone(driver: WebDriver, unexpectedTexts: string[]): Promise<boolean> {
+  const response = await getLastChatResponse(driver);
+  if (!response) {
+    return false;
+  }
+  const lowerResponse = response.toLowerCase();
+  return unexpectedTexts.every((text) => !lowerResponse.includes(text.toLowerCase()));
+}
+
+/**
  * Closes the chat panel.
  */
 export async function closeChatPanel(driver: WebDriver): Promise<void> {

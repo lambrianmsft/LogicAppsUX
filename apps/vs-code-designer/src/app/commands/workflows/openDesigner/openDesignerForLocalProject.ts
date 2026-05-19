@@ -32,6 +32,7 @@ import { startDesignTimeApi } from '../../../utils/codeless/startDesignTimeApi';
 import { sendRequest } from '../../../utils/requestUtils';
 import { createNewDataMapCmd } from '../../dataMapper/dataMapper';
 import { OpenDesignerBase } from './openDesignerBase';
+import type { OpenDesignerOptions } from './openDesigner';
 import { HTTP_METHODS } from '@microsoft/logic-apps-shared';
 import { callWithTelemetryAndErrorHandling, openUrl, type IActionContext } from '@microsoft/vscode-azext-utils';
 import type {
@@ -63,8 +64,16 @@ export default class OpenDesignerForLocalProject extends OpenDesignerBase {
   private workflowFileWatcher: FileSystemWatcher | undefined;
   private suppressNextFileWatchRefresh = false;
   private fileWatchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private openDesignerOptions: OpenDesignerOptions | undefined;
 
-  constructor(context: IActionContext, node: Uri, unitTestName?: string, unitTestDefinition?: any, runId?: string) {
+  constructor(
+    context: IActionContext,
+    node: Uri,
+    unitTestName?: string,
+    unitTestDefinition?: any,
+    runId?: string,
+    options?: OpenDesignerOptions
+  ) {
     const workflowName = path.basename(path.dirname(node.fsPath));
     const logicAppName = path.basename(path.dirname(path.dirname(node.fsPath)));
     const panelName = `${workspace.name}-${logicAppName}-${workflowName}${unitTestName ? `-${unitTestName}` : ''}`;
@@ -77,6 +86,7 @@ export default class OpenDesignerForLocalProject extends OpenDesignerBase {
     this.isUnitTest = !!unitTestName;
     this.unitTestDefinition = unitTestDefinition ?? null;
     this.workflowFilePath = node.fsPath;
+    this.openDesignerOptions = options;
   }
 
   private createFileSystemConnection = (connectionInfo: FileSystemConnectionInfo): Promise<any> => {
@@ -209,11 +219,17 @@ export default class OpenDesignerForLocalProject extends OpenDesignerBase {
           }
         }, 3000);
 
+        // Include pendingConnectionNodes from openDesigner options if provided
+        const panelMetadataWithPendingConnections = {
+          ...this.panelMetadata,
+          pendingConnectionNodes: this.openDesignerOptions?.pendingConnectionNodeIds,
+        };
+
         this.sendMsgToWebview({
           command: ExtensionCommand.initialize_frame,
           data: {
             project: ProjectName.designer,
-            panelMetadata: this.panelMetadata,
+            panelMetadata: panelMetadataWithPendingConnections,
             connectionData: this.connectionData,
             baseUrl: this.baseUrl,
             workflowRuntimeBaseUrl: this.workflowRuntimeBaseUrl,
