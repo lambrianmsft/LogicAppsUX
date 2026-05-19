@@ -1,52 +1,100 @@
-import { useMemo, useCallback } from 'react';
-import type { AppDispatch } from '../../../../core/state/knowledge/store';
-import { useDispatch } from 'react-redux';
+import { useMemo, useCallback, useState } from 'react';
 import { useIntl } from 'react-intl';
-import type { TemplatePanelFooterProps } from '@microsoft/designer-ui';
+import type { KnowledgeTabProps } from '@microsoft/designer-ui';
 import constants from '../../../../common/constants';
 import { basicsTab } from './tabs/basics';
 import { modelTab } from './tabs/model';
-import { selectPanelTab } from '../../../../core/state/mcp/panel/mcpPanelSlice';
+import {
+  createOrUpdateConnection,
+  getCosmosDbConnectionParameters,
+  getOpenAIConnectionParameters,
+} from '../../../../core/knowledge/utils/connection';
+import type { ServerNotificationData } from '../../../mcp/servers/servers';
 
-export interface TabProps {
-  id: string;
-  title: string;
-  onTabClick?: () => void;
-  disabled?: boolean;
-  tabStatusIcon?: 'error';
-  content: React.ReactElement;
-  footerContent: TemplatePanelFooterProps;
-}
-
-export const useCreateConnectionPanelTabs = (): TabProps[] => {
+export const useCreateConnectionPanelTabs = ({
+  selectTab,
+  close,
+  onCreate,
+  onError,
+}: {
+  selectTab: (tabId: string) => void;
+  close: () => void;
+  onCreate?: () => void;
+  onError: (data: ServerNotificationData | null) => void;
+}): KnowledgeTabProps[] => {
   const intl = useIntl();
-  const dispatch = useDispatch<AppDispatch>();
+  const cosmosDbConnectionParameters = getCosmosDbConnectionParameters(intl);
+  const [cosmosDbConnectionParametersValues, setCosmosDbConnectionParametersValues] = useState<Record<string, any>>({});
+  const [basicsError, setBasicsError] = useState<'error' | undefined>(undefined);
+
+  const openAIConnectionParameters = getOpenAIConnectionParameters(intl);
+  const [openAIConnectionParametersValues, setOpenAIConnectionParametersValues] = useState<Record<string, any>>({});
+
+  const [isCreating, setIsCreating] = useState<boolean>(false);
 
   const handleMoveToModel = useCallback(() => {
-    dispatch(selectPanelTab(constants.KNOWLEDGE_PANEL_TAB_NAMES.MODEL));
-  }, [dispatch]);
+    selectTab(constants.KNOWLEDGE_PANEL_TAB_NAMES.MODEL);
+    setBasicsError(
+      Object.values(cosmosDbConnectionParametersValues).some((value) => value === undefined || value === '') ? 'error' : undefined
+    );
+  }, [cosmosDbConnectionParametersValues, selectTab]);
 
   const handleCreate = useCallback(async () => {
-    // Handle create action here, e.g. call an API or update state
-  }, []);
+    try {
+      setIsCreating(true);
+      onError(null);
+      await createOrUpdateConnection({ ...cosmosDbConnectionParametersValues, ...openAIConnectionParametersValues });
+      onCreate?.();
+      close();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      onError({
+        title: intl.formatMessage({
+          defaultMessage: 'Failed to create connection',
+          id: 'k47GxU',
+          description: 'Error title when connection creation fails',
+        }),
+        content: errorMessage,
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  }, [cosmosDbConnectionParametersValues, openAIConnectionParametersValues, onCreate, close, onError, intl]);
   const basicsTabItem = useMemo(
     () =>
-      basicsTab(intl, dispatch, {
-        isTabDisabled: false,
-        isPrimaryButtonDisabled: false,
-        onPrimaryButtonClick: handleMoveToModel,
-      }),
-    [intl, dispatch, handleMoveToModel]
+      basicsTab(
+        intl,
+        close,
+        cosmosDbConnectionParameters,
+        cosmosDbConnectionParametersValues,
+        setCosmosDbConnectionParametersValues,
+        isCreating,
+        {
+          isTabDisabled: isCreating,
+          isPrimaryButtonDisabled: isCreating,
+          onPrimaryButtonClick: handleMoveToModel,
+          tabStatusIcon: basicsError,
+        }
+      ),
+    [intl, close, cosmosDbConnectionParameters, cosmosDbConnectionParametersValues, isCreating, handleMoveToModel, basicsError]
   );
 
   const modelTabItem = useMemo(
     () =>
-      modelTab(intl, dispatch, {
-        isTabDisabled: false,
-        isPrimaryButtonDisabled: false,
-        onPrimaryButtonClick: handleCreate,
-      }),
-    [intl, dispatch, handleCreate]
+      modelTab(
+        intl,
+        selectTab,
+        openAIConnectionParameters,
+        openAIConnectionParametersValues,
+        setOpenAIConnectionParametersValues,
+        isCreating,
+        {
+          isTabDisabled: isCreating,
+          isPrimaryButtonDisabled: isCreating,
+          onPrimaryButtonClick: handleCreate,
+        }
+      ),
+    [intl, selectTab, openAIConnectionParameters, openAIConnectionParametersValues, isCreating, handleCreate]
   );
 
   return useMemo(() => [basicsTabItem, modelTabItem], [basicsTabItem, modelTabItem]);

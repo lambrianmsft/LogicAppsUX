@@ -28,8 +28,10 @@ function handleOAuthRedirect(uri: vscode.Uri): void {
 
   // Fall back to designer webview handler
   const designerPanel = tryGetWebviewPanel(ext.webViewKey.designerLocal, queryParams['pid']);
+  const languageServerPanel = tryGetWebviewPanel(ext.webViewKey.languageServer, queryParams['pid']);
+  const viewPanel = designerPanel ?? languageServerPanel;
 
-  if (designerPanel) {
+  if (viewPanel) {
     const value: Record<string, string> = {
       ...queryParams,
     };
@@ -41,7 +43,7 @@ function handleOAuthRedirect(uri: vscode.Uri): void {
       value.code = value.code ? value.code : 'valid';
     }
 
-    designerPanel.webview.postMessage({
+    viewPanel.webview.postMessage({
       command: ExtensionCommand.completeOauthLogin,
       value,
     });

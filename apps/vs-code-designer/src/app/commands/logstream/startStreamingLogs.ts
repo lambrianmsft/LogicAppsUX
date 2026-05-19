@@ -7,6 +7,7 @@ import { ext } from '../../../extensionVariables';
 import { localize } from '../../../localize';
 import type { SlotTreeItem } from '../../tree/slotsTree/SlotTreeItem';
 import { enableFileLogging } from './enableFileLogging';
+import type { ApplicationInsightsComponent } from '@azure/arm-appinsights';
 import type { SiteLogsConfig, StringDictionary } from '@azure/arm-appservice';
 import * as appservice from '@microsoft/vscode-azext-azureappservice';
 import type { ParsedSite } from '@microsoft/vscode-azext-azureappservice';
@@ -69,7 +70,7 @@ async function openLiveMetricsStream(context: IActionContext, site: ParsedSite, 
   }
   const aiClient = await createAppInsightsClient([context, node]);
   const components = await aiClient.components.list();
-  let component: { instrumentationKey?: string; id?: string } | undefined = undefined;
+  let component: ApplicationInsightsComponent | undefined = undefined;
 
   for await (const itemComponent of components) {
     if (itemComponent.instrumentationKey === aiKey) {

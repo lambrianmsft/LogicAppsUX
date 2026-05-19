@@ -1,20 +1,60 @@
-import { TemplateContent, TemplatesPanelFooter } from '@microsoft/designer-ui';
-import { useCreateConnectionPanelTabs, type TabProps } from './usepaneltabs';
+import { TemplateContent, TemplatesPanelFooter, type KnowledgeTabProps } from '@microsoft/designer-ui';
+import { useCreateConnectionPanelTabs } from './usepaneltabs';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../../../../core/state/knowledge/store';
 import { closePanel, KnowledgePanelView, selectPanelTab } from '../../../../core/state/knowledge/panelSlice';
-import { Button, Drawer, DrawerBody, DrawerFooter, DrawerHeader, Text } from '@fluentui/react-components';
+import {
+  Button,
+  Drawer,
+  DrawerBody,
+  DrawerFooter,
+  DrawerHeader,
+  MessageBar,
+  MessageBarBody,
+  MessageBarTitle,
+  Text,
+} from '@fluentui/react-components';
 import { usePanelStyles } from '../styles';
 import { useIntl } from 'react-intl';
 import { bundleIcon, Dismiss24Filled, Dismiss24Regular } from '@fluentui/react-icons';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { setNotification } from '../../../../core/state/knowledge/optionsSlice';
+import type { ServerNotificationData } from '../../../mcp/servers/servers';
 
 const CloseIcon = bundleIcon(Dismiss24Filled, Dismiss24Regular);
 
-export const CreateOrUpdateConnectionPanel = ({ isCreate }: { isCreate: boolean }) => {
+export const CreateConnectionPanel = ({ mountNode }: { mountNode: HTMLDivElement | null }) => {
   const intl = useIntl();
   const dispatch = useDispatch<AppDispatch>();
-  const panelTabs: TabProps[] = useCreateConnectionPanelTabs();
+  const selectTab = useCallback(
+    (tabId: string): void => {
+      dispatch(selectPanelTab(tabId));
+    },
+    [dispatch]
+  );
+  const close = useCallback(() => {
+    dispatch(closePanel());
+  }, [dispatch]);
+
+  const [createError, setCreateError] = useState<ServerNotificationData | null>(null);
+  const onCreate = useCallback(() => {
+    dispatch(
+      setNotification({
+        title: intl.formatMessage({
+          defaultMessage: 'Connection created',
+          id: 'I1A+Jw',
+          description: 'Notification title for successful connection creation',
+        }),
+        content: intl.formatMessage({
+          defaultMessage: 'Knowledge hub connection has been created successfully.',
+          id: 'rj0Nby',
+          description: 'Notification content for successful connection creation',
+        }),
+      })
+    );
+  }, [dispatch, intl]);
+
+  const panelTabs: KnowledgeTabProps[] = useCreateConnectionPanelTabs({ selectTab, close, onCreate, onError: setCreateError });
   const { selectedTabId, isOpen, panelMode } = useSelector((state: RootState) => ({
     selectedTabId: state.knowledgeHubPanel.selectedTabId,
     isOpen: state.knowledgeHubPanel?.isOpen ?? false,
@@ -43,11 +83,6 @@ export const CreateOrUpdateConnectionPanel = ({ isCreate }: { isCreate: boolean 
       id: 'PAnD/E',
       description: 'Header for the panel to create a knowledge hub connection',
     }),
-    updateTitle: intl.formatMessage({
-      defaultMessage: 'Update connection',
-      id: 'CwKE/Q',
-      description: 'Header for the panel to update a knowledge hub connection',
-    }),
     closeAriaLabel: intl.formatMessage({
       id: 'kdCuJZ',
       defaultMessage: 'Close panel',
@@ -66,16 +101,25 @@ export const CreateOrUpdateConnectionPanel = ({ isCreate }: { isCreate: boolean 
       onOpenChange={(_, { open }) => !open && handleDismiss()}
       position="end"
       size="large"
+      mountNode={{ element: mountNode }}
     >
       <DrawerHeader className={styles.header}>
         <div className={styles.headerContent}>
           <Text size={600} weight="semibold" style={{ flex: 1 }}>
-            {isCreate ? INTL_TEXT.createTitle : INTL_TEXT.updateTitle}
+            {INTL_TEXT.createTitle}
           </Text>
           <Button appearance="subtle" icon={<CloseIcon />} onClick={handleDismiss} aria-label={INTL_TEXT.closeAriaLabel} />
         </div>
       </DrawerHeader>
       <DrawerBody className={styles.body}>
+        {createError ? (
+          <MessageBar intent="error" style={{ marginBottom: 16 }}>
+            <MessageBarBody>
+              <MessageBarTitle>{createError.title}</MessageBarTitle>
+              {createError.content}
+            </MessageBarBody>
+          </MessageBar>
+        ) : null}
         <TemplateContent
           tabs={panelTabs}
           selectedTab={selectedTabId}

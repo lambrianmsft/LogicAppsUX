@@ -382,6 +382,28 @@ describe('createLogicAppProject', () => {
       );
     });
 
+    it('should create custom code project with Net10 target framework', async () => {
+      const customCodeOptions = {
+        ...mockOptions,
+        logicAppType: ProjectType.customCode,
+        targetFramework: 'net10.0',
+      };
+
+      const mockSetup = vi.fn().mockResolvedValue(undefined);
+      (CreateFunctionAppFiles as Mock).mockImplementation(() => ({
+        setup: mockSetup,
+      }));
+
+      await createLogicAppProject(mockContext, customCodeOptions, workspaceRootFolder);
+
+      expect(mockSetup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectType: ProjectType.customCode,
+          targetFramework: 'net10.0',
+        })
+      );
+    });
+
     it('should pass correct function parameters to custom code project', async () => {
       const customCodeOptions = {
         ...mockOptions,
@@ -725,6 +747,7 @@ describe('createLogicAppProject - Integration Tests', () => {
 
         // Create .cs file from template using correct path
         const csTemplateMap: Record<string, string> = {
+          'net10.0': 'FunctionsFileNet10',
           net8: 'FunctionsFileNet8',
           net472: 'FunctionsFileNetFx',
           rulesEngine: 'RulesFunctionsFile',
@@ -736,6 +759,13 @@ describe('createLogicAppProject - Integration Tests', () => {
             : path.join(functionTemplatesPath, csTemplate);
         const csContent = await processTemplate(csTemplatePath, { methodName, namespace });
         await fse.writeFile(path.join(functionFolderPath, `${methodName}.cs`), csContent);
+
+        // Create Program.cs for .NET 10 custom code projects
+        if (targetFramework === 'net10.0' && projectType !== ProjectType.rulesEngine) {
+          const programTemplatePath = path.join(functionTemplatesPath, 'ProgramFileNet10');
+          const programContent = await processTemplate(programTemplatePath, { namespace });
+          await fse.writeFile(path.join(functionFolderPath, 'Program.cs'), programContent);
+        }
 
         // Create rules files for rulesEngine
         if (projectType === ProjectType.rulesEngine) {
@@ -749,7 +779,8 @@ describe('createLogicAppProject - Integration Tests', () => {
 
         // Create .csproj file from template using correct path
         const csprojTemplateMap: Record<string, string> = {
-          net8: 'FunctionsProjNet8New',
+          'net10.0': 'FunctionsProjNet10',
+          net8: 'FunctionsProjNet8',
           net472: 'FunctionsProjNetFx',
           rulesEngine: 'RulesFunctionsProj',
         };
@@ -761,7 +792,7 @@ describe('createLogicAppProject - Integration Tests', () => {
         let csprojContent = await fse.readFile(csprojTemplatePath, 'utf-8');
 
         // Replace LogicApp folder references
-        if (targetFramework === 'net8' && projectType === ProjectType.customCode) {
+        if ((targetFramework === 'net8' || targetFramework === 'net10.0') && projectType === ProjectType.customCode) {
           csprojContent = csprojContent.replace(
             /<LogicAppFolderToPublish>\$\(MSBuildProjectDirectory\)\\..\\LogicApp<\/LogicAppFolderToPublish>/g,
             `<LogicAppFolderToPublish>$(MSBuildProjectDirectory)\\..\\${logicAppName}</LogicAppFolderToPublish>`
@@ -777,14 +808,14 @@ describe('createLogicAppProject - Integration Tests', () => {
         // Create VS Code config files (call parent's private methods aren't accessible, so recreate)
         const vscodePath = path.join(functionFolderPath, '.vscode');
         await fse.ensureDir(vscodePath);
-        await fse.writeJSON(path.join(vscodePath, 'extensions.json'), {
+        await fse.writeJson(path.join(vscodePath, 'extensions.json'), {
           recommendations: ['ms-azuretools.vscode-azurefunctions', 'ms-dotnettools.csharp'],
         });
-        await fse.writeJSON(path.join(vscodePath, 'settings.json'), {
+        await fse.writeJson(path.join(vscodePath, 'settings.json'), {
           'azureFunctions.projectRuntime': '~4',
           'azureFunctions.projectLanguage': 'C#',
         });
-        await fse.writeJSON(path.join(vscodePath, 'tasks.json'), { version: '2.0.0', tasks: [] });
+        await fse.writeJson(path.join(vscodePath, 'tasks.json'), { version: '2.0.0', tasks: [] });
       },
     };
   }
@@ -815,7 +846,7 @@ describe('createLogicAppProject - Integration Tests', () => {
 
     // Create workspace directory and workspace file
     await fse.ensureDir(workspaceRootFolder);
-    await fse.writeJSON(workspaceFilePath, { folders: [], settings: {} });
+    await fse.writeJson(workspaceFilePath, { folders: [], settings: {} });
 
     // Mock VS Code workspace
     (vscode.workspace as any).workspaceFile = { fsPath: workspaceFilePath };
@@ -833,14 +864,14 @@ describe('createLogicAppProject - Integration Tests', () => {
 
     // Mock createLocalConfigurationFiles with a custom implementation that creates files without templates
     vi.mocked(createLocalConfigurationFiles).mockImplementation(async (ctx, logicAppPath) => {
-      await fse.writeJSON(path.join(logicAppPath, hostFileName), {
+      await fse.writeJson(path.join(logicAppPath, hostFileName), {
         version: '2.0',
         extensionBundle: {
           id: 'Microsoft.Azure.Functions.ExtensionBundle.Workflows',
           version: '[1.*, 2.0.0)',
         },
       });
-      await fse.writeJSON(path.join(logicAppPath, 'local.settings.json'), {
+      await fse.writeJson(path.join(logicAppPath, 'local.settings.json'), {
         IsEncrypted: false,
         Values: {
           AzureWebJobsStorage: 'UseDevelopmentStorage=true',
@@ -874,18 +905,18 @@ local.settings.json`
       await fse.ensureDir(vscodePath);
 
       // Create simple valid files instead of copying from templates
-      await fse.writeJSON(path.join(vscodePath, 'extensions.json'), {
+      await fse.writeJson(path.join(vscodePath, 'extensions.json'), {
         recommendations: ['ms-azuretools.vscode-azurelogicapps'],
       });
-      await fse.writeJSON(path.join(vscodePath, 'tasks.json'), {
+      await fse.writeJson(path.join(vscodePath, 'tasks.json'), {
         version: '2.0.0',
         tasks: [],
       });
-      await fse.writeJSON(path.join(vscodePath, 'launch.json'), {
+      await fse.writeJson(path.join(vscodePath, 'launch.json'), {
         version: '0.2.0',
         configurations: [],
       });
-      await fse.writeJSON(path.join(vscodePath, 'settings.json'), {
+      await fse.writeJson(path.join(vscodePath, 'settings.json'), {
         'azureLogicAppsStandard.deploySubpath': '.',
         'azureLogicAppsStandard.projectLanguage': 'JavaScript',
         'azureLogicAppsStandard.funcVersion': '~4',
@@ -926,7 +957,7 @@ local.settings.json`
       expect(workflowExists).toBe(true);
 
       // Verify workflow.json content
-      const workflowContent = await fse.readJSON(workflowJsonPath);
+      const workflowContent = await fse.readJson(workflowJsonPath);
       expect(workflowContent).toHaveProperty('definition');
       expect(workflowContent.definition).toHaveProperty('$schema');
       expect(workflowContent.definition.$schema).toContain('Microsoft.Logic');
@@ -954,7 +985,7 @@ local.settings.json`
       expect(hostExists).toBe(true);
 
       // Verify host.json content
-      const hostContent = await fse.readJSON(hostJsonPath);
+      const hostContent = await fse.readJson(hostJsonPath);
       expect(hostContent).toHaveProperty('version');
       expect(hostContent.version).toBe('2.0');
       expect(hostContent).toHaveProperty('extensionBundle');
@@ -981,7 +1012,7 @@ local.settings.json`
       expect(localSettingsExists).toBe(true);
 
       // Verify local.settings.json content
-      const localSettings = await fse.readJSON(localSettingsPath);
+      const localSettings = await fse.readJson(localSettingsPath);
       expect(localSettings).toHaveProperty('IsEncrypted');
       expect(localSettings.IsEncrypted).toBe(false);
       expect(localSettings).toHaveProperty('Values');
@@ -1018,7 +1049,7 @@ local.settings.json`
       expect(tasksExists).toBe(true);
 
       // Verify launch.json content
-      const launchContent = await fse.readJSON(launchJsonPath);
+      const launchContent = await fse.readJson(launchJsonPath);
       expect(launchContent).toHaveProperty('version');
       expect(launchContent).toHaveProperty('configurations');
       expect(Array.isArray(launchContent.configurations)).toBe(true);
@@ -1247,8 +1278,110 @@ local.settings.json`
       const settingsExists = await fse.pathExists(settingsPath);
       expect(settingsExists).toBe(true);
 
-      const settingsContent = await fse.readJSON(settingsPath);
+      const settingsContent = await fse.readJson(settingsPath);
       expect(settingsContent).toHaveProperty('azureFunctions.projectRuntime');
+    });
+
+    it('should create Program.cs for Net10 custom code project with correct namespace', async () => {
+      const options: IWebviewProjectContext = {
+        workspaceProjectPath: { fsPath: tempDir } as vscode.Uri,
+        workspaceName: 'TestWorkspace',
+        logicAppName: 'TestLogicApp',
+        logicAppType: ProjectType.customCode,
+        workflowName: 'MyWorkflow',
+        workflowType: 'Stateful',
+        functionFolderName: 'Functions',
+        functionName: 'MyFunction',
+        functionNamespace: 'MyCompany.Functions',
+        targetFramework: 'net10.0',
+      } as any;
+
+      const functionAppFiles = createTestFunctionAppFiles();
+      vi.mocked(CreateFunctionAppFiles).mockImplementation(
+        () =>
+          ({
+            setup: (ctx: IProjectWizardContext) => functionAppFiles.setup(ctx),
+            hideStepCount: true,
+          }) as any
+      );
+
+      await createLogicAppProject(mockContext, options, workspaceRootFolder);
+
+      // Verify Program.cs was created
+      const functionsFolderPath = path.join(workspaceRootFolder, 'Functions');
+      const programCsPath = path.join(functionsFolderPath, 'Program.cs');
+      const programCsExists = await fse.pathExists(programCsPath);
+      expect(programCsExists).toBe(true);
+
+      // Verify Program.cs content has namespace replaced
+      const programContent = await fse.readFile(programCsPath, 'utf-8');
+      expect(programContent).toContain('namespace MyCompany.Functions');
+      expect(programContent).not.toContain('<%= namespace %>');
+      expect(programContent).toContain('HostBuilder');
+    });
+
+    it('should not create Program.cs for Net8 custom code project', async () => {
+      const options: IWebviewProjectContext = {
+        workspaceProjectPath: { fsPath: tempDir } as vscode.Uri,
+        workspaceName: 'TestWorkspace',
+        logicAppName: 'TestLogicApp',
+        logicAppType: ProjectType.customCode,
+        workflowName: 'MyWorkflow',
+        workflowType: 'Stateful',
+        functionFolderName: 'Functions',
+        functionName: 'MyFunction',
+        functionNamespace: 'MyNamespace',
+        targetFramework: 'net8',
+      } as any;
+
+      const functionAppFiles = createTestFunctionAppFiles();
+      vi.mocked(CreateFunctionAppFiles).mockImplementation(
+        () =>
+          ({
+            setup: (ctx: IProjectWizardContext) => functionAppFiles.setup(ctx),
+            hideStepCount: true,
+          }) as any
+      );
+
+      await createLogicAppProject(mockContext, options, workspaceRootFolder);
+
+      // Verify Program.cs was NOT created for Net8
+      const functionsFolderPath = path.join(workspaceRootFolder, 'Functions');
+      const programCsPath = path.join(functionsFolderPath, 'Program.cs');
+      const programCsExists = await fse.pathExists(programCsPath);
+      expect(programCsExists).toBe(false);
+    });
+
+    it('should not create Program.cs for NetFx custom code project', async () => {
+      const options: IWebviewProjectContext = {
+        workspaceProjectPath: { fsPath: tempDir } as vscode.Uri,
+        workspaceName: 'TestWorkspace',
+        logicAppName: 'TestLogicApp',
+        logicAppType: ProjectType.customCode,
+        workflowName: 'MyWorkflow',
+        workflowType: 'Stateful',
+        functionFolderName: 'Functions',
+        functionName: 'MyFunction',
+        functionNamespace: 'MyNamespace',
+        targetFramework: 'net472',
+      } as any;
+
+      const functionAppFiles = createTestFunctionAppFiles();
+      vi.mocked(CreateFunctionAppFiles).mockImplementation(
+        () =>
+          ({
+            setup: (ctx: IProjectWizardContext) => functionAppFiles.setup(ctx),
+            hideStepCount: true,
+          }) as any
+      );
+
+      await createLogicAppProject(mockContext, options, workspaceRootFolder);
+
+      // Verify Program.cs was NOT created for NetFx
+      const functionsFolderPath = path.join(workspaceRootFolder, 'Functions');
+      const programCsPath = path.join(functionsFolderPath, 'Program.cs');
+      const programCsExists = await fse.pathExists(programCsPath);
+      expect(programCsExists).toBe(false);
     });
   });
 
@@ -1470,7 +1603,7 @@ local.settings.json`
       expect(workflowExists).toBe(true);
 
       // Verify workflow contains rules engine specific configuration
-      const workflowContent = await fse.readJSON(workflowJsonPath);
+      const workflowContent = await fse.readJson(workflowJsonPath);
       expect(workflowContent).toHaveProperty('definition');
       expect(workflowContent.definition).toHaveProperty('$schema');
     });
@@ -1491,7 +1624,7 @@ local.settings.json`
       await createLogicAppProject(mockContext, options, workspaceRootFolder);
 
       // Verify workspace file was updated
-      const workspaceContent = await fse.readJSON(workspaceFilePath);
+      const workspaceContent = await fse.readJson(workspaceFilePath);
       expect(workspaceContent).toHaveProperty('folders');
       expect(Array.isArray(workspaceContent.folders)).toBe(true);
 
@@ -1528,7 +1661,7 @@ local.settings.json`
       await createLogicAppProject(mockContext, options, workspaceRootFolder);
 
       // Verify workspace file contains both logic app and functions folders
-      const workspaceContent = await fse.readJSON(workspaceFilePath);
+      const workspaceContent = await fse.readJson(workspaceFilePath);
 
       const logicAppFolder = workspaceContent.folders.find((f: any) => f.name === 'TestLogicApp');
       expect(logicAppFolder).toBeDefined();

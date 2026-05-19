@@ -6,6 +6,7 @@ export {
   escapeSpecialChars,
   foundryServiceConnectionRegex,
   apimanagementRegex,
+  microsoftFoundryModelsRegex,
 } from './connection';
 export { StandardConnectorService, type StandardConnectorServiceOptions } from './connector';
 export { StandardOperationManifestService, isServiceProviderOperation } from './operationmanifest';
@@ -19,13 +20,24 @@ export {
   getFoundryAgent,
   updateFoundryAgent,
   listFoundryModels,
+  listFoundryAgentVersions,
   buildProjectEndpointFromResourceId,
+  listAllFoundryAgentsViaProxy,
+  getFoundryAgentViaProxy,
+  createFoundryAgentViaProxy,
+  updateFoundryAgentViaProxy,
+  listFoundryAgentVersionsViaProxy,
+  listFoundryModelsViaProxy,
   type FoundryAgent,
   type FoundryAgentListResponse,
+  type FoundryAgentVersion,
+  type FoundryAgentVersionListResponse,
   type FoundryToolDefinition,
   type FoundryModel,
+  type CreateFoundryAgentOptions,
   type UpdateFoundryAgentOptions,
   type ListAgentsOptions,
+  type FoundryProxyContext,
 } from './foundryAgentService';
 // Template
 export { StandardTemplateService } from './template';

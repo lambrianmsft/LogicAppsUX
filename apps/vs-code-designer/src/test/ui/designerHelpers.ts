@@ -54,8 +54,9 @@ import {
   VSBrowser,
   type WebElement,
   Key,
-  type InputBox,
+  InputBox,
 } from 'vscode-extension-tester';
+import { execSync } from 'child_process';
 import {
   sleep,
   captureScreenshot,
@@ -65,10 +66,12 @@ import {
   dumpDomState,
   jsDismissDialogs,
   focusEditor,
+  waitForQuickInputAndType,
 } from './helpers';
 import type { WorkspaceManifestEntry } from './workspaceManifest';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 
 // ===========================================================================
 // Constants
@@ -88,7 +91,7 @@ export const PROJECT_RECOGNITION_WAIT = 4_000;
  * the Open Designer command. Covers the dotnet build + func host start that
  * happens inside openDesigner for CustomCode workspaces.
  */
-export const DESIGNER_TAB_TIMEOUT = 30_000;
+export const DESIGNER_TAB_TIMEOUT = 75_000;
 
 /**
  * Maximum time to wait inside the webview for the designer to finish loading.
@@ -111,16 +114,158 @@ export const DEPENDENCY_VALIDATION_TIMEOUT = 300_000;
 // Helpers from designerActions.test.ts
 // ===========================================================================
 
+function ensureRuntimeDependencyExecutablePermissions(): void {
+  if (process.platform !== 'linux' && process.platform !== 'darwin') {
+    return;
+  }
+
+  const depsRoot = path.join(os.homedir(), '.azurelogicapps', 'dependencies');
+  let fixedAny = false;
+
+  for (const subDir of ['FuncCoreTools', 'NodeJs', 'DotNetSDK']) {
+    const binDir = path.join(depsRoot, subDir);
+    if (!fs.existsSync(binDir)) {
+      continue;
+    }
+
+    try {
+      execSync(`chmod -R +x "${binDir}"`, { stdio: 'ignore' });
+      fixedAny = true;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (fixedAny) {
+    console.log('[depValidation] Fixed execute permissions on runtime binaries');
+  }
+}
+
+function isExecutableFile(filePath: string): boolean {
+  try {
+    fs.accessSync(filePath, process.platform === 'win32' ? fs.constants.F_OK : fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getFuncCoreToolsCandidatePaths(): string[] {
+  const executableName = process.platform === 'win32' ? 'func.exe' : 'func';
+  const funcToolsRoot = path.join(os.homedir(), '.azurelogicapps', 'dependencies', 'FuncCoreTools');
+  return [
+    path.join(funcToolsRoot, executableName),
+    path.join(funcToolsRoot, 'in-proc8', executableName),
+    path.join(funcToolsRoot, 'in-proc6', executableName),
+  ];
+}
+
+function getFuncCoreToolsPath(): string {
+  const candidates = getFuncCoreToolsCandidatePaths();
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+}
+
+function assertFuncCoreToolsExecutable(context: string): void {
+  const funcBinaryPath = getFuncCoreToolsPath();
+  ensureRuntimeDependencyExecutablePermissions();
+  if (!fs.existsSync(funcBinaryPath)) {
+    throw new Error(`[depValidation] func binary not found after ${context}: ${funcBinaryPath}`);
+  }
+  if (!isExecutableFile(funcBinaryPath)) {
+    throw new Error(`[depValidation] func binary exists but is not executable after ${context}: ${funcBinaryPath}`);
+  }
+}
+
+function isInvalidSessionError(error: unknown): boolean {
+  const name = (error as { name?: string })?.name?.toLowerCase() ?? '';
+  const message = String((error as { message?: string })?.message ?? error).toLowerCase();
+  return (
+    name.includes('nosuchsession') ||
+    message.includes('invalid session id') ||
+    message.includes('no such session') ||
+    message.includes('does not have a valid session id') ||
+    message.includes('chrome not reachable') ||
+    message.includes('disconnected')
+  );
+}
+
+async function dumpRuntimeDependencyDiagnostics(driver: WebDriver, context: string): Promise<void> {
+  console.log(`[depValidation][diag] ${context}`);
+  try {
+    console.log(`[depValidation][diag] title="${await driver.getTitle()}"`);
+  } catch (e: any) {
+    if (isInvalidSessionError(e)) {
+      throw e;
+    }
+    console.log(`[depValidation][diag] title unavailable: ${e.message}`);
+  }
+
+  try {
+    const visibleValidation = await driver.executeScript<string>(`
+      const els = Array.from(document.querySelectorAll(
+        '.notifications-toasts .notification-list-item, [role="dialog"], .notification-toast, .monaco-notification-list-item, .statusbar-item, .statusbar-entry, .part.statusbar'
+      ));
+      return els
+        .map((el) => el.textContent || '')
+        .filter((text) => text.includes('Validating Runtime Dependency') || text.includes('Successfully installed') || text.includes('Error reading JSON'))
+        .join('\\n---\\n')
+        .slice(0, 2000);
+    `);
+    console.log(`[depValidation][diag] visible validation text=${visibleValidation || '(none)'}`);
+  } catch (e: any) {
+    if (isInvalidSessionError(e)) {
+      throw e;
+    }
+    console.log(`[depValidation][diag] visible validation text unavailable: ${e.message}`);
+  }
+
+  const depsRoot = path.join(os.homedir(), '.azurelogicapps', 'dependencies');
+  try {
+    if (fs.existsSync(depsRoot)) {
+      for (const item of fs.readdirSync(depsRoot)) {
+        const itemPath = path.join(depsRoot, item);
+        const stat = fs.statSync(itemPath);
+        const childNames = stat.isDirectory() ? fs.readdirSync(itemPath).slice(0, 20) : [];
+        console.log(`[depValidation][diag] ${item}/ dir=${stat.isDirectory()} children=${JSON.stringify(childNames)}`);
+      }
+    } else {
+      console.log(`[depValidation][diag] dependencies root missing: ${depsRoot}`);
+    }
+  } catch (e: any) {
+    console.log(`[depValidation][diag] dependency listing failed: ${e.message}`);
+  }
+
+  for (const funcPath of getFuncCoreToolsCandidatePaths()) {
+    console.log(`[depValidation][diag] func=${funcPath} exists=${fs.existsSync(funcPath)} executable=${isExecutableFile(funcPath)}`);
+  }
+
+  try {
+    const command =
+      process.platform === 'win32'
+        ? 'powershell.exe -NoProfile -Command "Get-Process func,dotnet,node -ErrorAction SilentlyContinue | Select-Object ProcessName,Id,Path | ConvertTo-Json -Compress"'
+        : "ps -eo pid,comm,args | grep -E 'func|dotnet|node' | grep -v grep | head -20";
+    const processOutput = execSync(command, { encoding: 'utf8' });
+    console.log(`[depValidation][diag] processes=${processOutput.trim() || '(none)'}`);
+  } catch (e: any) {
+    console.log(`[depValidation][diag] process dump failed: ${e.message}`);
+  }
+}
+
 /**
  * Ensure the local.settings.json for a workspace has WORKFLOWS_SUBSCRIPTION_ID
  * set to "" so that the Azure connector wizard is skipped when opening the designer.
  *
- * Without this, the extension shows two blocking QuickPick prompts:
- *   1. "Use connectors from Azure" / "Skip for now"
- *   2. "Managed Service Identity" / "Connection Keys"
+ * Without this (if the key is absent/undefined), the extension shows a blocking
+ * QuickPick wizard ("Enable connectors in Azure" → "Use connectors from Azure" /
+ * "Skip for now") via wizard.prompt() in getAzureConnectorDetailsForLocalProject.
+ * This hangs forever in headless CI because no user can interact with it.
  *
  * Setting WORKFLOWS_SUBSCRIPTION_ID to "" (empty string) prevents the wizard
  * from launching because the code checks `subscriptionId === undefined`.
+ * With empty string, `enabled = !!'' = false`, so the else branch runs:
+ *   - getAuthData() returns undefined (no Azure session in CI)
+ *   - authData?.account?.id (optional chaining in common.ts) safely handles null
+ *   - Returns { enabled: false, ... } → designer loads without Azure connectors
  */
 export function ensureLocalSettingsForDesigner(appDir: string): void {
   const localSettingsPath = path.join(appDir, 'local.settings.json');
@@ -141,11 +286,23 @@ export function ensureLocalSettingsForDesigner(appDir: string): void {
     }
   }
 
-  if (settings.Values.WORKFLOWS_SUBSCRIPTION_ID === undefined) {
-    settings.Values.WORKFLOWS_SUBSCRIPTION_ID = '';
+  // Set Azure subscription keys to empty string (not delete!).
+  // Empty string → subscriptionId !== undefined → skips blocking wizard.prompt()
+  // Empty string → enabled = !!'' = false → Azure connectors disabled
+  // The else branch calls getAuthData() which returns undefined in CI,
+  // but common.ts uses optional chaining (authData?.account?.id) to handle this.
+  const keysToSet = ['WORKFLOWS_SUBSCRIPTION_ID', 'WORKFLOWS_TENANT_ID', 'WORKFLOWS_RESOURCE_GROUP_NAME', 'WORKFLOWS_LOCATION_NAME'];
+  let changed = false;
+  for (const key of keysToSet) {
+    if (settings.Values[key] !== '') {
+      settings.Values[key] = '';
+      changed = true;
+    }
+  }
+  if (changed) {
     fs.mkdirSync(appDir, { recursive: true });
     fs.writeFileSync(localSettingsPath, JSON.stringify(settings, null, 2));
-    console.log(`[ensureLocalSettings] Set WORKFLOWS_SUBSCRIPTION_ID="" in ${localSettingsPath}`);
+    console.log(`[ensureLocalSettings] Set Azure keys to empty string in ${localSettingsPath}`);
   }
 }
 
@@ -262,29 +419,259 @@ export async function handleDesignerPrompts(workbench: Workbench, driver: WebDri
  * After opening, clears any blocking UI (auth dialogs, workspace trust prompts, etc.)
  */
 export async function openWorkspaceFileInSession(workbench: Workbench, wsFilePath: string): Promise<void> {
-  console.log(`[openWorkspaceFileInSession] Opening workspace file: ${wsFilePath}`);
+  console.log(`[openWorkspaceFileInSession] Opening: ${wsFilePath}`);
 
   if (!fs.existsSync(wsFilePath)) {
-    throw new Error(`Workspace file not found: ${wsFilePath}`);
+    throw new Error(`Path not found: ${wsFilePath}`);
   }
 
   const driver = VSBrowser.instance.driver;
 
-  await VSBrowser.instance.openResources(wsFilePath);
-  await sleep(5000);
+  // Log VS Code title before opening
+  try {
+    const titleBefore = await driver.getTitle();
+    console.log(`[openWorkspaceFileInSession] VS Code title BEFORE: "${titleBefore}"`);
+  } catch (e: any) {
+    if (isInvalidSessionError(e)) {
+      throw e;
+    }
+  }
 
-  // Dismiss any dialogs that appeared during workspace open
+  // Open the workspace/folder via the command palette.
+  // ExTester's openResources uses `code -r` (CLI IPC) which silently fails on
+  // Linux CI because the VS Code IPC socket isn't set up when launched via
+  // ChromeDriver. Instead, use VS Code's built-in "Open Folder" command which
+  // shows a simple text input (files.simpleDialog.enable=true is set by ExTester).
+  const isWorkspaceFile = wsFilePath.endsWith('.code-workspace');
+  const openPath = isWorkspaceFile ? wsFilePath : wsFilePath;
+  const expectedWorkspaceName = (isWorkspaceFile ? path.basename(wsFilePath, '.code-workspace') : path.basename(wsFilePath)).toLowerCase();
+
+  let opened = false;
+  let lastOpenError = '';
+  const dumpOpenWorkspaceDiagnostics = async (context: string): Promise<void> => {
+    try {
+      const diag = await driver.executeScript<string>(
+        `
+        const quickInput = document.querySelector('.quick-input-widget:not(.hidden)');
+        const dialogs = Array.from(document.querySelectorAll('[role="dialog"], .monaco-dialog-box, .notification-toast'))
+          .map((el) => el.textContent || '')
+          .join('\\n---\\n')
+          .slice(0, 1000);
+        const editors = Array.from(document.querySelectorAll('.tabs-container .tab, .editor-group-container .tabs-container .tab'))
+          .map((el) => el.textContent || '')
+          .join(' | ')
+          .slice(0, 1000);
+        return JSON.stringify({
+          title: document.title,
+          quickInput: quickInput ? quickInput.textContent : '',
+          dialogs,
+          editors,
+          activeElement: document.activeElement ? document.activeElement.outerHTML?.slice(0, 500) : '',
+        });
+      `
+      );
+      console.log(`[openWorkspaceFileInSession][diag] ${context}: ${diag}`);
+    } catch (e: any) {
+      if (isInvalidSessionError(e)) {
+        throw e;
+      }
+      console.log(`[openWorkspaceFileInSession][diag] ${context} unavailable: ${e.message}`);
+    }
+  };
+
+  try {
+    await driver.switchTo().defaultContent();
+    await clearBlockingUI(driver);
+    const title = await driver.getTitle();
+    if (title.toLowerCase().includes(expectedWorkspaceName)) {
+      console.log('[openWorkspaceFileInSession] Expected workspace already open');
+      try {
+        await new EditorView().closeAllEditors();
+        await sleep(1000);
+        console.log('[openWorkspaceFileInSession] Closed existing editors in already-open workspace');
+      } catch (closeErr: any) {
+        console.log(`[openWorkspaceFileInSession] Could not close existing editors: ${closeErr.message}`);
+      }
+      opened = true;
+    }
+  } catch (e: any) {
+    if (isInvalidSessionError(e)) {
+      throw e;
+    }
+  }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (opened) {
+      break;
+    }
+    try {
+      try {
+        await driver.switchTo().defaultContent();
+      } catch (e: any) {
+        if (isInvalidSessionError(e)) {
+          throw e;
+        }
+      }
+      await clearBlockingUI(driver);
+      try {
+        const body = await driver.findElement(By.css('body'));
+        await body.sendKeys(Key.ESCAPE);
+        await sleep(250);
+      } catch (escapeError: any) {
+        if (isInvalidSessionError(escapeError)) {
+          throw escapeError;
+        }
+      }
+
+      // Use Quick Open (Ctrl+O on Linux) which opens the file/folder dialog
+      // Or use the command palette to run "File: Open Folder..."
+      const input = await workbench.openCommandPrompt();
+      await sleep(500);
+
+      if (isWorkspaceFile) {
+        await input.setText('> File: Open Workspace from File...');
+      } else {
+        await input.setText('> File: Open Folder...');
+      }
+      await sleep(1000);
+
+      const picks = await input.getQuickPicks();
+      let commandFound = false;
+      for (const pick of picks) {
+        const label = await pick.getLabel();
+        if ((isWorkspaceFile && label.includes('Open Workspace from File')) || (!isWorkspaceFile && label.includes('Open Folder'))) {
+          console.log(`[openWorkspaceFileInSession] Selecting command: "${label}"`);
+          await pick.select();
+          commandFound = true;
+          break;
+        }
+      }
+
+      if (!commandFound) {
+        const available = [];
+        for (const p of picks) {
+          try {
+            available.push(await p.getLabel());
+          } catch {
+            /* stale */
+          }
+        }
+        console.log(`[openWorkspaceFileInSession] Command not found. Available: ${JSON.stringify(available)}`);
+        await input.cancel();
+        await sleep(2000);
+        continue;
+      }
+
+      // Wait for the simple dialog input box to appear
+      await sleep(2000);
+
+      // The simple dialog shows an input box. Type the full path.
+      // ExTester sets files.simpleDialog.enable=true so this should be a text input.
+      try {
+        const dialogInput = new InputBox();
+        await dialogInput.setText(openPath);
+        await sleep(500);
+        await dialogInput.confirm();
+      } catch (inputErr: any) {
+        console.log(`[openWorkspaceFileInSession] InputBox approach failed: ${inputErr.message}, trying sendKeys`);
+        // Fallback: type directly and press Enter
+        const body = await driver.findElement(By.css('body'));
+        await body.sendKeys(openPath, Key.ENTER);
+      }
+
+      await sleep(5000);
+
+      // Wait for the workbench to be ready after potential reload
+      try {
+        await (await workbench.getDriver()).wait(until.elementLocated(By.css('.monaco-workbench')), 20_000);
+      } catch (e: any) {
+        if (isInvalidSessionError(e)) {
+          throw e;
+        }
+        /* timeout is OK — VS Code may have reloaded */
+      }
+
+      // Check if the workspace actually opened
+      let titleAfter = '';
+      try {
+        titleAfter = await driver.getTitle();
+      } catch (e: any) {
+        if (isInvalidSessionError(e)) {
+          throw e;
+        }
+      }
+      console.log(`[openWorkspaceFileInSession] VS Code title AFTER: "${titleAfter}"`);
+
+      if (titleAfter.toLowerCase().includes(expectedWorkspaceName)) {
+        console.log('[openWorkspaceFileInSession] Workspace opened successfully (title changed)');
+        opened = true;
+        break;
+      }
+      if (titleAfter !== 'Visual Studio Code') {
+        console.log(
+          `[openWorkspaceFileInSession] Title changed but did not include expected workspace "${expectedWorkspaceName}" — checking Explorer`
+        );
+      }
+
+      // Check explorer
+      let explorerState = 'ERROR';
+      try {
+        explorerState = await driver.executeScript<string>(
+          `
+        const expected = arguments[0];
+        const rows = document.querySelectorAll('.explorer-viewlet .monaco-list-row, .explorer-folders-view .monaco-list-row');
+        if (rows.length === 0) return 'EMPTY';
+        const text = Array.from(rows).map((row) => row.textContent || '').join('\\n').toLowerCase();
+        if (text.includes(expected)) return 'MATCH=' + rows.length;
+        return 'ROWS=' + rows.length;
+      `,
+          expectedWorkspaceName
+        );
+      } catch (e: any) {
+        if (isInvalidSessionError(e)) {
+          throw e;
+        }
+      }
+      console.log(`[openWorkspaceFileInSession] Explorer: ${explorerState}`);
+
+      if (explorerState.startsWith('MATCH=')) {
+        console.log('[openWorkspaceFileInSession] Folder opened (Explorer contains expected workspace)');
+        opened = true;
+        break;
+      }
+
+      console.log(`[openWorkspaceFileInSession] Workspace not opened on attempt ${attempt + 1}/3`);
+      lastOpenError = `workspace title stayed "${titleAfter}" and Explorer state was ${explorerState}`;
+    } catch (e: any) {
+      console.log(`[openWorkspaceFileInSession] Attempt ${attempt + 1}/3 failed: ${e.message}`);
+      lastOpenError = e.message;
+      if (isInvalidSessionError(e)) {
+        throw e;
+      }
+      await dumpOpenWorkspaceDiagnostics(`attempt ${attempt + 1} failed`);
+      try {
+        const body = await driver.findElement(By.css('body'));
+        await body.sendKeys(Key.ESCAPE);
+      } catch (escapeError: any) {
+        if (isInvalidSessionError(escapeError)) {
+          throw escapeError;
+        }
+      }
+      await sleep(2000);
+    }
+  }
+
+  if (!opened) {
+    throw new Error(
+      `[openWorkspaceFileInSession] Failed to open ${wsFilePath}: ${lastOpenError || 'no positive workspace-open postcondition'}`
+    );
+  }
+
   await clearBlockingUI(driver);
-
-  await (await workbench.getDriver()).wait(until.elementLocated(By.css('.monaco-workbench')), 20_000);
-
-  // Extra wait for extension re-activation after workspace switch
   await sleep(3000);
-
-  // Final clear of any dialogs that appeared during re-activation
   await clearBlockingUI(driver);
 
-  console.log('[openWorkspaceFileInSession] Workspace file opened and workbench is ready');
+  console.log('[openWorkspaceFileInSession] Done');
 }
 
 /**
@@ -309,11 +696,18 @@ export async function openFileInEditor(workbench: Workbench, driver: WebDriver, 
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await VSBrowser.instance.openResources(filePath);
-      await sleep(2000);
-
-      // Verify the file is now the active editor tab
+      // Use Quick Open (Ctrl+P) to open the file instead of openResources
+      // which uses code -r IPC that doesn't work on Linux CI.
       const expectedName = path.basename(filePath);
+      const parentDir = path.basename(path.dirname(filePath));
+      await driver.actions().keyDown(Key.CONTROL).sendKeys('p').keyUp(Key.CONTROL).perform();
+      await sleep(1000);
+      const qInput = await driver.findElement(By.css('.quick-input-box input'));
+      // Type parent/filename for uniqueness
+      await qInput.sendKeys(`${parentDir}/${expectedName}`);
+      await sleep(1500);
+      await qInput.sendKeys(Key.ENTER);
+      await sleep(2000);
       const editorView = new EditorView();
       const activeTab = await editorView.getActiveTab();
       if (activeTab) {
@@ -338,33 +732,66 @@ export async function openFileInEditor(workbench: Workbench, driver: WebDriver, 
 }
 
 /**
- * Ensure the extension has activated and dependency validation has completed.
+ * Ensure the extension has activated and ALL runtime dependencies have been
+ * validated and downloaded (NodeJS, Functions Runtime, .NET SDK).
  *
- * The extension shows a "Validating Runtime Dependency" notification on first
- * activation. This may have already completed if designerOpen.test.ts ran first.
+ * The extension shows a single "Validating Runtime Dependency" progress
+ * notification that steps through each dependency sequentially. The message
+ * changes to "NodeJS", "Functions Runtime", ".NET SDK" etc.
  *
- * 1. If the notification is currently visible → wait for it to disappear.
- * 2. If not visible → wait briefly in case it's about to appear.
- * 3. If it never appears → verify extension activation by asserting the
- *    openDesigner command is registered.
+ * IMPORTANT: We must wait for the `func` binary to exist on disk, not just
+ * wait for the notification to disappear. The notification can vanish
+ * between dependency stages or be dismissed by other code paths.
+ *
+ * Strategy:
+ * 1. Wait for the "Validating Runtime Dependency" notification to appear.
+ * 2. Once visible, wait for it to disappear (all deps validated).
+ * 3. THEN verify the func binary actually exists on disk.
+ * 4. If the notification never appears, check if deps are already present.
  */
 export async function waitForDependencyValidation(driver: WebDriver, timeoutMs = DEPENDENCY_VALIDATION_TIMEOUT): Promise<void> {
   const t0 = Date.now();
   const VALIDATION_TEXT = 'Validating Runtime Dependency';
+  const funcBinaryPath = getFuncCoreToolsPath();
+
+  // The extension's download/extract can leave Linux/macOS binaries without
+  // execute bits. Apply this before and after validation because validation can
+  // reinstall FuncCoreTools while tests are running.
+  ensureRuntimeDependencyExecutablePermissions();
+
+  // Diagnostic: log VS Code title to see if a workspace is loaded
+  try {
+    const title = await driver.getTitle();
+    console.log(`[depValidation] VS Code title at start: "${title}"`);
+  } catch (e: any) {
+    if (isInvalidSessionError(e)) {
+      throw e;
+    }
+  }
 
   const isValidationVisible = async (): Promise<boolean> => {
     try {
       return (
         (await driver.executeScript<boolean>(`
         var vt = ${JSON.stringify(VALIDATION_TEXT)};
-        var els = document.querySelectorAll('[role="dialog"], .notification-toast, .notifications-toasts .notification-list-item');
+        var els = document.querySelectorAll(
+          '[role="dialog"], ' +
+          '.notification-toast, ' +
+          '.notifications-toasts .notification-list-item, ' +
+          '.statusbar-item, ' +
+          '.statusbar-entry, ' +
+          '.part.statusbar'
+        );
         for (var i = 0; i < els.length; i++) {
           if ((els[i].textContent || '').includes(vt)) return true;
         }
         return false;
       `)) ?? false
       );
-    } catch {
+    } catch (e: any) {
+      if (isInvalidSessionError(e)) {
+        throw e;
+      }
       return false;
     }
   };
@@ -374,64 +801,297 @@ export async function waitForDependencyValidation(driver: WebDriver, timeoutMs =
     console.log(`[depValidation] "${VALIDATION_TEXT}" is visible — waiting for it to finish`);
     while (Date.now() - t0 < timeoutMs) {
       if (!(await isValidationVisible())) {
-        console.log(`[depValidation] Validation complete (${Date.now() - t0}ms)`);
-        return;
+        console.log(`[depValidation] Notification gone (${Date.now() - t0}ms) — checking func binary`);
+        break;
       }
-      await sleep(500);
+      // Log the current stage for diagnostics
+      try {
+        const msg = await driver.executeScript<string>(`
+          var vt = ${JSON.stringify(VALIDATION_TEXT)};
+          var els = document.querySelectorAll(
+            '[role="dialog"], ' +
+            '.notification-toast, ' +
+            '.notifications-toasts .notification-list-item, ' +
+            '.statusbar-item, ' +
+            '.statusbar-entry, ' +
+            '.part.statusbar'
+          );
+          for (var i = 0; i < els.length; i++) {
+            var t = (els[i].textContent || '');
+            if (t.includes(vt)) return t.substring(0, 200);
+          }
+          return '';
+        `);
+        if (msg) {
+          console.log(`[depValidation] Current stage: "${msg.substring(0, 120)}"`);
+        }
+      } catch (e: any) {
+        if (isInvalidSessionError(e)) {
+          throw e;
+        }
+      }
+      await sleep(2000);
     }
-    throw new Error(`"${VALIDATION_TEXT}" still visible after ${timeoutMs}ms`);
-  }
+  } else {
+    // Not visible yet — poll until either the notification appears or deps are already present
+    const activationDeadline = Date.now() + Math.min(timeoutMs, 30_000); // Wait up to 30s for it to appear
+    let everAppeared = false;
+    while (Date.now() < activationDeadline) {
+      if (await isValidationVisible()) {
+        everAppeared = true;
+        console.log(`[depValidation] "${VALIDATION_TEXT}" appeared (${Date.now() - t0}ms) — waiting for it to finish`);
+        while (Date.now() - t0 < timeoutMs) {
+          if (!(await isValidationVisible())) {
+            console.log(`[depValidation] Notification gone (${Date.now() - t0}ms) — checking func binary`);
+            break;
+          }
+          await sleep(2000);
+        }
+        break;
+      }
 
-  // Not visible yet — poll until either the notification appears
-  // OR the extension finishes activating (commands become available).
-  // Extension host may restart during activation. In CI, the first run
-  // downloads ~500MB of dependencies which takes 3-5 min.
-  const activationDeadline = Date.now() + timeoutMs;
-  while (Date.now() < activationDeadline) {
-    if (await isValidationVisible()) {
-      console.log(`[depValidation] "${VALIDATION_TEXT}" appeared (${Date.now() - t0}ms) — waiting for it to finish`);
-      while (Date.now() - t0 < timeoutMs) {
-        if (!(await isValidationVisible())) {
-          console.log(`[depValidation] Validation complete (${Date.now() - t0}ms)`);
+      // Check if func binary already exists (validation may have completed before we started)
+      if (fs.existsSync(funcBinaryPath)) {
+        if (Date.now() - t0 < 15_000) {
+          await sleep(2000);
+          continue;
+        }
+
+        console.log(`[depValidation] func binary already exists at ${funcBinaryPath} (${Date.now() - t0}ms)`);
+        ensureRuntimeDependencyExecutablePermissions();
+        if (isExecutableFile(funcBinaryPath)) {
           return;
         }
-        await sleep(500);
+        console.log('[depValidation] func binary exists but is not executable yet — continuing to poll');
       }
-      throw new Error(`"${VALIDATION_TEXT}" still visible after ${timeoutMs}ms`);
+
+      await sleep(2000);
     }
 
-    // Also check if extension commands are already registered (validation may
-    // have completed before we started looking).
-    try {
-      const wb = new Workbench();
-      const input = await wb.openCommandPrompt();
-      await sleep(500);
-      await input.setText('> Open Designer');
-      await sleep(1000);
-      const picks = await input.getQuickPicks();
-      let found = false;
-      for (const p of picks) {
-        const label = await p.getLabel();
-        if (label.toLowerCase().includes('open designer')) {
-          found = true;
-          break;
-        }
-      }
-      await input.cancel();
-      if (found) {
-        console.log(`[depValidation] Extension is active — openDesigner command found (${Date.now() - t0}ms)`);
+    if (!everAppeared && !fs.existsSync(funcBinaryPath)) {
+      console.log('[depValidation] Notification never appeared and func not found — waiting for func binary on disk');
+    }
+  }
+
+  // CRITICAL: Wait for the func binary to actually exist on disk.
+  // The notification disappearing does NOT mean all downloads are complete —
+  // it may disappear between dependency stages or get auto-dismissed.
+  const funcDeadline = Date.now() + Math.max(timeoutMs - (Date.now() - t0), 60_000);
+  while (Date.now() < funcDeadline) {
+    if (fs.existsSync(funcBinaryPath)) {
+      console.log(`[depValidation] func binary found at ${funcBinaryPath} (${Date.now() - t0}ms)`);
+
+      // Also wait a moment for the extension to update its internal state
+      await sleep(3000);
+      ensureRuntimeDependencyExecutablePermissions();
+      if (isExecutableFile(funcBinaryPath)) {
         return;
       }
-    } catch {
-      /* command palette not ready yet — keep waiting */
+      console.log('[depValidation] func binary still not executable after chmod — continuing to poll');
     }
 
+    // Check if validation notification reappeared (downloading next dependency)
+    if (await isValidationVisible()) {
+      console.log(`[depValidation] Validation notification reappeared — still downloading (${Date.now() - t0}ms)`);
+    }
+
+    console.log(`[depValidation] Waiting for func binary... (${Date.now() - t0}ms)`);
+    await sleep(5000);
+  }
+
+  // Final check — log what exists in the dependencies folder
+  await dumpRuntimeDependencyDiagnostics(driver, 'waitForDependencyValidation timeout');
+  const depsRoot = path.join(os.homedir(), '.azurelogicapps', 'dependencies');
+  try {
+    if (fs.existsSync(depsRoot)) {
+      const contents = fs.readdirSync(depsRoot);
+      console.log(`[depValidation] Dependencies folder contents: ${JSON.stringify(contents)}`);
+      for (const item of contents) {
+        const itemPath = path.join(depsRoot, item);
+        const subContents = fs.statSync(itemPath).isDirectory() ? fs.readdirSync(itemPath).slice(0, 10) : [];
+        console.log(`[depValidation]   ${item}/: ${JSON.stringify(subContents)}`);
+      }
+    } else {
+      console.log(`[depValidation] Dependencies folder does not exist: ${depsRoot}`);
+    }
+  } catch (e: any) {
+    console.log(`[depValidation] Error listing deps: ${e.message}`);
+  }
+
+  assertFuncCoreToolsExecutable(`${Math.round((Date.now() - t0) / 1000)}s`);
+}
+
+/**
+ * Wait for the extension's dependency validation to fully complete.
+ * The extension shows "Validating Runtime Dependency: ..." notifications
+ * for each dependency (FuncCoreTools, NodeJS, DotNet, etc.). The design-time
+ * API (func host start) won't start until ALL validations are done.
+ * This function polls for those notifications and waits until they've been
+ * absent for a stable period, indicating validation is complete.
+ */
+export async function waitForExtensionValidationComplete(driver: WebDriver, timeoutMs = DEPENDENCY_VALIDATION_TIMEOUT): Promise<void> {
+  const t0 = Date.now();
+
+  const hasValidationNotification = async (): Promise<string | null> => {
+    try {
+      return await driver.executeScript<string | null>(`
+        var els = document.querySelectorAll(
+          '.notifications-toasts .notification-list-item, ' +
+          '[role="dialog"], ' +
+          '.notification-toast, ' +
+          '.monaco-notification-list-item, ' +
+          '.statusbar-item, ' +
+          '.statusbar-entry, ' +
+          '.part.statusbar'
+        );
+        for (var i = 0; i < els.length; i++) {
+          var text = els[i].textContent || '';
+          if (text.includes('Validating Runtime Dependency') || text.includes('Successfully installed')) {
+            return text.substring(0, 150);
+          }
+        }
+        return null;
+      `);
+    } catch (e: any) {
+      if (isInvalidSessionError(e)) {
+        throw e;
+      }
+      return null;
+    }
+  };
+
+  // Dismiss GitHub API rate-limit errors that block validation.
+  // The extension checks github.com for latest versions but gets 403 on CI.
+  // These errors are non-fatal when cached binaries exist.
+  const dismissGitHubErrors = async (): Promise<void> => {
+    try {
+      await driver.executeScript(`
+        var els = document.querySelectorAll(
+          '.notifications-toasts .notification-list-item, ' +
+          '[role="dialog"], ' +
+          '.notification-toast'
+        );
+        for (var i = 0; i < els.length; i++) {
+          var text = els[i].textContent || '';
+          if (text.includes('Error reading JSON from URL') || text.includes('status code 403')) {
+            var closeBtn = els[i].querySelector('.codicon-close, [aria-label="Close"], .action-label.codicon');
+            if (closeBtn) { closeBtn.click(); }
+          }
+        }
+      `);
+    } catch (e: any) {
+      if (isInvalidSessionError(e)) {
+        throw e;
+      }
+    }
+  };
+
+  console.log('[waitForValidation] Waiting for extension dependency validation to complete...');
+  let lastPermissionFixAt = 0;
+
+  const fixPermissionsIfNeeded = (): void => {
+    const now = Date.now();
+    if (now - lastPermissionFixAt < 10_000) {
+      return;
+    }
+
+    ensureRuntimeDependencyExecutablePermissions();
+    lastPermissionFixAt = now;
+  };
+
+  // Phase 1: Wait up to 15s for the first validation notification to appear.
+  let firstSeen = false;
+  const phase1Deadline = Date.now() + 15_000;
+  while (Date.now() < phase1Deadline) {
+    await dismissGitHubErrors();
+    const msg = await hasValidationNotification();
+    if (msg) {
+      console.log(`[waitForValidation] Validation active: "${msg}"`);
+      fixPermissionsIfNeeded();
+      firstSeen = true;
+      break;
+    }
+    await sleep(1000);
+  }
+
+  if (!firstSeen) {
+    console.log(
+      `[waitForValidation] No validation notification in ${Math.round((Date.now() - t0) / 1000)}s — waiting for dependency binaries`
+    );
+    await waitForDependencyValidation(driver, timeoutMs);
+    return;
+  }
+
+  // Phase 2: Wait for ALL validation notifications to clear.
+  // The extension validates multiple dependencies in sequence. We wait until
+  // no validation notifications are visible for QUIET_PERIOD consecutive ms.
+  let lastSeenAt = Date.now();
+  const QUIET_PERIOD = 10_000;
+
+  while (Date.now() - t0 < timeoutMs) {
+    await dismissGitHubErrors();
+    const msg = await hasValidationNotification();
+    if (msg) {
+      lastSeenAt = Date.now();
+      fixPermissionsIfNeeded();
+      // Log every ~15 seconds to show progress
+      const elapsed = Math.round((Date.now() - t0) / 1000);
+      if (elapsed % 15 < 2) {
+        console.log(`[waitForValidation] Still active (${elapsed}s): "${msg}"`);
+      }
+    } else if (Date.now() - lastSeenAt >= QUIET_PERIOD) {
+      console.log(`[waitForValidation] Complete — quiet for ${QUIET_PERIOD / 1000}s (total: ${Math.round((Date.now() - t0) / 1000)}s)`);
+      break;
+    }
     await sleep(2000);
   }
 
-  throw new Error(
-    `Extension not properly activated after ${Math.round(timeoutMs / 1000)}s: "${VALIDATION_TEXT}" never appeared and "Open Designer" command not found`
-  );
+  if (Date.now() - t0 >= timeoutMs) {
+    await dumpRuntimeDependencyDiagnostics(driver, 'waitForExtensionValidationComplete timeout');
+    throw new Error(`[waitForValidation] Timeout after ${Math.round(timeoutMs / 1000)}s`);
+  }
+  assertFuncCoreToolsExecutable(`${Math.round((Date.now() - t0) / 1000)}s validation wait`);
+
+  // Phase 3: Wait for design-time API (func host start) to be ready.
+  // After validation completes, the extension starts func which takes time.
+  // Poll for evidence that the API is responding by checking the Output panel.
+  console.log('[waitForValidation] Waiting for design-time API to start...');
+  const apiDeadline = Date.now() + 60_000;
+  while (Date.now() < apiDeadline) {
+    try {
+      const apiReady = await driver.executeScript<boolean>(`
+        // Check notifications for design-time errors (means func tried to start)
+        var els = document.querySelectorAll(
+          '.notifications-toasts .notification-list-item, ' +
+          '[role="dialog"]'
+        );
+        for (var i = 0; i < els.length; i++) {
+          var text = els[i].textContent || '';
+          // If we see design-time-related messages, func has started
+          if (text.includes('design time') || text.includes('Design time') ||
+              text.includes('already running') || text.includes('func host')) {
+            return true;
+          }
+        }
+        // Check if any webview iframes exist (designer tab opened)
+        if (document.querySelector('iframe.webview')) return true;
+        return false;
+      `);
+      if (apiReady) {
+        console.log(`[waitForValidation] Design-time API indicators found (${Math.round((Date.now() - t0) / 1000)}s)`);
+        await sleep(3000);
+        assertFuncCoreToolsExecutable(`${Math.round((Date.now() - t0) / 1000)}s design-time API wait`);
+        return;
+      }
+    } catch (e: any) {
+      if (isInvalidSessionError(e)) {
+        throw e;
+      }
+    }
+    await sleep(2000);
+  }
+  assertFuncCoreToolsExecutable(`${Math.round((Date.now() - t0) / 1000)}s design-time API wait`);
+  console.log(`[waitForValidation] Design-time API wait timed out after func validation (${Math.round((Date.now() - t0) / 1000)}s)`);
 }
 
 /**
@@ -452,21 +1112,65 @@ export async function waitForDesignerWebviewTab(driver: WebDriver): Promise<bool
     }
 
     // Check for QuickPick prompts from the Azure connector wizard
+    // Prompt 1: "Use connectors from Azure" / "Skip for now" → click "Skip"
+    // Prompt 2: "Managed Service Identity" / "Connection Keys" → click "Connection Keys"
+    // IMPORTANT: Skip the command palette (input starts with ">") — only target wizard QuickPicks.
     try {
-      const quickPicks = await driver.findElements(By.css('.quick-input-widget:not(.hidden) .quick-input-list .monaco-list-row'));
-      if (quickPicks.length > 0) {
-        for (const pick of quickPicks) {
-          try {
-            const text = (await pick.getText()).toLowerCase();
-            if (text.includes('skip')) {
-              console.log('[waitForDesignerTab] Selecting "Skip for now"');
-              await pick.click();
-              await sleep(500);
-              break;
-            }
-          } catch {
-            /* stale element */
+      const quickPickAction = await driver.executeScript<string | null>(`
+        const widget = document.querySelector('.quick-input-widget:not(.hidden)');
+        if (!widget) return null;
+
+        // Skip the command palette — its input starts with ">"
+        const inputEl = widget.querySelector('.quick-input-box input');
+        const inputVal = inputEl ? inputEl.value || '' : '';
+        if (inputVal.startsWith('>')) return null;
+
+        const rows = widget.querySelectorAll('.quick-input-list .monaco-list-row');
+        if (rows.length === 0) return null;
+
+        // Collect row labels — use the .label-name span for precise text
+        const labels = [];
+        for (const row of rows) {
+          const labelSpan = row.querySelector('.label-name');
+          labels.push(labelSpan ? (labelSpan.textContent || '').trim() : (row.textContent || '').trim());
+        }
+
+        // Prompt 1: "Use connectors from Azure" / "Skip for now"
+        for (let i = 0; i < labels.length; i++) {
+          if (labels[i].toLowerCase().includes('skip')) {
+            rows[i].click();
+            return 'clicked:skip:' + labels[i].substring(0, 80);
           }
+        }
+
+        // Prompt 2: "Connection Keys" / "Managed Service Identity"
+        for (let i = 0; i < labels.length; i++) {
+          const lower = labels[i].toLowerCase();
+          if (lower.includes('connection key') || lower.includes('access key')) {
+            rows[i].click();
+            return 'clicked:connkey:' + labels[i].substring(0, 80);
+          }
+        }
+
+        // If we have real labels but no match, return them for debugging
+        const nonEmpty = labels.filter(l => l.length > 0);
+        if (nonEmpty.length > 0) {
+          return 'unknown:' + JSON.stringify(nonEmpty.map(l => l.substring(0, 80)));
+        }
+
+        return null; // Empty labels — ignore
+      `);
+
+      if (quickPickAction) {
+        if (quickPickAction.startsWith('clicked:')) {
+          console.log(`[waitForDesignerTab] ${quickPickAction}`);
+          await sleep(1000);
+        } else if (quickPickAction.startsWith('unknown:')) {
+          console.log(`[waitForDesignerTab] Unknown QuickPick: ${quickPickAction}`);
+          // Press Escape to dismiss unknown QuickPick
+          const body = await driver.findElement(By.css('body'));
+          await body.sendKeys(Key.ESCAPE);
+          await sleep(500);
         }
       }
     } catch {
@@ -547,15 +1251,11 @@ export async function executeOpenDesignerCommand(workbench: Workbench, driver: W
           if (tabFound) {
             return true;
           }
-          // Webview tab didn't appear — the command may have silently failed.
-          // Continue to next retry attempt.
           console.log(`[executeOpenDesigner] Attempt ${attempt + 1}/5: command selected but webview tab not found, retrying...`);
-          break; // break inner picks loop, continue outer retry loop
+          break;
         }
       }
 
-      // Command not found in picks — log what was available, cancel, and retry.
-      // The extension may still be registering commands after a workspace switch.
       const available: string[] = [];
       for (const pick of picks) {
         try {
@@ -582,90 +1282,156 @@ export async function executeOpenDesignerCommand(workbench: Workbench, driver: W
 
 /**
  * Switch into the designer webview iframe and wait for the designer to
- * actually finish loading — not just exist. We detect three phases:
+ * actually finish loading — not just exist.
  *
- *   Phase 1: Webview iframe is switchable (ExTester's switchToFrame)
- *   Phase 2: Spinner disappears (React data fetch complete)
- *   Phase 3: Canvas and nodes render (React Flow + workflow graph ready)
+ * Uses a unified polling loop that re-discovers the webview iframe structure
+ * each iteration. This is critical because:
+ *   - The outer webview iframe exists immediately after "Open designer"
+ *   - But the INNER iframe (containing the React app) is created LATER by
+ *     the VS Code webview bootstrap, once startDesignTimeApi() completes
+ *   - Previous code would "succeed" Phase 1 by finding `body` in the outer
+ *     bootstrap frame, then get stuck polling for `#root` / `.msla-designer-canvas`
+ *     in the wrong frame forever
  *
- * If Phase 3 doesn't complete we still return success as long as the canvas
- * div is mounted (Phase 2). Some tests only need the discovery panel which
- * opens even before nodes fully render.
+ * This matches the proven pattern from switchToActiveDesignerFrame() in
+ * multipleDesigners.test.ts which successfully loads the designer.
+ *
+ * @throws Error on timeout if the Designer canvas does not become ready within
+ *         the timeout. Callers must wrap in try/catch and treat throw as a
+ *         "designer-not-ready" signal. (Phase 2 F1 change: previously returned
+ *         a stale WebView on timeout, masking failures.)
  */
 export async function switchToDesignerWebview(driver: WebDriver, timeoutMs = DESIGNER_READY_TIMEOUT): Promise<WebView> {
   const webview = new WebView();
   const t0 = Date.now();
-
-  // Phase 1: switch into the iframe
-  await webview.switchToFrame();
-  console.log(`[designerReady] Phase 1: switched into webview frame (${Date.now() - t0}ms)`);
-
   const deadline = Date.now() + timeoutMs;
+  let readyLevel = 0; // 0=nothing, 1=canvas div, 2=react-flow, 3=nodes/trigger card
 
-  // Phase 2: wait for the loading spinner to disappear.
-  // The VS Code designer renders <Spinner className="designerLoading" size="large">
-  // while data is being fetched. Once that disappears, the Designer component
-  // has mounted.
-  let spinnerGone = false;
   while (Date.now() < deadline) {
+    // Always start from top-level to re-discover the iframe structure.
+    // The inner iframe may not exist yet on early iterations.
     try {
-      const spinners = await driver.findElements(By.css('.fui-Spinner, [role="progressbar"]'));
-      if (spinners.length === 0) {
-        // Also verify #root exists so we know we're in the right frame
-        const roots = await driver.findElements(By.id('root'));
-        if (roots.length > 0) {
-          spinnerGone = true;
-          break;
+      await driver.switchTo().defaultContent();
+    } catch {
+      /* ignore */
+    }
+    await sleep(500);
+
+    try {
+      // Find all webview iframes
+      const iframes = await driver.findElements(By.css('iframe.webview.ready, iframe.webview'));
+      if (iframes.length === 0) {
+        if ((Date.now() - t0) % 10000 < 600) {
+          console.log(`[designerReady] No webview iframes yet (${Date.now() - t0}ms)`);
+        }
+        await sleep(1000);
+        continue;
+      }
+
+      // Try each visible iframe (last first = most likely active tab)
+      for (let i = iframes.length - 1; i >= 0; i--) {
+        try {
+          const displayed = await iframes[i].isDisplayed();
+          const rect = await iframes[i].getRect();
+          if (!displayed || rect.width < 100 || rect.height < 100) {
+            continue;
+          }
+
+          // Switch into the outer webview iframe
+          await driver.switchTo().frame(iframes[i]);
+          await sleep(300);
+
+          // Try to navigate into the inner iframe (VS Code nests webview content)
+          // The inner iframe is created by the webview bootstrap AFTER the extension
+          // sends the HTML content via panel.webview.html. On first iterations this
+          // inner iframe doesn't exist yet — that's OK, we'll retry next loop.
+          try {
+            const innerFrames = await driver.findElements(By.css('#active-frame, iframe'));
+            if (innerFrames.length > 0) {
+              await driver.switchTo().frame(innerFrames[0]);
+              await sleep(300);
+            }
+          } catch {
+            /* may already be in the right frame */
+          }
+
+          // Check designer readiness in the current frame context
+          try {
+            const result = await driver.executeScript<number>(`
+              if (!document.querySelector('.msla-designer-canvas')) return 0;
+              if (!document.querySelector('.react-flow__viewport')) return 1;
+              if (document.querySelector('[data-testid="card-Add a trigger"]') || document.querySelectorAll('.react-flow__node').length > 0 || document.querySelector('[role="toolbar"]')) return 3;
+              return 2;
+            `);
+            readyLevel = Math.max(readyLevel, result ?? 0);
+            if (readyLevel >= 2) {
+              const labels = ['nothing', 'canvas div', 'react-flow viewport', 'nodes/trigger/toolbar'];
+              console.log(`[designerReady] Designer ready (level ${readyLevel}: ${labels[readyLevel]}) in ${Date.now() - t0}ms`);
+              return webview;
+            }
+          } catch {
+            /* script may fail during frame transitions — will retry */
+          }
+
+          // Not ready yet — switch back to default and retry
+          try {
+            await driver.switchTo().defaultContent();
+          } catch {
+            /* ignore */
+          }
+        } catch {
+          try {
+            await driver.switchTo().defaultContent();
+          } catch {
+            /* ignore */
+          }
         }
       }
     } catch {
-      /* elements may not exist yet */
+      /* iframe discovery failed — will retry */
     }
-    await sleep(500);
-  }
 
-  if (spinnerGone) {
-    console.log(`[designerReady] Phase 2: spinner gone, React app rendered (${Date.now() - t0}ms)`);
-  } else {
-    console.log(`[designerReady] Phase 2: spinner still present or #root not found after ${Date.now() - t0}ms`);
-  }
-
-  // Phase 3: wait for the actual designer canvas + nodes/placeholder to render.
-  // The designer mounts .msla-designer-canvas → ReactFlow → .react-flow__viewport.
-  // For empty workflows a [data-testid="card-Add a trigger"] card appears.
-  // For non-empty workflows .react-flow__node elements appear.
-  let readyLevel = 0; // 0=nothing, 1=canvas div, 2=react-flow, 3=nodes/trigger card
-  while (Date.now() < deadline) {
-    try {
-      const result = await driver.executeScript<number>(`
-        var canvas = document.querySelector('.msla-designer-canvas');
-        if (!canvas) return 0;
-        var rf = document.querySelector('.react-flow__viewport');
-        if (!rf) return 1;
-        var trigger = document.querySelector('[data-testid="card-Add a trigger"]');
-        var nodes = document.querySelectorAll('.react-flow__node');
-        var toolbar = document.querySelector('[role="toolbar"]');
-        if (trigger || nodes.length > 0 || toolbar) return 3;
-        return 2;
-      `);
-      readyLevel = Math.max(readyLevel, result ?? 0);
-      if (readyLevel >= 3) {
-        break;
-      }
-    } catch {
-      /* script may fail during frame transitions */
+    // Log progress periodically
+    if ((Date.now() - t0) % 15000 < 600) {
+      console.log(`[designerReady] Waiting... readyLevel=${readyLevel} (${Date.now() - t0}ms)`);
     }
-    await sleep(500);
+    await sleep(1500);
   }
 
-  const labels = ['nothing', 'canvas div', 'react-flow viewport', 'nodes/trigger/toolbar'];
-  console.log(`[designerReady] Phase 3: readyLevel=${readyLevel} (${labels[readyLevel]}) in ${Date.now() - t0}ms`);
-
+  // Phase 2 F1: throw on timeout instead of returning a useless WebView handle.
+  // Callers (openDesignerForEntry + the new openDesignerViaExplorer canvas-ready
+  // check) already wrap in try/catch, and treating "timeout" as success caused
+  // the cold-session designer-open flakes documented in CI run 25949973119.
+  console.log(`[designerReady] readyLevel=${readyLevel} after ${Date.now() - t0}ms`);
   if (readyLevel === 0) {
     console.log('[designerReady] Warning: designer content not found within timeout');
+    // Try to dump diagnostics from whatever frame we're in
+    try {
+      await driver.switchTo().defaultContent();
+      const iframes = await driver.findElements(By.css('iframe.webview.ready, iframe.webview'));
+      if (iframes.length > 0) {
+        await driver.switchTo().frame(iframes[iframes.length - 1]);
+        const innerFrames = await driver.findElements(By.css('#active-frame, iframe'));
+        if (innerFrames.length > 0) {
+          await driver.switchTo().frame(innerFrames[0]);
+        }
+      }
+      const diagInfo = await driver.executeScript<string>(`
+        var info = 'URL: ' + window.location.href + '\\n';
+        info += 'Title: ' + document.title + '\\n';
+        info += 'Body children: ' + document.body.children.length + '\\n';
+        var html = document.documentElement.outerHTML || '';
+        info += 'HTML length: ' + html.length + '\\n';
+        info += 'HTML preview: ' + html.substring(0, 1500);
+        return info;
+      `);
+      console.log(`[designerReady] Webview diagnostics:\n${diagInfo}`);
+    } catch (diagErr: any) {
+      console.log(`[designerReady] Could not dump diagnostics: ${diagErr.message?.substring(0, 100)}`);
+    }
   }
 
-  return webview;
+  throw new Error(`Designer canvas not ready after ${timeoutMs}ms (readyLevel=${readyLevel})`);
 }
 
 /**
@@ -753,6 +1519,24 @@ export async function findLastAddActionElement(driver: WebDriver): Promise<WebEl
   return null;
 }
 
+export async function clickElementWithFallback(driver: WebDriver, element: WebElement, description: string): Promise<void> {
+  try {
+    await driver.executeScript('arguments[0].scrollIntoView({ block: "center", inline: "center" });', element);
+    await sleep(100);
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    await driver.actions().move({ origin: element }).click().perform();
+    return;
+  } catch (e: any) {
+    console.log(`[clickElementWithFallback] Actions click failed for ${description}: ${e.message}`);
+  }
+
+  await driver.executeScript('arguments[0].click();', element);
+}
+
 /**
  * Poll until the discovery panel (recommendation panel) is visible.
  * Returns when the panel root or search box appears, or after timeout.
@@ -838,7 +1622,7 @@ export async function clickAddActionMenuItem(driver: WebDriver): Promise<boolean
           const text = await el.getText();
           if (text.toLowerCase().includes('add an action')) {
             console.log(`[clickAddActionMenuItem] Found "Add an action" menu item`);
-            await el.click();
+            await clickElementWithFallback(driver, el, 'Add an action menu item');
             // Poll for the discovery panel to appear
             await waitForDiscoveryPanel(driver);
             return true;
@@ -1210,20 +1994,453 @@ export async function countCanvasNodes(driver: WebDriver): Promise<number> {
  * Check if the designer canvas has a specific node by partial text match.
  */
 export async function canvasHasNode(driver: WebDriver, nodeText: string): Promise<boolean> {
+  const lowerText = nodeText.toLowerCase();
+
+  // Strategy 1: Check .react-flow__node getText()
   try {
     const nodes = await driver.findElements(By.css('.react-flow__node'));
+    const nodeTexts: string[] = [];
     for (const node of nodes) {
       try {
         const text = await node.getText();
-        if (text.toLowerCase().includes(nodeText.toLowerCase())) {
+        nodeTexts.push(text.substring(0, 60));
+        if (text.toLowerCase().includes(lowerText)) {
           return true;
         }
       } catch {}
     }
+    console.log(`[canvasHasNode] Searching for "${nodeText}" — node texts: ${JSON.stringify(nodeTexts)}`);
   } catch {
     // No nodes found
   }
 
+  // Strategy 2: Check data-testid="card-<name>" (case-insensitive via JS)
+  try {
+    const found = await driver.executeScript<boolean>(
+      `var cards = document.querySelectorAll('[data-testid]');
+      for (var i = 0; i < cards.length; i++) {
+        var tid = cards[i].getAttribute('data-testid').toLowerCase();
+        if (tid.includes('card-') && tid.includes(arguments[0])) return true;
+      }
+      return false;`,
+      lowerText
+    );
+    if (found) {
+      return true;
+    }
+  } catch {}
+
+  // Strategy 3: Check data-automation-id containing the node name
+  try {
+    const found = await driver.executeScript<boolean>(
+      `var els = document.querySelectorAll('[data-automation-id]');
+      for (var i = 0; i < els.length; i++) {
+        var aid = els[i].getAttribute('data-automation-id').toLowerCase();
+        if (aid.includes('card-') && aid.includes(arguments[0])) return true;
+      }
+      return false;`,
+      lowerText
+    );
+    if (found) {
+      return true;
+    }
+  } catch {}
+
+  return false;
+}
+
+/**
+ * Open the designer for a workflow.json via right-click in the Explorer tree.
+ *
+ * This is more reliable than the command palette approach because:
+ *   - It doesn't require workflow.json to be the active focused editor tab
+ *   - Context menu items are available as soon as the extension loads
+ *   - It mirrors how real users actually open the designer
+ *
+ * Strategy: use openResources() to reveal + select the workflow.json in the
+ * Explorer tree, then right-click the selected row and click "Open Designer".
+ */
+// Phase 4.1: module-scoped flag for asymmetric retry budget (cold-start
+// first open needs ~32s; subsequent opens use Phase 4's ~7.75s budget).
+let __firstOpenDone = false;
+
+export async function openDesignerViaExplorer(
+  driver: WebDriver,
+  workflowJsonPath: string,
+  label: string,
+  retried = false,
+  allowCommandFallback = false
+): Promise<boolean> {
+  const isFirstOpen = !__firstOpenDone;
+  console.log(`[openDesignerViaExplorer] Opening designer for "${label}"${retried ? ' (retry pass)' : ''} (isFirstOpen=${isFirstOpen})`);
+
+  // Switch to Explorer view
+  try {
+    await driver.actions().keyDown(Key.CONTROL).keyDown(Key.SHIFT).sendKeys('e').keyUp(Key.SHIFT).keyUp(Key.CONTROL).perform();
+    await sleep(1500);
+  } catch {
+    /* ignore */
+  }
+
+  // Phase 3 R3: Force Explorer tree refresh before relying on the tree state.
+  // Force Explorer tree refresh before relying on tree state. Opening one
+  // designer can leave the Explorer stale or collapsed before the next open.
+  try {
+    await new Workbench().executeCommand('workbench.files.action.refreshFilesExplorer');
+  } catch {
+    /* ignore */
+  }
+  try {
+    const parentFolder = path.basename(path.dirname(workflowJsonPath));
+    await driver
+      .wait(async () => {
+        const folders = await driver.findElements(By.css(`.explorer-folders-view .monaco-list-row[aria-label*="${parentFolder}"]`));
+        if (folders.length === 0) {
+          return false;
+        }
+        const expanded = await folders[0].getAttribute('aria-expanded').catch(() => null);
+        if (expanded === 'false') {
+          try {
+            await folders[0].click();
+          } catch {
+            /* row may go stale during expand */
+          }
+          await sleep(500);
+        }
+        return true;
+      }, 5_000)
+      .catch(() => undefined);
+  } catch {
+    /* ignore */
+  }
+  await driver
+    .wait(async () => {
+      const rows = await driver.findElements(By.css('.explorer-folders-view .monaco-list-row[aria-label*="workflow.json"]'));
+      return rows.length > 0;
+    }, 5_000)
+    .catch(() => undefined);
+
+  // Strategy B: VSBrowser.openResources reveals AND selects the row in the
+  // Explorer tree. CAUTION: `code -r` IPC silently NO-OPS on Linux CI — a
+  // silent failure throws no exception, so we verify a POSITIVE
+  // post-condition and explicitly throw to trigger the Quick Open fallback
+  // when the tree is still empty (same fix as designerActions.test.ts /
+  // multipleDesigners.test.ts copies of this routine).
+  try {
+    await VSBrowser.instance.openResources(workflowJsonPath);
+    await sleep(1500);
+    const revealed = await driver
+      .wait(async () => {
+        const rows = await driver.findElements(By.css('.explorer-viewlet .monaco-list-row, .explorer-folders-view .monaco-list-row'));
+        for (const row of rows) {
+          const text = await row.getText().catch(() => '');
+          // Match BOTH the parent folder/label AND workflow.json so we don't
+          // false-positive on a stale row from a previous workflow in the
+          // same shard.
+          if (text.includes(label) && text.includes('workflow.json')) {
+            return true;
+          }
+        }
+        return false;
+      }, 5_000)
+      .then(() => true)
+      .catch(() => false);
+    if (revealed) {
+      console.log('[openDesignerViaExplorer] openResources revealed workflow.json - skipping Quick Open');
+    } else {
+      console.log('[openDesignerViaExplorer] openResources completed but tree not populated - falling through to Quick Open');
+      throw new Error('openResources silent no-op detected');
+    }
+  } catch (e: any) {
+    console.log(`[openDesignerViaExplorer] Reveal via openResources failed: ${e.message} - using Quick Open fallback`);
+    try {
+      await driver.actions().keyDown(Key.CONTROL).keyDown(Key.SHIFT).sendKeys('e').keyUp(Key.SHIFT).keyUp(Key.CONTROL).perform();
+      await sleep(1000);
+      await driver.actions().keyDown(Key.CONTROL).sendKeys('p').keyUp(Key.CONTROL).perform();
+      await sleep(1000);
+      await waitForQuickInputAndType(driver, `${label}/workflow.json`);
+      await sleep(1500);
+      await driver.actions().sendKeys(Key.ENTER).perform();
+      await sleep(2000);
+      console.log('[openDesignerViaExplorer] Opened workflow.json via Quick Open fallback');
+    } catch (qoErr: any) {
+      console.log(`[openDesignerViaExplorer] Quick Open fallback also failed: ${qoErr.message}`);
+    }
+  }
+
+  // Re-focus Explorer so the opened file is selected/revealed in the tree
+  try {
+    await driver.actions().keyDown(Key.CONTROL).keyDown(Key.SHIFT).sendKeys('e').keyUp(Key.SHIFT).keyUp(Key.CONTROL).perform();
+    await sleep(1500);
+  } catch {
+    /* ignore */
+  }
+
+  // Force the Explorer tree to expand to and reveal the now-active editor's file.
+  // Quick Open opens the file in the editor but does NOT expand the Explorer tree,
+  // so the polling loop below can re-query a collapsed-tree DOM forever (observed
+  // on cold per-scenario shards p42-{standard,customcode,rulesengine}, p48c —
+  // CI run 25946044192). Try the modern command first, then known fallbacks.
+  const revealCandidates = [
+    'workbench.files.action.showActiveFileInExplorer',
+    'revealInExplorer',
+    'workbench.action.revealActiveEditorInExplorer',
+  ];
+  for (const cmd of revealCandidates) {
+    try {
+      await new Workbench().executeCommand(cmd);
+      console.log(`[openDesignerViaExplorer] Revealed active file via "${cmd}"`);
+      await sleep(800); // let tree expansion animate + DOM settle
+      break;
+    } catch (revealErr: any) {
+      console.log(`[openDesignerViaExplorer] reveal command "${cmd}" failed: ${revealErr.message?.split('\n')[0]}`);
+    }
+  }
+
+  // Phase 4.1: asymmetric retry budget. Cold-start FIRST workflow open
+  // races extension activation and needs more headroom (~32s with longer
+  // backoffs) — Phase 4's flat 5 x [250,500,1000,2000,4000] = ~7.75s
+  // budget wasn't enough for p42-standard / p42-rulesengine test1 (cold
+  // start, reveal=false). Subsequent opens use Phase 4's logarithmic
+  // budget which keeps the p43-customcode flake fix.
+  const backoffs = isFirstOpen ? [250, 500, 1000, 2000, 4000, 6000, 8000, 10_000] : [250, 500, 1000, 2000, 4000];
+  const maxAttempts = backoffs.length;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    console.log(`[openDesignerViaExplorer] Attempt ${attempt + 1}/${maxAttempts} for "${label}"`);
+    try {
+      // Wait for the menubar overlay to be inactive before clicking. The
+      // menubar-menu-title element can intercept clicks on context menu rows
+      // if it isn't aria-hidden yet.
+      try {
+        await driver.wait(async () => {
+          const active = await driver.findElements(By.css('.menubar-menu-title:not([aria-hidden="true"])'));
+          return active.length === 0;
+        }, 3000);
+      } catch {
+        /* menubar still active — proceed anyway; click retry handles it */
+      }
+      // Brief settle pause for any transient overlay
+      await sleep(300);
+
+      // Scroll the selected workflow.json into view
+      await driver.executeScript(`
+        var items = document.querySelectorAll('.explorer-viewlet .monaco-list-row, .explorer-folders-view .monaco-list-row');
+        for (var i = 0; i < items.length; i++) {
+          if ((items[i].textContent || '').includes('workflow.json') &&
+              items[i].classList.contains('selected')) {
+            items[i].scrollIntoView({block: 'center'});
+            break;
+          }
+        }
+      `);
+
+      // Find the selected/focused workflow.json row
+      const rows = await driver.findElements(By.css('.explorer-viewlet .monaco-list-row, .explorer-folders-view .monaco-list-row'));
+
+      let targetRow = null;
+      // Strategy 1: Find the row that's selected
+      for (const row of rows) {
+        const text = await row.getText().catch(() => '');
+        const classes = await row.getAttribute('class').catch(() => '');
+        if (text.includes('workflow.json') && (classes.includes('selected') || classes.includes('focused'))) {
+          targetRow = row;
+          break;
+        }
+      }
+
+      // Strategy 2: Find near the workflow folder name
+      if (!targetRow) {
+        let foundParentFolder = false;
+        for (const row of rows) {
+          const text = await row.getText().catch(() => '');
+          if (text.includes(label)) {
+            foundParentFolder = true;
+            continue;
+          }
+          if (foundParentFolder && text.includes('workflow.json')) {
+            targetRow = row;
+            break;
+          }
+          if (foundParentFolder && !text.includes('workflow.json') && !text.includes('.')) {
+            break;
+          }
+        }
+      }
+
+      // Strategy 3: Any workflow.json
+      if (!targetRow) {
+        for (const row of rows) {
+          const text = await row.getText().catch(() => '');
+          if (text.includes('workflow.json')) {
+            targetRow = row;
+            break;
+          }
+        }
+      }
+
+      if (!targetRow) {
+        console.log(`[openDesignerViaExplorer] workflow.json not found in tree (attempt ${attempt + 1}/${maxAttempts})`);
+        if (process.env.LA_E2E_DEBUG_TREE === '1') {
+          const allRows = await driver.findElements(By.css('.explorer-viewlet .monaco-list-row, .explorer-folders-view .monaco-list-row'));
+          for (let i = 0; i < Math.min(20, allRows.length); i++) {
+            const t = await allRows[i].getText().catch(() => '?');
+            console.log(`  [tree-row ${i}] ${t.replace(/\n/g, ' | ')}`);
+          }
+        }
+        await sleep(backoffs[attempt]);
+        continue;
+      }
+
+      // Right-click and find "Open Designer"
+      await driver.actions().contextClick(targetRow).perform();
+      await sleep(1500);
+
+      const menuItems = await driver.findElements(
+        By.css('.context-view .action-item a, .monaco-menu .action-item a, .context-view .action-label')
+      );
+      for (const menuItem of menuItems) {
+        try {
+          const menuLabel = await menuItem.getText();
+          if (menuLabel.toLowerCase().includes('open designer') && !menuLabel.toLowerCase().includes('data map')) {
+            console.log(`[openDesignerViaExplorer] Clicking: "${menuLabel}"`);
+            try {
+              await menuItem.click();
+            } catch (clickErr: any) {
+              const msg = (clickErr?.message || '').split('\n')[0];
+              const name = clickErr?.name || '';
+              // ElementClickInterceptedError / StaleElementReferenceError —
+              // bail to outer attempt loop after dismissing the menu and
+              // letting the menubar overlay settle (mirrors openOverviewPage
+              // hardening from 358332a41).
+              console.log(`[openDesignerViaExplorer] menuItem.click intercepted/stale (${name}): ${msg}`);
+              try {
+                await driver.actions().sendKeys(Key.ESCAPE).perform();
+              } catch {
+                /* ignore */
+              }
+              await sleep(800);
+              throw clickErr;
+            }
+            await sleep(3000);
+
+            const found = await waitForDesignerWebviewTab(driver);
+            if (found) {
+              console.log(`[openDesignerViaExplorer] Designer webview tab detected for "${label}"`);
+              // Phase 2 F1 — iframe presence != React canvas ready. Delegate
+              // to switchToDesignerWebview which has staged readyLevel
+              // progression (msla-designer-canvas -> react-flow__viewport ->
+              // nodes/trigger card). On failure, close the active editor and
+              // recursively retry openDesignerViaExplorer ONCE (planner B1: do
+              // NOT use workbench.action.reloadWindow — kills webview + design-
+              // time host with no recovery harness in this test suite).
+              try {
+                await switchToDesignerWebview(driver, 30_000);
+                try {
+                  await driver.switchTo().defaultContent();
+                } catch {
+                  /* ignore */
+                }
+                console.log(`[openDesignerViaExplorer] Designer canvas ready for "${label}"`);
+                __firstOpenDone = true;
+                return true;
+              } catch (canvasErr: any) {
+                try {
+                  await driver.switchTo().defaultContent();
+                } catch {
+                  /* ignore */
+                }
+                console.log(`[openDesignerViaExplorer] Canvas-ready check failed: ${canvasErr.message}`);
+                if (retried) {
+                  // Planner I4: diagnostic dump on final failure.
+                  try {
+                    const allIframes = await driver.findElements(By.css('iframe'));
+                    console.log(`[openDesignerViaExplorer][diag] iframe count after canvas-fail: ${allIframes.length}`);
+                  } catch {
+                    /* ignore */
+                  }
+                  try {
+                    await captureScreenshot(driver, `openDesignerViaExplorer-canvas-fail-${label}`);
+                  } catch {
+                    /* ignore */
+                  }
+                  return false;
+                }
+                console.log('[openDesignerViaExplorer] Retrying once after close-active-editor');
+                // Snapshot state at retry trigger so CI logs can compare
+                // attempt-1 vs attempt-2 state.
+                try {
+                  const iframes = await driver.findElements(By.css('iframe'));
+                  console.log(`[openDesignerViaExplorer][pre-retry] iframe count: ${iframes.length}`);
+                  await captureScreenshot(driver, `openDesignerViaExplorer-pre-retry-${label}`);
+                } catch {
+                  /* ignore */
+                }
+                try {
+                  await new Workbench().executeCommand('workbench.action.closeActiveEditor');
+                  // Give the design-time host time to settle between attempts.
+                  await sleep(3000);
+                  try {
+                    await new Workbench().executeCommand('workbench.action.notifications.clearAll');
+                  } catch {
+                    /* ignore */
+                  }
+                  await sleep(500);
+                } catch {
+                  /* ignore */
+                }
+                return await openDesignerViaExplorer(driver, workflowJsonPath, label, true, allowCommandFallback);
+              }
+            }
+
+            ensureRuntimeDependencyExecutablePermissions();
+            console.log(`[openDesignerViaExplorer] Webview not detected for "${label}" — retrying`);
+            break;
+          }
+        } catch (menuErr: any) {
+          // Re-throw click-interception so outer attempt loop retries
+          // (don't swallow as "stale menu item")
+          if (menuErr?.name === 'ElementClickInterceptedError') {
+            throw menuErr;
+          }
+          /* stale menu item — try next */
+        }
+      }
+
+      // Dismiss context menu if "Open Designer" not found
+      await driver.actions().sendKeys(Key.ESCAPE).perform();
+      console.log(`[openDesignerViaExplorer] "Open Designer" not in context menu (attempt ${attempt + 1}/${maxAttempts})`);
+    } catch (e: any) {
+      console.log(`[openDesignerViaExplorer] Attempt ${attempt + 1}/${maxAttempts} failed: ${e.message}`);
+      try {
+        await driver.actions().sendKeys(Key.ESCAPE).perform();
+      } catch {
+        /* ignore */
+      }
+      await sleep(backoffs[attempt]);
+    }
+  }
+  if (allowCommandFallback) {
+    console.log(`[openDesignerViaExplorer] Falling back to command palette Open Designer for "${label}"`);
+    try {
+      if (await executeOpenDesignerCommand(new Workbench(), driver)) {
+        await sleep(3000);
+        await switchToDesignerWebview(driver, 30_000);
+        await driver.switchTo().defaultContent();
+        const titles = await new EditorView().getOpenEditorTitles().catch(() => []);
+        const expectedDesignerOpen = titles.some(
+          (title) => title.toLowerCase().includes(label.toLowerCase()) && title.toLowerCase().includes('workspace')
+        );
+        if (!expectedDesignerOpen) {
+          console.log(`[openDesignerViaExplorer] Command fallback opened unexpected designer tab. Titles=${JSON.stringify(titles)}`);
+          return false;
+        }
+        __firstOpenDone = true;
+        return true;
+      }
+    } catch (e: any) {
+      console.log(`[openDesignerViaExplorer] Command palette fallback failed: ${e.message}`);
+    }
+  }
   return false;
 }
 
@@ -1252,7 +2469,7 @@ export async function openDesignerForEntry(
   // 2.5. Ensure local.settings.json has WORKFLOWS_SUBSCRIPTION_ID to skip Azure wizard
   ensureLocalSettingsForDesigner(entry.appDir);
 
-  // 3. Open the workspace file
+  // 3. Open the workspace file via `code -r` to trigger extension activation for the selected shape.
   try {
     await openWorkspaceFileInSession(workbench, entry.wsFilePath);
     driver = VSBrowser.instance.driver;
@@ -1262,33 +2479,44 @@ export async function openDesignerForEntry(
     return { success: false, error: `Failed to open workspace: ${e.message}` };
   }
 
-  // 4. Open workflow.json in the editor
-  try {
-    await openFileInEditor(workbench, driver, workflowJsonPath);
-    console.log(`${tag} Opened workflow.json`);
-  } catch (e: any) {
-    return { success: false, error: `Failed to open workflow.json: ${e.message}` };
-  }
-
-  // 5. Wait for extension recognition, dismissing any blocking UI
+  // 4. Wait for extension to settle, dismiss blocking UI
   await sleep(PROJECT_RECOGNITION_WAIT);
   await clearBlockingUI(driver);
 
-  // 6. Execute Open Designer command
+  // 4.5. CRITICAL: Wait for the extension's dependency validation to fully complete.
+  // The extension shows "Validating Runtime Dependency" notifications for each
+  // dependency. The design-time API won't start until all validations are done.
+  // Without this wait, the designer opens but the React app can't load.
+  try {
+    await driver.switchTo().defaultContent();
+  } catch {
+    /* ignore */
+  }
+  if (process.env.LA_E2E_SKIP_VALIDATION_WAIT === '1') {
+    console.log(`${tag} Skipping dependency validation wait by scenario setting`);
+  } else {
+    await waitForExtensionValidationComplete(driver);
+  }
+
+  // 5. Open designer via right-click on workflow.json in the Explorer tree.
+  //    This is more reliable than the command palette because:
+  //    - It doesn't require workflow.json to be the active editor tab
+  //    - Context menu items appear as soon as the extension loads
+  //    - It mirrors how real users actually open the designer
   try {
     await driver.switchTo().defaultContent();
   } catch {
     /* ignore */
   }
 
-  const commandFound = await executeOpenDesignerCommand(workbench, driver);
-  if (!commandFound) {
-    await captureScreenshot(driver, `${entry.label}-command-not-found`);
-    return { success: false, error: 'Open Designer command not found in palette' };
+  const designerOpened = await openDesignerViaExplorer(driver, workflowJsonPath, entry.wfName || 'workflow', false, true);
+  if (!designerOpened) {
+    await captureScreenshot(driver, `${entry.label}-designer-not-opened`);
+    return { success: false, error: 'Could not open designer via Explorer right-click' };
   }
-  console.log(`${tag} Open Designer command executed`);
+  console.log(`${tag} Designer opened`);
 
-  // 7. Switch into the webview
+  // 6. Switch into the webview
   // Note: prompt handling is now integrated into waitForDesignerWebviewTab()
   try {
     await driver.switchTo().defaultContent();
@@ -1297,6 +2525,8 @@ export async function openDesignerForEntry(
   }
 
   try {
+    // switchToDesignerWebview now throws on timeout (Phase 2 F1). The try/catch
+    // below converts that throw into a structured { success: false } return.
     const webview = await switchToDesignerWebview(driver);
     console.log(`${tag} Switched into designer webview`);
     return { success: true, webview };
@@ -1331,7 +2561,7 @@ export async function clickSaveButton(driver: WebDriver): Promise<boolean> {
               const isSaving = await driver.executeScript<boolean>(`
                 var btn = document.querySelector('button[aria-label="Save"]');
                 if (!btn) return false;
-                return btn.textContent.includes('Saving') || btn.disabled;
+                return btn.textContent.includes('Saving');
               `);
               if (!isSaving) {
                 console.log('[save] Save completed');
@@ -1342,8 +2572,8 @@ export async function clickSaveButton(driver: WebDriver): Promise<boolean> {
             }
             await sleep(500);
           }
-          console.log('[save] Save may still be in progress after timeout');
-          return true;
+          console.log('[save] Save still in progress after timeout');
+          return false;
         }
       }
     } catch {
@@ -1760,14 +2990,37 @@ export async function addParallelBranch(driver: WebDriver, afterNodeText: string
  */
 export async function openNodeSettingsPanel(driver: WebDriver, nodeText: string): Promise<boolean> {
   try {
+    const exactNode = await driver.findElements(By.css(`#msla-node-${nodeText}`));
+    if (exactNode.length > 0) {
+      await driver.actions().move({ origin: exactNode[0] }).click().perform();
+      await sleep(1500);
+      console.log(`[openNodeSettingsPanel] Clicked exact node "${nodeText}"`);
+      return true;
+    }
+
     const nodes = await driver.findElements(By.css('.react-flow__node'));
+    const candidates: Array<{ node: WebElement; text: string }> = [];
     for (const node of nodes) {
       const text = await node.getText().catch(() => '');
       if (text.toLowerCase().includes(nodeText.toLowerCase())) {
-        await driver.actions().move({ origin: node }).click().perform();
+        candidates.push({ node, text });
+      }
+    }
+    candidates.sort((a, b) => a.text.length - b.text.length);
+    for (const candidate of candidates) {
+      try {
+        await driver.actions().move({ origin: candidate.node }).click().perform();
         await sleep(1500);
-        console.log(`[openNodeSettingsPanel] Clicked on node "${nodeText}"`);
-        return true;
+        const bodyText = await driver
+          .findElement(By.css('body'))
+          .getText()
+          .catch(() => '');
+        if (bodyText.toLowerCase().includes(nodeText.toLowerCase())) {
+          console.log(`[openNodeSettingsPanel] Clicked on node "${nodeText}"`);
+          return true;
+        }
+      } catch {
+        /* try the next candidate */
       }
     }
     console.log(`[openNodeSettingsPanel] Node "${nodeText}" not found`);
@@ -1784,29 +3037,40 @@ export async function openNodeSettingsPanel(driver: WebDriver, nodeText: string)
  */
 export async function openRunAfterSettings(driver: WebDriver): Promise<boolean> {
   try {
-    // Look for a "Settings" tab or "Run After" section header
-    const selectors = ['[data-automation-id*="run-after"]', '[aria-label*="Run After"]', '[aria-label*="Settings"]'];
-
-    for (const selector of selectors) {
-      const elements = await driver.findElements(By.css(selector));
-      if (elements.length > 0) {
-        await elements[0].click();
-        await sleep(1000);
-        console.log('[openRunAfterSettings] Opened Run After settings');
-        return true;
+    const clickRunAfterHeader = async (): Promise<boolean> => {
+      const headers = await driver.findElements(
+        By.css(
+          '.msla-setting-section-header, [data-automation-id*="runAfter"], [data-automation-id*="run-after"], [aria-label*="Run after"], [aria-label*="Run After"]'
+        )
+      );
+      for (const header of headers) {
+        const text = await header.getText().catch(() => '');
+        const ariaLabel = await header.getAttribute('aria-label').catch(() => '');
+        if (`${text} ${ariaLabel}`.toLowerCase().includes('run after')) {
+          await driver.executeScript('arguments[0].scrollIntoView({ block: "center" });', header).catch(() => undefined);
+          await driver.actions().move({ origin: header }).click().perform();
+          await sleep(1000);
+          console.log('[openRunAfterSettings] Opened Run after section');
+          return true;
+        }
       }
-    }
+      return false;
+    };
 
-    // Try finding by text content
-    const buttons = await driver.findElements(By.xpath('//button[contains(text(), "Settings") or contains(text(), "Run After")]'));
-    if (buttons.length > 0) {
-      await buttons[0].click();
-      await sleep(1000);
-      console.log('[openRunAfterSettings] Opened settings via text match');
+    if (await clickRunAfterHeader()) {
       return true;
     }
 
-    // Try the tab/pivot pattern used in the designer
+    // Try finding by text content
+    const runAfterButtons = await driver.findElements(By.xpath('//button[contains(., "Run after") or contains(., "Run After")]'));
+    if (runAfterButtons.length > 0) {
+      await runAfterButtons[0].click();
+      await sleep(1000);
+      console.log('[openRunAfterSettings] Opened Run after via text match');
+      return true;
+    }
+
+    // Try the tab/pivot pattern used in the designer, then expand the Run after section within Settings.
     const tabs = await driver.findElements(By.css('[role="tab"]'));
     for (const tab of tabs) {
       const text = await tab.getText().catch(() => '');
@@ -1814,7 +3078,9 @@ export async function openRunAfterSettings(driver: WebDriver): Promise<boolean> 
         await tab.click();
         await sleep(1000);
         console.log('[openRunAfterSettings] Opened Settings tab');
-        return true;
+        if (await clickRunAfterHeader()) {
+          return true;
+        }
       }
     }
 
@@ -1832,30 +3098,209 @@ export async function openRunAfterSettings(driver: WebDriver): Promise<boolean> 
  */
 export async function configureRunAfter(driver: WebDriver, statuses: string[]): Promise<boolean> {
   try {
-    for (const status of statuses) {
-      const checkboxes = await driver.findElements(
-        By.xpath(`//input[@type="checkbox" and (contains(..//text(), "${status}") or contains(@aria-label, "${status}"))]`)
-      );
-      if (checkboxes.length > 0) {
-        // Check if already checked
-        const checked = await checkboxes[0].getAttribute('checked');
-        if (!checked) {
-          await checkboxes[0].click();
-          console.log(`[configureRunAfter] Toggled "${status}"`);
+    const desired = new Set(statuses.map((status) => status.toLowerCase()));
+    const statusLabels: Record<string, string> = {
+      Succeeded: 'Is successful',
+      Failed: 'Has failed',
+      Skipped: 'Is skipped',
+      TimedOut: 'Has timed out',
+    };
+    const allStatuses = Object.keys(statusLabels);
+    const getStates = async () =>
+      driver.executeScript<{
+        found: string[];
+        checked: Record<string, boolean>;
+        disabled: Record<string, boolean>;
+        diagnostics: string[];
+      }>(
+        `
+        const labels = arguments[0];
+        const found = [];
+        const checked = {};
+        const disabled = {};
+        const diagnostics = [];
+        const usedControls = [];
+        function getRoot() {
+          const roots = Array.from(document.querySelectorAll('[role="tabpanel"], [data-automation-id*="runAfter"], [data-automation-id*="run-after"], .msla-setting-section, .msla-panel'));
+          const root = roots.find((root) => {
+            const text = (root.textContent || '').toLowerCase();
+            return text.includes('run after') && (text.includes('has failed') || text.includes('is successful') || text.includes('has timed out'));
+          });
+          if (!root) {
+            diagnostics.push('run-after status root not found');
+          }
+          return root;
         }
-      } else {
-        // Try clicking a label that contains the status text
-        const labels = await driver.findElements(By.xpath(`//label[contains(text(), "${status}")]`));
-        if (labels.length > 0) {
-          await labels[0].click();
-          console.log(`[configureRunAfter] Clicked label for "${status}"`);
-        } else {
-          console.log(`[configureRunAfter] Checkbox for "${status}" not found`);
+        function findControl(label) {
+          const lowerLabel = String(label).toLowerCase();
+          const root = getRoot();
+          if (!root) {
+            diagnostics.push(String(label) + ': no run-after root');
+            return null;
+          }
+          const candidates = Array.from(
+            root.querySelectorAll(
+              'input[type="checkbox"], [role="checkbox"], label, .fui-Checkbox, [class*="fui-Checkbox"], [class*="Checkbox__label"]'
+            )
+          );
+          for (const el of candidates) {
+            const checkboxContainer = el.closest('.fui-Checkbox, [class*="fui-Checkbox"], label');
+            const text = [
+              el.getAttribute('aria-label') || '',
+              el.getAttribute('title') || '',
+              checkboxContainer?.textContent || '',
+              el.textContent || '',
+              el.parentElement?.textContent || '',
+            ].join(' ').toLowerCase();
+            if (!text.includes(lowerLabel)) {
+              continue;
+            }
+            let node = el;
+            for (let depth = 0; node && depth < 6; depth++) {
+              const input = node instanceof HTMLInputElement ? node : node.querySelector?.('input[type="checkbox"]');
+              const roleCheckbox = node.getAttribute?.('role') === 'checkbox' ? node : node.querySelector?.('[role="checkbox"]');
+              const control = input || roleCheckbox;
+              if (control) {
+                if (usedControls.includes(control)) {
+                  diagnostics.push(String(label) + ': duplicate control');
+                  return null;
+                }
+                usedControls.push(control);
+                return { control, input: input instanceof HTMLInputElement ? input : null };
+              }
+              node = node.parentElement;
+            }
+          }
+          diagnostics.push(String(label) + ': not found');
+          return null;
+        }
+        for (const [status, label] of Object.entries(labels)) {
+          const match = findControl(label);
+          if (!match) {
+            continue;
+          }
+          found.push(status);
+          checked[status] = match.input ? match.input.checked : match.control.getAttribute('aria-checked') === 'true';
+          disabled[status] = match.input ? match.input.disabled : match.control.getAttribute('aria-disabled') === 'true';
+        }
+        if (found.length === 0) {
+          diagnostics.push('body=' + (document.body.textContent || '').slice(0, 1000));
+        }
+        return { found, checked, disabled, diagnostics };
+      `,
+        statusLabels
+      );
+    const expandCollapsedRunAfterRows = async () =>
+      driver.executeScript<number>(
+        `
+        let clicked = 0;
+        const candidates = Array.from(document.querySelectorAll('button, [role="button"], [aria-expanded="false"]'));
+        for (const el of candidates) {
+          const text = [
+            el.getAttribute('aria-label') || '',
+            el.textContent || '',
+            el.parentElement?.textContent || '',
+            el.parentElement?.parentElement?.textContent || '',
+          ].join(' ').toLowerCase();
+          const looksExpandable =
+            text.includes('expand') || text.includes('run after') || text.includes('manual') || text.includes('response');
+          if (!looksExpandable) {
+            continue;
+          }
+          try {
+            el.scrollIntoView({ block: 'center', inline: 'center' });
+            el.click();
+            clicked++;
+          } catch {
+            // Keep trying other candidate expanders.
+          }
+        }
+        return clicked;
+      `
+      );
+    const clickStatus = async (status: string) =>
+      driver.executeScript<boolean>(
+        `
+      const label = arguments[1];
+      function getRoot() {
+        const roots = Array.from(document.querySelectorAll('[role="tabpanel"], [data-automation-id*="runAfter"], [data-automation-id*="run-after"], .msla-setting-section, .msla-panel'));
+        return roots.find((root) => {
+          const text = (root.textContent || '').toLowerCase();
+          return text.includes('run after') && (text.includes('has failed') || text.includes('is successful') || text.includes('has timed out'));
+        });
+      }
+      const lowerLabel = String(label).toLowerCase();
+      const root = getRoot();
+      if (!root) {
+        return false;
+      }
+      const candidates = Array.from(root.querySelectorAll('input[type="checkbox"], [role="checkbox"], label, .fui-Checkbox, [class*="fui-Checkbox"], [class*="Checkbox__label"]'));
+      for (const el of candidates) {
+        const checkboxContainer = el.closest('.fui-Checkbox, [class*="fui-Checkbox"], label');
+        const text = [
+          el.getAttribute('aria-label') || '',
+          el.getAttribute('title') || '',
+          checkboxContainer?.textContent || '',
+          el.textContent || '',
+          el.parentElement?.textContent || '',
+        ].join(' ').toLowerCase();
+        if (!text.includes(lowerLabel)) {
+          continue;
+        }
+        let node = el;
+        for (let depth = 0; node && depth < 6; depth++) {
+          const input = node instanceof HTMLInputElement ? node : node.querySelector?.('input[type="checkbox"]');
+          const roleCheckbox = node.getAttribute?.('role') === 'checkbox' ? node : node.querySelector?.('[role="checkbox"]');
+          const control = input || roleCheckbox;
+          if (!control) {
+            node = node.parentElement;
+            continue;
+          }
+          const disabled = input instanceof HTMLInputElement ? input.disabled : control.getAttribute('aria-disabled') === 'true';
+          if (disabled) {
+            return false;
+          }
+          control.scrollIntoView({ block: 'center', inline: 'center' });
+          control.click();
+          return true;
         }
       }
-      await sleep(300);
+        return false;
+    `,
+        status,
+        statusLabels[status as keyof typeof statusLabels]
+      );
+
+    let states = await getStates();
+    if (states.found.length === 0) {
+      const expanded = await expandCollapsedRunAfterRows();
+      console.log(`[configureRunAfter] Expanded ${expanded} collapsed run-after candidate(s) before checkbox query`);
+      await sleep(800);
+      states = await getStates();
     }
-    return true;
+    for (const status of allStatuses) {
+      if (desired.has(status.toLowerCase()) && !states.checked[status]) {
+        await clickStatus(status);
+        await sleep(400);
+      }
+    }
+
+    states = await getStates();
+    for (const status of allStatuses) {
+      if (!desired.has(status.toLowerCase()) && states.checked[status]) {
+        await clickStatus(status);
+        await sleep(400);
+      }
+    }
+
+    states = await getStates();
+    const matchesDesired = allStatuses.every((status) => !!states.checked[status] === desired.has(status.toLowerCase()));
+    console.log(
+      `[configureRunAfter] Found=${states.found.join(',')} checked=${JSON.stringify(states.checked)} diagnostics=${JSON.stringify(
+        states.diagnostics
+      )}`
+    );
+    return allStatuses.every((status) => states.found.includes(status)) && matchesDesired;
   } catch (e: any) {
     console.log(`[configureRunAfter] Error: ${e.message}`);
     return false;

@@ -80,6 +80,11 @@ describe('Validation helpers', () => {
       ['My.Namespace', true],
       ['_Root.Sub', true],
       ['A.B.C', true],
+      ['MyCompany.Functions', true],
+      ['MyCompany.Functions.V2', true],
+      ['_underscore._leading', true],
+      ['A', true],
+      ['A1.B2.C3', true],
     ])('"%s" should be valid', (ns, expected) => {
       expect(namespaceValidation.test(ns)).toBe(expected);
     });
@@ -88,6 +93,12 @@ describe('Validation helpers', () => {
       ['my-namespace', false],
       ['123.Abc', false],
       ['.Abc', false],
+      ['Abc.', false],
+      ['A..B', false],
+      ['', false],
+      ['A.123', false],
+      ['A .B', false],
+      ['A.B-C', false],
     ])('"%s" should be invalid', (ns, expected) => {
       expect(namespaceValidation.test(ns)).toBe(expected);
     });

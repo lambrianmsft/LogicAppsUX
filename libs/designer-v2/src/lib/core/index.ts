@@ -23,6 +23,8 @@ export {
   setFocusNode,
   setIsWorkflowDirty,
   setHostErrorMessages,
+  setCopilotModifiedNodeIds,
+  clearCopilotModifiedNodeIds,
 } from './state/workflow/workflowSlice';
 export {
   useIsWorkflowDirty,
@@ -48,6 +50,8 @@ export {
   setPendingFoundryUpdate,
   clearPendingFoundryUpdate,
   getPendingFoundryUpdate,
+  consumeVersionRefresh,
+  needsVersionRefresh,
 } from './actions/bjsworkflow/foundryUpdates';
 export {
   setSelectedNodeId,
@@ -105,6 +109,7 @@ export { addOperation } from './actions/bjsworkflow/add';
 export { addConnectorAsOperation } from './actions/bjsworkflow/agent';
 export { updateNodeConnection } from './actions/bjsworkflow/connections';
 export { storeStateToUndoRedoHistory, onUndoClick, onRedoClick } from './actions/bjsworkflow/undoRedo';
+export { initializeNotes } from './state/notes/notesSlice';
 export { useCanUndo, useCanRedo } from './state/undoRedo/undoRedoSelectors';
 export { resetDesignerView } from './state/designerView/designerViewSlice';
 export * from './queries/role';

@@ -36,15 +36,15 @@ vi.mock('@microsoft/vscode-azext-utils', () => {
         telemetry: { properties: {}, measurements: {} },
         errorHandling: { issueProperties: {} },
         ui: {
-          onDidFinishPrompt: (_listener: unknown) => ({ dispose: () => undefined }),
+          onDidFinishPrompt: vi.fn(),
           showQuickPick: vi.fn(),
           showInputBox: vi.fn(),
           showWarningMessage: vi.fn(),
           showOpenDialog: vi.fn(),
           showWorkspaceFolderPick: vi.fn(),
-        } as any,
+        },
         valuesToMask: [],
-      } as IActionContext);
+      });
     },
     parseError: vi.fn(() => {
       return { message: 'error' };
@@ -67,6 +67,7 @@ vi.mock('os', () => ({
   arch: vi.fn(() => 'x64'),
   homedir: vi.fn(() => '/Users/testuser'),
   tmpdir: vi.fn(() => '/tmp'),
+  platform: vi.fn(() => 'darwin'),
   EOL: '\n',
 }));
 
@@ -97,6 +98,13 @@ vi.mock('child_process');
 vi.mock('util');
 
 vi.mock('axios');
+
+vi.mock('vscode-languageclient/node', () => ({
+  LanguageClient: vi.fn().mockImplementation(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
+}));
 
 vi.mock('vscode', () => ({
   window: {

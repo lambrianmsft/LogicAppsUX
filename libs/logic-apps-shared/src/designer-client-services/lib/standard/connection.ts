@@ -89,15 +89,21 @@ export interface AgentConnectionModel {
   displayName?: string;
 }
 
+interface OpenAIAuthentication {
+  authentication: {
+    type: string;
+    key?: string;
+  };
+  endpoint: string;
+}
 export interface KnowledgeHubConnectionModel {
-  openAI: {
+  completionsOpenAI: {
     completionsModel: string;
+    openAI: OpenAIAuthentication;
+  };
+  embeddingsOpenAI: {
     embeddingsModel: string;
-    authentication: {
-      type: string;
-      key?: string;
-    };
-    endpoint: string;
+    openAI: OpenAIAuthentication;
   };
   cosmosDB: {
     authentication: {
@@ -150,6 +156,7 @@ const knowledgeHubLocation = 'knowledgeHubConnections';
 const mcpLocation = 'agentMcpConnections';
 export const foundryServiceConnectionRegex = /\/Microsoft\.CognitiveServices\/accounts\/[^/]+\/projects\/[^/]+/;
 export const apimanagementRegex = /\/Microsoft\.ApiManagement\/service\/[^/]+\/apis\/[^/]+/;
+export const microsoftFoundryModelsRegex = /\/models$/;
 
 export interface StandardConnectionServiceOptions {
   apiVersion: string;
@@ -668,7 +675,7 @@ export class StandardConnectionService extends BaseConnectionService implements 
           parametersMetadata
         );
         connectionsData = connectionAndSettings;
-        connection = convertKnowledgeHubConnectionDataToConnection(connectionsData.connectionKey, rawConnection);
+        connection = convertKnowledgeHubConnectionDataToConnection(connectionsData.connectionKey, (rawConnection as any).parameterValues);
         break;
       }
       default: {
@@ -759,8 +766,8 @@ function convertServiceProviderConnectionDataToConnection(
   };
 }
 
-function convertKnowledgeHubConnectionDataToConnection(connectionKey: string, connectionData: KnowledgeHubConnectionModel): Connection {
-  const { displayName, openAI, cosmosDB } = connectionData;
+function convertKnowledgeHubConnectionDataToConnection(connectionKey: string, connectionData: Record<string, any>): Connection {
+  const { displayName, completionsOpenAI, embeddingsOpenAI, cosmosDB, openAI } = connectionData;
 
   return {
     name: connectionKey,
@@ -770,16 +777,15 @@ function convertKnowledgeHubConnectionDataToConnection(connectionKey: string, co
       api: { id: '/knowledgehub' } as any,
       createdTime: '',
       connectionParameters: {
-        openAI: {
+        data: {
           type: 'object',
           metadata: {
-            value: openAI,
-          },
-        },
-        cosmosDB: {
-          type: 'object',
-          metadata: {
-            value: cosmosDB,
+            value: {
+              openAI: openAI ?? completionsOpenAI?.openAI ?? embeddingsOpenAI?.openAI,
+              cosmosDB,
+              embeddingsOpenAI,
+              completionsOpenAI,
+            },
           },
         },
       },
@@ -941,8 +947,12 @@ function convertToAgentConnectionsData(
       },
       endpoint: isBringYourOwnKeyAuth || isClientCertificateAuth ? parameterValues?.['endpoint'] : parameterValues?.['openAIEndpoint'],
       // Only include resourceId if it has a value
-      ...(cognitiveServiceAccountId && { resourceId: cognitiveServiceAccountId }),
-      type: isFoundryAgentServiceConnection ? 'FoundryAgentService' : isAPIMManagementConnection ? 'APIMGenAIGateway' : 'model',
+      // Append /models for standard Cognitive Services connections (MicrosoftFoundry) to distinguish from legacy AzureOpenAI
+      ...(cognitiveServiceAccountId && {
+        resourceId:
+          isFoundryAgentServiceConnection || isAPIMManagementConnection ? cognitiveServiceAccountId : `${cognitiveServiceAccountId}/models`,
+      }),
+      type: isAPIMManagementConnection ? 'APIMGenAIGateway' : 'model',
     },
     settings,
     pathLocation: [agentLocation],
@@ -961,18 +971,22 @@ function convertToKnowledgeHubConnectionsData(
   connectionAndSettings: ConnectionAndAppSetting<KnowledgeHubConnectionModel>;
   rawConnection: KnowledgeHubConnectionModel;
 } {
-  const { parameterValues, rawParameterValues, settings, displayName } = createLocalConnectionsData(
+  const { parameterValues, rawParameterValues, settings } = createLocalConnectionsData(
     connectionKey,
     connectionInfo,
     connectionParameterMetadata
   );
 
+  const connectionParameterValues = { ...parameterValues } as any;
+  const openAIAuthentication = { ...parameterValues?.['openAI'] };
+  delete connectionParameterValues['openAI'];
+
+  connectionParameterValues.embeddingsOpenAI.openAI = openAIAuthentication;
+  connectionParameterValues.completionsOpenAI.openAI = openAIAuthentication;
+
   const connectionsData: ConnectionAndAppSetting<KnowledgeHubConnectionModel> = {
     connectionKey,
-    connectionData: {
-      ...(parameterValues as any),
-      displayName: displayName as string,
-    },
+    connectionData: connectionParameterValues,
     settings,
     pathLocation: [knowledgeHubLocation],
   };
@@ -1087,11 +1101,13 @@ function convertToMcpConnectionsData(
     processValue(connectionParametersSet.values, 'authority', false);
     processValue(connectionParametersSet.values, 'tenant', false);
     processValue(connectionParametersSet.values, 'audience', false);
+    processValue(connectionParametersSet.values, 'identity', false);
     processValue(connectionParametersSet.values, 'clientId', false);
     processValue(connectionParametersSet.values, 'secret', true);
     processValue(connectionParametersSet.values, 'value', true);
     processValue(connectionParametersSet.values, 'key', true);
     processValue(connectionParametersSet.values, 'keyHeaderName', false);
+    processValue(connectionParametersSet.values, 'identity', false);
   }
 
   return {
@@ -1162,9 +1178,10 @@ function createLocalConnectionsData(
 
   for (const parameterKey of Object.keys(parameterValues)) {
     const connectionParameter = connectionParameters?.[parameterKey] as ConnectionParameter;
+    const skipSerialize = connectionParameter?.uiDefinition?.constraints?.serialize === false;
     let parameterValue = parameterValues[parameterKey];
 
-    if (parameterValue !== undefined) {
+    if (parameterValue !== undefined && !skipSerialize) {
       const rawValue = parameterValue;
       if (connectionParameter?.parameterSource === ConnectionParameterSource.AppConfiguration) {
         const appSettingName = `${escapeSpecialChars(connectionKey)}_${escapeSpecialChars(parameterKey)}`;
@@ -1174,16 +1191,12 @@ function createLocalConnectionsData(
         parameterValue = `@appsetting('${appSettingName}')`;
       }
 
-      safeSetObjectPropertyValue(
-        result.parameterValues,
-        [...(connectionParameter?.uiDefinition?.constraints?.propertyPath ?? []), parameterKey],
-        parameterValue
-      );
-      safeSetObjectPropertyValue(
-        result.rawParameterValues,
-        [...(connectionParameter?.uiDefinition?.constraints?.propertyPath ?? []), parameterKey],
-        rawValue
-      );
+      const propertyPath = connectionParameter?.uiDefinition?.constraints?.serializationPath ?? [
+        ...(connectionParameter?.uiDefinition?.constraints?.propertyPath ?? []),
+        parameterKey,
+      ];
+      safeSetObjectPropertyValue(result.parameterValues, propertyPath, parameterValue);
+      safeSetObjectPropertyValue(result.rawParameterValues, propertyPath, rawValue);
     }
   }
 
