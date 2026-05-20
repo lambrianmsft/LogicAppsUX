@@ -22,10 +22,10 @@
         "--extensionTestsPath=${workspaceFolder}/out/test/e2e/runChatTests",
         "${workspaceFolder}/e2e/test-workspace"
       ],
-      "outFiles": [
-        "${workspaceFolder}/out/test/e2e/**/*.js",
-        "${workspaceFolder}/dist/**/*.js"
-      ],
+      "outFiles": ["${workspaceFolder}/out/test/e2e/**/*.js", "${workspaceFolder}/dist/**/*.js"],
+      "env": {
+        "LAUX_CHAT_TESTS": "1"
+      },
       "preLaunchTask": "npm: test:e2e-cli:compile"
     },
     {

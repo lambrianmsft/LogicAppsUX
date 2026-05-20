@@ -44,6 +44,7 @@ import { pickFuncProcess } from './pickFuncProcess';
 import { startRemoteDebug } from './remoteDebug/startRemoteDebug';
 import { restartLogicApp } from './restartLogicApp';
 import { startLogicApp } from './startLogicApp';
+import { startChatTests } from './startChatTests';
 import { stopLogicApp } from './stopLogicApp';
 import { swapSlot } from './swapSlot';
 import { viewProperties } from './viewProperties';
@@ -101,6 +102,7 @@ export function registerCommands(): void {
     ext.outputChannel.show();
   });
   registerCommandWithTreeNodeUnwrapping(extensionCommand.startLogicApp, startLogicApp);
+  registerCommand(extensionCommand.startChatTests, startChatTests);
   registerCommandWithTreeNodeUnwrapping(extensionCommand.stopLogicApp, stopLogicApp);
   registerCommandWithTreeNodeUnwrapping(extensionCommand.restartLogicApp, restartLogicApp);
   registerCommandWithTreeNodeUnwrapping(extensionCommand.pickProcess, pickFuncProcess);

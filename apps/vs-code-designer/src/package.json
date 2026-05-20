@@ -193,11 +193,11 @@
           "properties": {
             "workflowName": {
               "type": "string",
-              "description": "The name of the workflow to retrieve"
+              "description": "The name of the existing workflow to retrieve. Use only an explicit workflow name from the user, not connector parameters such as units, locations, table names, queue names, or enum values."
             },
             "projectName": {
               "type": "string",
-              "description": "Optional project name when the workflow exists in multiple projects"
+              "description": "Optional existing Logic App project folder name when the workflow exists in multiple projects. Use only explicit project/workspace context such as 'in project ContosoApp'; never use connector parameters such as Imperial, Metric, C, F, Celsius, Fahrenheit, locations, table names, or queue names."
             }
           },
           "required": ["workflowName"]
@@ -216,11 +216,11 @@
           "properties": {
             "workflowName": {
               "type": "string",
-              "description": "The name of the workflow to modify"
+              "description": "The name of the existing workflow to modify. Use only an explicit workflow target from the user, for example 'to Stateful1' or 'in workflow OrderProcessor'. Do not use connector parameters such as units, locations, table names, queue names, or enum values as workflow names."
             },
             "projectName": {
               "type": "string",
-              "description": "Optional project name when the workflow exists in multiple projects"
+              "description": "Optional existing Logic App project folder name when the workflow exists in multiple projects. Use only explicit project/workspace context such as 'in project ContosoApp'; never use connector parameters such as Imperial, Metric, C, F, Celsius, Fahrenheit, locations, table names, or queue names."
             },
             "actionType": {
               "type": "string",
@@ -228,7 +228,7 @@
             },
             "actionName": {
               "type": "string",
-              "description": "The name for the new action"
+              "description": "The name for the new action. Derive from the operation intent, such as Get_Current_Weather; do not use connector parameter values like Imperial, Metric, C, F, Seattle, table names, or queue names as the action name unless the user explicitly says to name the action that."
             },
             "connectorReference": {
               "type": "string",
@@ -283,6 +283,15 @@
             "configuration": {
               "type": "object",
               "description": "Optional configuration for the action"
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Flat dictionary of swagger parameter values keyed by parameter name (e.g. { Location: 'Seattle, WA', units: 'Imperial' }). Treat phrases like 'for Seattle, WA' as Location and 'in Imperial units', 'in F', 'in Fahrenheit', 'in Metric units', 'in C', or 'in Celsius' as units, not as project/workflow/action names. The tool routes each value to the correct ApiConnection slot (path / queries / body / headers) based on the connector's swagger. Prefer this over hand-crafting inputs.queries/body. If a required parameter is missing the tool returns an error so you can ask the user.",
+              "additionalProperties": true
+            },
+            "parameterText": {
+              "type": "string",
+              "description": "Optional current natural-language user request. Use only to preserve connector parameter context when exact swagger parameter names are unknown; explicit values in parameters always win. Do not put workflow/project/action names here unless they are part of the user's original request."
             }
           },
           "required": ["workflowName", "actionType", "actionName"]
@@ -301,11 +310,11 @@
           "properties": {
             "workflowName": {
               "type": "string",
-              "description": "The name of the workflow containing the action"
+              "description": "The name of the existing workflow containing the action. Use only an explicit workflow target from the user, not connector parameters such as units, locations, table names, queue names, or enum values."
             },
             "projectName": {
               "type": "string",
-              "description": "Optional project name when the workflow exists in multiple projects"
+              "description": "Optional existing Logic App project folder name when the workflow exists in multiple projects. Use only explicit project/workspace context such as 'in project ContosoApp'; never use connector parameters such as Imperial, Metric, C, F, Celsius, Fahrenheit, locations, table names, or queue names."
             },
             "actionName": {
               "type": "string",
@@ -653,6 +662,11 @@
       {
         "command": "azureLogicAppsStandard.enableDevContainer",
         "title": "Enable Dev Container For Project",
+        "category": "Azure Logic Apps"
+      },
+      {
+        "command": "azureLogicAppsStandard.startChatTests",
+        "title": "Start Chat Tests (Extension Host)",
         "category": "Azure Logic Apps"
       }
     ],

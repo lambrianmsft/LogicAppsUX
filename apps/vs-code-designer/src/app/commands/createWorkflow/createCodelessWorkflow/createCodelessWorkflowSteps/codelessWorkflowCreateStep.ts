@@ -9,7 +9,6 @@ import {
   localEmulatorConnectionString,
   extensionBundleId,
   defaultVersionRange,
-  type WorkflowType,
   functionsInprocNet8Enabled,
   functionsInprocNet8EnabledTrue,
 } from '../../../../../constants';
@@ -29,7 +28,13 @@ import { WorkflowCreateStepBase } from '../../createWorkflowSteps/workflowCreate
 import type { IActionContext } from '@microsoft/vscode-azext-utils';
 import { nonNullProp } from '@microsoft/vscode-azext-utils';
 import { WorkflowProjectType, MismatchBehavior } from '@microsoft/vscode-extension-logic-apps';
-import type { IFunctionWizardContext, IWorkflowTemplate, IHostJsonV2, StandardApp } from '@microsoft/vscode-extension-logic-apps';
+import type {
+  WorkflowType,
+  IFunctionWizardContext,
+  IWorkflowTemplate,
+  IHostJsonV2,
+  StandardApp,
+} from '@microsoft/vscode-extension-logic-apps';
 import * as fse from 'fs-extra';
 import * as path from 'path';
 

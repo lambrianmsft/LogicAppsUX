@@ -4,9 +4,44 @@
     "contentVersion": "1.0.0.0",
     "actions": {
       "": {
+        "runAfter": {
+          "TestHttpAction": [
+            "Succeeded"
+          ]
+        },
         "type": "Compose",
-        "inputs": {},
-        "runAfter": {}
+        "inputs": {}
+      },
+      "Response": {
+        "runAfter": {
+          "Get_Current_Weather": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": "@body('Get_Current_Weather')"
+        },
+        "parameterText": "In Stateful1, build a workflow that receives an HTTP request and replies with the current weather for Seattle, WA.",
+        "type": "Response"
+      },
+      "Get_Current_Weather": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "referenceName": "msnweather"
+            }
+          },
+          "method": "get",
+          "path": "/current/{Location}"
+        },
+        "runAfter": {
+          "Get_Current_Weather": [
+            "Succeeded"
+          ]
+        },
+        "operationId": "GetCurrentWeather"
       }
     },
     "outputs": {},

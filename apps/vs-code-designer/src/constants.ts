@@ -217,6 +217,7 @@ export const extensionCommand = {
   dataMapSaveMapXslt: 'azureLogicAppsStandard.dataMap.saveMapXslt',
   createUnitTestFromRun: 'azureLogicAppsStandard.createUnitTestFromRun',
   createUnitTest: 'azureLogicAppsStandard.createUnitTest',
+  startChatTests: 'azureLogicAppsStandard.startChatTests',
   vscodeOpenFolder: 'vscode.openFolder',
   debugLogicApp: 'azureLogicAppsStandard.debugLogicApp',
   switchToDataMapperV2: 'azureLogicAppsStandard.dataMap.switchToDataMapperV2',

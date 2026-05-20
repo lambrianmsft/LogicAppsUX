@@ -12,6 +12,7 @@ Curated durable learnings for VS Code ExTester UI E2E tests. Add entries through
 - See also: [`runtime-readiness-probes.md`](runtime-readiness-probes.md) for runtime/HTTP probe rules,
   [`vscode-task-env-propagation.md`](vscode-task-env-propagation.md) for `func: host start` env bugs,
   [`ci-patterns.md`](ci-patterns.md) for the shard matrix workflow and coverage gate.
+- For authenticated Copilot Chat extension-host tests, `Chat Tests (Extension Host)`, `sendChatAndWait`, `runChatTests`, or `azureLogicAppsStandard.startChatTests`, read [`vscode-chat-agent-testing.md`](vscode-chat-agent-testing.md).
 
 ## Core Sources
 

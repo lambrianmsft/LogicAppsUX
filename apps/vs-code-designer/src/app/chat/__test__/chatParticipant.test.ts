@@ -5,10 +5,13 @@ import {
   parseWorkflowSpecs,
   parseAdditionalWorkflowSpecs,
   parseIntentFromPrompt,
+  sanitizeWorkflowProjectNameOnToolInput,
+  withParameterTextOnAddActionToolInput,
   mapExtractedType,
   mapParsedProjectType,
   mapParsedTargetFramework,
   isConfirmationResponse,
+  isUnderspecifiedWorkflowCompositionRequest,
   extractProjectNamesFromAmbiguityResponse,
   extractTargetProjectFromPrompt,
   resolveSelectedProjectName,
@@ -981,6 +984,85 @@ describe('modify disambiguation helpers', () => {
   it('returns undefined when no project-like token exists', () => {
     const project = extractTargetProjectFromPrompt('modify Workflow1 to add a response');
     expect(project).toBeUndefined();
+  });
+
+  it('does not treat natural language units as a target project', () => {
+    const project = extractTargetProjectFromPrompt(
+      'Add an action to Stateful1 that gets the current weather for Seattle, WA in Imperial units.'
+    );
+    expect(project).toBeUndefined();
+  });
+
+  it('extracts explicit project references', () => {
+    expect(extractTargetProjectFromPrompt('Add an action to Stateful1 in project TonyProject')).toBe('TonyProject');
+    expect(extractTargetProjectFromPrompt('Add a workflow under TonyProject')).toBe('TonyProject');
+  });
+
+  it('removes model-inferred project names that do not match actual Logic App projects', () => {
+    const input = sanitizeWorkflowProjectNameOnToolInput(
+      'logicapps_addAction',
+      { workflowName: 'Stateful1', projectName: 'Imperial', actionName: 'Weather' },
+      ['test-workspace']
+    ) as Record<string, unknown>;
+
+    expect(input.projectName).toBeUndefined();
+    expect(input.workflowName).toBe('Stateful1');
+  });
+
+  it('preserves model-inferred project names that match actual Logic App projects', () => {
+    const input = sanitizeWorkflowProjectNameOnToolInput(
+      'logicapps_addAction',
+      { workflowName: 'Stateful1', projectName: 'test-workspace', actionName: 'Weather' },
+      ['test-workspace']
+    ) as Record<string, unknown>;
+
+    expect(input.projectName).toBe('test-workspace');
+  });
+
+  it('adds current prompt parameter text to addAction tool inputs without replacing explicit parameterText', () => {
+    const input = withParameterTextOnAddActionToolInput(
+      'logicapps_addAction',
+      { workflowName: 'Stateful1', actionName: 'Weather' },
+      'Add an action to Stateful1 that gets weather for Seattle, WA in Imperial units.'
+    ) as Record<string, unknown>;
+
+    expect(input.parameterText).toBe('Add an action to Stateful1 that gets weather for Seattle, WA in Imperial units.');
+
+    const explicit = withParameterTextOnAddActionToolInput(
+      'logicapps_addAction',
+      { workflowName: 'Stateful1', parameterText: 'weather for Redmond' },
+      'weather for Seattle'
+    ) as Record<string, unknown>;
+    expect(explicit.parameterText).toBe('weather for Redmond');
+  });
+
+  it('does not add parameter text to non-addAction tool inputs', () => {
+    const input = withParameterTextOnAddActionToolInput(
+      'logicapps_modifyAction',
+      { workflowName: 'Stateful1', actionName: 'Weather' },
+      'weather for Seattle'
+    ) as Record<string, unknown>;
+
+    expect(input.parameterText).toBeUndefined();
+  });
+});
+
+describe('isUnderspecifiedWorkflowCompositionRequest', () => {
+  it('detects queue to SQL or Cosmos composition requests that need follow-up details', () => {
+    const result = isUnderspecifiedWorkflowCompositionRequest(
+      'Create a workflow that listens to the queue and adds the message to either sql db or cosmos db based on the message type as SQL or Cosmos'
+    );
+    expect(result).toBe(true);
+  });
+
+  it('does not block explicit workflow creation requests that do not describe connector composition', () => {
+    expect(isUnderspecifiedWorkflowCompositionRequest('Create a workflow')).toBe(false);
+    expect(isUnderspecifiedWorkflowCompositionRequest('Create 5 stateful workflows under TonyProject from Stateful1-5')).toBe(false);
+  });
+
+  it('still asks for missing connector details when a composition prompt includes a workflow name', () => {
+    const result = isUnderspecifiedWorkflowCompositionRequest('Create a workflow called QueueRouter that listens to a Service Bus queue');
+    expect(result).toBe(true);
   });
 });
 

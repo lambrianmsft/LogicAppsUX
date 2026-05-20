@@ -46,6 +46,7 @@ const perfStats = {
 };
 
 const telemetryString = 'setInGitHubBuild';
+const chatTestsFastActivation = process.env.LAUX_CHAT_TESTS === '1';
 
 export async function activate(context: vscode.ExtensionContext) {
   initializeCustomExtensionContext();
@@ -133,6 +134,13 @@ export async function activate(context: vscode.ExtensionContext) {
   registerUIExtensionVariables(ext);
   registerAzureUtilsExtensionVariables(ext);
   registerAppServiceExtensionVariables(ext);
+
+  if (chatTestsFastActivation) {
+    ext.outputChannel.appendLine('[chat-tests] Fast activation enabled. Registering chat participant and skipping startup services.');
+    registerChatParticipant(context);
+    perfStats.loadEndTime = Date.now();
+    return;
+  }
 
   await callWithTelemetryAndErrorHandling(extensionCommand.activate, async (activateContext: IActionContext) => {
     vscode.commands.executeCommand(

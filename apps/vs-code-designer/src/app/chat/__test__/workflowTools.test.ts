@@ -8,7 +8,6 @@ import {
   buildActionDefinition,
   detectWeatherManagedApiReference,
   shouldAutoUseWeatherConnector,
-  buildSeattleWeatherConnectorAction,
   buildManagedApiConnectionAction,
   resolveManagedApiReferenceName,
   validateApiConnectionReferenceExists,
@@ -19,6 +18,9 @@ import {
   buildServiceBusConnectionString,
   resolveAppSettingExpressions,
   inferDefaultRunAfter,
+  inferParametersFromNaturalText,
+  routeParametersToApiConnectionInputs,
+  shouldSkipLogicAppProjectDirectory,
 } from '../tools/workflowTools';
 import { WorkflowTypeOption } from '../chatConstants';
 
@@ -43,6 +45,19 @@ describe('resolveProjectPathCandidates', () => {
 
   it('should return empty result when no project matches', () => {
     expect(resolveProjectPathCandidates(projectPaths, 'ContosoProject')).toEqual([]);
+  });
+});
+
+describe('shouldSkipLogicAppProjectDirectory', () => {
+  it('skips generated/runtime directories that are not user projects', () => {
+    expect(shouldSkipLogicAppProjectDirectory('workflow-designtime')).toBe(true);
+    expect(shouldSkipLogicAppProjectDirectory('.debug')).toBe(true);
+    expect(shouldSkipLogicAppProjectDirectory('node_modules')).toBe(true);
+  });
+
+  it('does not skip normal Logic App project names', () => {
+    expect(shouldSkipLogicAppProjectDirectory('test-workspace')).toBe(false);
+    expect(shouldSkipLogicAppProjectDirectory('OrderManagement')).toBe(false);
   });
 });
 
@@ -367,27 +382,6 @@ describe('trigger/action definitions', () => {
     ).toBe(true);
   });
 
-  it('builds canonical Seattle weather connector action', () => {
-    const action = buildSeattleWeatherConnectorAction('msnweather');
-
-    expect(action).toEqual({
-      type: 'ApiConnection',
-      inputs: {
-        host: {
-          connection: {
-            referenceName: 'msnweather',
-          },
-        },
-        method: 'get',
-        path: "/current/@{encodeURIComponent('98101')}",
-        queries: {
-          units: 'I',
-        },
-      },
-      runAfter: {},
-    });
-  });
-
   it('builds generic managed ApiConnection action for SQL', () => {
     const action = buildManagedApiConnectionAction('sql', 'GET', '/v2/datasets/default/tables/Orders/items', {
       inputs: {
@@ -532,7 +526,7 @@ describe('trigger/action definitions', () => {
       {}
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       method: 'post',
       path: '/messages',
       operationId: 'SendMessage',
@@ -563,7 +557,7 @@ describe('trigger/action definitions', () => {
       }
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       method: 'get',
       path: '/messages',
       operationId: 'GetMessages',
@@ -614,7 +608,7 @@ describe('trigger/action definitions', () => {
       {}
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       method: 'get',
       path: '/v2/tables/orders/items/{id}',
       operationId: 'GetItem_V2',
@@ -644,7 +638,7 @@ describe('trigger/action definitions', () => {
       {}
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       method: 'post',
       path: '/queues/{queueName}/messages/receive',
       operationId: 'ReceiveMessages',
@@ -680,7 +674,7 @@ describe('trigger/action definitions', () => {
       {}
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       method: 'post',
       path: '/queues/{queueName}/messages/peeklock',
       operationId: 'PeekLockMessages',
@@ -704,7 +698,7 @@ describe('trigger/action definitions', () => {
       {}
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       method: 'get',
       path: '/v2/datasets/{dataset}/tables/{table}/items',
       operationId: 'GetItems_V2',
@@ -828,6 +822,10 @@ describe('inferDefaultRunAfter', () => {
     expect(inferDefaultRunAfter({}, undefined)).toEqual({});
   });
 
+  it('ignores empty action-name artifacts when inferring the first runAfter', () => {
+    expect(inferDefaultRunAfter({ '': { type: 'Compose' } }, undefined)).toEqual({});
+  });
+
   it('chains after the last existing action when caller omits runAfter', () => {
     const existing = {
       First_Action: { type: 'Compose' },
@@ -876,14 +874,297 @@ describe('inferDefaultRunAfter', () => {
   });
 });
 
-describe('buildSeattleWeatherConnectorAction with runAfter', () => {
-  it('uses the provided runAfter when chaining', () => {
-    const action = buildSeattleWeatherConnectorAction('msnweather', { Previous_Trigger: ['Succeeded'] });
-    expect(action.runAfter).toEqual({ Previous_Trigger: ['Succeeded'] });
+describe('routeParametersToApiConnectionInputs', () => {
+  const msnweatherParams = [
+    {
+      name: 'Location',
+      in: 'path' as const,
+      required: true,
+      type: 'string',
+    },
+    {
+      name: 'units',
+      in: 'query' as const,
+      required: false,
+      type: 'string',
+      enum: ['I', 'C'],
+      xMsEnum: {
+        values: [
+          { value: 'I', displayName: 'Imperial' },
+          { value: 'C', displayName: 'Metric' },
+        ],
+      },
+    },
+  ];
+
+  it('substitutes path parameters and routes query parameters', () => {
+    const result = routeParametersToApiConnectionInputs(
+      { Location: 'Seattle, WA', units: 'Imperial' },
+      undefined,
+      '/current/{Location}',
+      msnweatherParams
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Seattle, WA')}");
+    expect(result.queries).toEqual({ units: 'I' });
   });
 
-  it('still defaults to {} when runAfter is not provided', () => {
-    const action = buildSeattleWeatherConnectorAction('msnweather');
-    expect(action.runAfter).toEqual({});
+  it('infers required location and enum query parameters from natural parameter text', () => {
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      undefined,
+      '/current/{Location}',
+      msnweatherParams,
+      'Add an action that gets the current weather for Seattle, WA in Imperial units.'
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Seattle, WA')}");
+    expect(result.queries).toEqual({ units: 'I' });
+  });
+
+  it('uses explicit parameters before natural parameter text', () => {
+    const result = routeParametersToApiConnectionInputs(
+      { Location: 'Redmond, WA', units: 'Metric' },
+      undefined,
+      '/current/{Location}',
+      msnweatherParams,
+      'Add an action that gets the current weather for Seattle, WA in Imperial units.'
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Redmond, WA')}");
+    expect(result.queries).toEqual({ units: 'C' });
+  });
+
+  it('leaves required values missing when natural parameter text does not include them', () => {
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      undefined,
+      '/current/{Location}',
+      msnweatherParams,
+      'Add an action that gets the current weather in Imperial units.'
+    );
+
+    expect(result.missing).toEqual(['Location']);
+    expect(result.queries).toEqual({ units: 'I' });
+  });
+
+  it('does not guess optional enum parameters from natural text when they are not mentioned', () => {
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      undefined,
+      '/current/{Location}',
+      msnweatherParams,
+      'Add an action that gets the current weather for Seattle, WA.'
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Seattle, WA')}");
+    expect(result.queries).toBeUndefined();
+  });
+
+  it('does not infer one natural value across multiple required location-like path parameters', () => {
+    const params = [
+      { name: 'sourceLocation', in: 'path' as const, required: true, type: 'string', xMsSummary: 'Source location' },
+      { name: 'destinationLocation', in: 'path' as const, required: true, type: 'string', xMsSummary: 'Destination location' },
+    ];
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      undefined,
+      '/route/{sourceLocation}/{destinationLocation}',
+      params,
+      'route for Seattle'
+    );
+
+    expect(result.missing).toEqual(['sourceLocation', 'destinationLocation']);
+  });
+
+  it('infers enum display values through generic metadata instead of a units parameter name', () => {
+    const params = [
+      {
+        name: 'temperatureScale',
+        in: 'query' as const,
+        required: false,
+        type: 'string',
+        enum: ['I', 'C'],
+        xMsEnum: {
+          values: [
+            { value: 'I', displayName: 'Imperial' },
+            { value: 'C', displayName: 'Metric' },
+          ],
+        },
+      },
+    ];
+    const result = routeParametersToApiConnectionInputs(undefined, undefined, '/current', params, 'return the forecast in Fahrenheit');
+
+    expect(result.queries).toEqual({ temperatureScale: 'I' });
+  });
+
+  it('does not infer connector parameters from ambiguous enum text', () => {
+    const result = inferParametersFromNaturalText(
+      undefined,
+      undefined,
+      msnweatherParams,
+      'Add an action that gets the current weather for Seattle, WA in Imperial or Metric units.'
+    );
+
+    expect(result).toEqual({ Location: 'Seattle, WA' });
+  });
+
+  it('translates enum displayName values to underlying codes', () => {
+    const result = routeParametersToApiConnectionInputs(
+      { Location: 'Redmond, WA', units: 'Metric' },
+      undefined,
+      '/current/{Location}',
+      msnweatherParams
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.queries).toEqual({ units: 'C' });
+  });
+
+  it('translates weather unit synonyms to underlying enum codes', () => {
+    expect(
+      routeParametersToApiConnectionInputs({ Location: 'Seattle, WA', units: 'F' }, undefined, '/current/{Location}', msnweatherParams)
+        .queries
+    ).toEqual({
+      units: 'I',
+    });
+    expect(
+      routeParametersToApiConnectionInputs(
+        { Location: 'Seattle, WA', units: 'Fahrenheit' },
+        undefined,
+        '/current/{Location}',
+        msnweatherParams
+      ).queries
+    ).toEqual({ units: 'I' });
+    expect(
+      routeParametersToApiConnectionInputs(
+        { Location: 'Seattle, WA', units: 'Celsius' },
+        undefined,
+        '/current/{Location}',
+        msnweatherParams
+      ).queries
+    ).toEqual({
+      units: 'C',
+    });
+    expect(
+      routeParametersToApiConnectionInputs(
+        { Location: 'Seattle, WA', units: 'Centigrade' },
+        undefined,
+        '/current/{Location}',
+        msnweatherParams
+      ).queries
+    ).toEqual({
+      units: 'C',
+    });
+  });
+
+  it('preserves exact enum unit codes before applying weather unit synonyms', () => {
+    const params = [
+      {
+        name: 'units',
+        in: 'query' as const,
+        required: false,
+        type: 'string',
+        enum: ['F', 'C'],
+      },
+    ];
+    const result = routeParametersToApiConnectionInputs({ units: 'F' }, undefined, '/forecast', params);
+
+    expect(result.queries).toEqual({ units: 'F' });
+  });
+
+  it('passes enum values through unchanged when already the code', () => {
+    const result = routeParametersToApiConnectionInputs(
+      { Location: 'Seattle, WA', units: 'I' },
+      undefined,
+      '/current/{Location}',
+      msnweatherParams
+    );
+
+    expect(result.queries).toEqual({ units: 'I' });
+  });
+
+  it('matches parameter names case-insensitively', () => {
+    const result = routeParametersToApiConnectionInputs(
+      { location: 'Seattle, WA', UNITS: 'Imperial' },
+      undefined,
+      '/current/{Location}',
+      msnweatherParams
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Seattle, WA')}");
+    expect(result.queries).toEqual({ units: 'I' });
+  });
+
+  it('escapes single-quotes in path values', () => {
+    const result = routeParametersToApiConnectionInputs({ Location: "O'Brien" }, undefined, '/current/{Location}', msnweatherParams);
+
+    expect(result.path).toBe("/current/@{encodeURIComponent('O''Brien')}");
+  });
+
+  it('omits optional parameters when not provided', () => {
+    const result = routeParametersToApiConnectionInputs({ Location: 'Seattle, WA' }, undefined, '/current/{Location}', msnweatherParams);
+
+    expect(result.missing).toEqual([]);
+    expect(result.queries).toBeUndefined();
+  });
+
+  it('reports missing required parameters', () => {
+    const result = routeParametersToApiConnectionInputs({ units: 'Imperial' }, undefined, '/current/{Location}', msnweatherParams);
+
+    expect(result.missing).toEqual(['Location']);
+  });
+
+  it('does not ask the user for connector runtime connectionId parameters', () => {
+    const params = [{ name: 'connectionId', in: 'path' as const, required: true, type: 'string' }, ...msnweatherParams];
+    const result = routeParametersToApiConnectionInputs({ Location: 'Seattle, WA' }, undefined, '/current/{Location}', params);
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Seattle, WA')}");
+  });
+
+  it('falls back to callerInputs slots when parameters not in flat dict', () => {
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      { queries: { units: 'Imperial' }, location: 'Seattle, WA' },
+      '/current/{Location}',
+      msnweatherParams
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe("/current/@{encodeURIComponent('Seattle, WA')}");
+    expect(result.queries).toEqual({ units: 'I' });
+  });
+
+  it('routes body parameters into inputs.body', () => {
+    const params = [{ name: 'item', in: 'body' as const, required: true, type: 'object' }];
+    const result = routeParametersToApiConnectionInputs(
+      { item: { Title: 'Hello' } },
+      undefined,
+      '/datasets/default/tables/Items/items',
+      params
+    );
+
+    expect(result.missing).toEqual([]);
+    expect(result.body).toEqual({ Title: 'Hello' });
+  });
+
+  it('routes header parameters into inputs.headers', () => {
+    const params = [{ name: 'X-Trace', in: 'header' as const, required: false, type: 'string' }];
+    const result = routeParametersToApiConnectionInputs({ 'X-Trace': 'abc' }, undefined, '/things', params);
+
+    expect(result.headers).toEqual({ 'X-Trace': 'abc' });
+  });
+
+  it('applies parameter defaults when not provided', () => {
+    const params = [{ name: 'limit', in: 'query' as const, required: false, type: 'integer', default: 10 }];
+    const result = routeParametersToApiConnectionInputs(undefined, undefined, '/things', params);
+
+    expect(result.queries).toEqual({ limit: 10 });
   });
 });

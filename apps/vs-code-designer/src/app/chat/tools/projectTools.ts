@@ -6,9 +6,8 @@
 import * as vscode from 'vscode';
 import type { ProjectTypeOption, WorkflowTypeOption } from '../chatConstants';
 import { ToolName, WorkflowTypeOption as WorkflowTypeOptionValue } from '../chatConstants';
-import { WorkflowType } from '../../../constants';
 import { createLogicAppProject } from '../../commands/createNewCodeProject/CodeProjectBase/CreateLogicAppProjects';
-import { ProjectType, TargetFramework } from '@microsoft/vscode-extension-logic-apps';
+import { ProjectType, TargetFramework, WorkflowType } from '@microsoft/vscode-extension-logic-apps';
 import * as path from 'path';
 import * as fse from 'fs-extra';
 

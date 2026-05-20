@@ -1,6 +1,13 @@
 {
+  "azureLogicAppsStandard.autoRuntimeDependenciesValidationAndInstallation": false,
+  "azureLogicAppsStandard.autoStartAzurite": false,
+  "azureLogicAppsStandard.autoStartDesignTime": false,
+  "azureLogicAppsStandard.showStartDesignTimeMessage": false,
   "azureLogicAppsStandard.silentAuth": true,
   "editor.formatOnSave": true,
+  "extensions.autoCheckUpdates": false,
+  "extensions.autoUpdate": false,
+  "update.mode": "none",
   "files.exclude": {
     "**/.git": true,
     "**/.DS_Store": true,

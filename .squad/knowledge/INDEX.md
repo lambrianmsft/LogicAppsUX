@@ -11,7 +11,8 @@ Read this first on **every** task. Open any file whose triggers match the task d
 | PR comments, reviewer feedback, addressing review threads | [review-patterns.md](review-patterns.md) |
 | Opening or updating a PR body, `AI PR Validation` bot failures, `needs-pr-update` label | [review-patterns.md](review-patterns.md) ("PR body must conform to .github/pull_request_template.md…") **+** `.github/pull_request_template.md` |
 | Squad routing, agent prompts, playbooks, charters | [agent-improvements.md](agent-improvements.md) |
-| VS Code extension E2E (ExTester), `run-e2e.js`, designer/run/debug tests | [vscode-e2e-testing.md](vscode-e2e-testing.md) **+** `apps/vs-code-designer/src/test/ui/SKILL.md` |
+| VS Code extension E2E (ExTester), `run-e2e.js`, designer/run/debug tests, webview UI tests | [vscode-e2e-testing.md](vscode-e2e-testing.md) **+** `apps/vs-code-designer/src/test/ui/SKILL.md` |
+| Authenticated Copilot Chat extension-host E2E, VS Code chat agent, `Chat Tests (Extension Host)`, `sendChatAndWait`, `runChatTests`, `azureLogicAppsStandard.startChatTests`, chat workflow-shape assertions | [vscode-chat-agent-testing.md](vscode-chat-agent-testing.md) |
 | Functions runtime readiness, `:7071` probes, `listCallbackUrl`, `waitForRuntimeReady`, "runtime not ready" flakes | [runtime-readiness-probes.md](runtime-readiness-probes.md) |
 | `func: host start` task env, `InlineCodeDependencyGeneratorFailure`, PATH propagation, `languageWorkers__node__defaultExecutablePath` | [vscode-task-env-propagation.md](vscode-task-env-propagation.md) |
 | Unit tests, Vitest, coverage strategy, mocking | [unit-testing.md](unit-testing.md) |

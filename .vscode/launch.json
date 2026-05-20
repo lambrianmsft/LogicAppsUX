@@ -29,7 +29,10 @@
       "outFiles": [
         "${workspaceFolder}/apps/vs-code-designer/out/test/e2e/**/*.js",
         "${workspaceFolder}/apps/vs-code-designer/dist/**/*.js"
-      ]
+      ],
+      "env": {
+        "LAUX_CHAT_TESTS": "1"
+      }
     }
   ]
 }

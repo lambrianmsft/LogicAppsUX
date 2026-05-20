@@ -10,9 +10,9 @@ import { CHAT_PARTICIPANT_ID, ChatCommand, ToolName, WorkflowTypeOption, Project
 import { registerWorkflowTools, registerProjectTools } from './tools';
 import { localize } from '../../localize';
 import { ext } from '../../extensionVariables';
-import { extensionCommand, workflowFileName, WorkflowType } from '../../constants';
+import { extensionCommand, workflowFileName } from '../../constants';
 import { createLogicAppProject } from '../commands/createNewCodeProject/CodeProjectBase/CreateLogicAppProjects';
-import { ProjectType } from '@microsoft/vscode-extension-logic-apps';
+import { ProjectType, WorkflowType } from '@microsoft/vscode-extension-logic-apps';
 import { writeFormattedJson } from '../utils/fs';
 import { getCodelessWorkflowTemplate } from '../utils/codeless/templates';
 
@@ -77,6 +77,12 @@ When users want to create a project, extract:
 
 When a built-in connector tool result says it needs connection details, ask the user for those values in chat instead of sending them to a wizard or designer popup. Then call logicapps_addAction again with serviceProviderConnection fields.
 
+DISTINGUISH TARGETS FROM ACTION PARAMETERS:
+- Workflow names and project names must come from explicit workflow/project context, such as "to Stateful1", "in workflow OrderProcessor", or "in project ContosoApp".
+- Do not treat connector parameters as workflow names, project names, or action names. Locations, units, enum display names, auth fields, table names, queue names, and payload fields are action parameters unless the user explicitly says they are a workflow/project/action name.
+- Weather examples: "for Seattle, WA" is the Location parameter; "in Imperial units", "in F", and "in Fahrenheit" are units parameters; "in Metric units", "in C", and "in Celsius" are units parameters. None of those units are project or workflow names.
+- If the user says "Add an action to Stateful1 that gets the current weather for Seattle, WA in Imperial units", use workflowName "Stateful1", a weather action name such as "Get_Current_Weather", and parameters { Location: "Seattle, WA", units: "Imperial" }. Do not set projectName to "Imperial".
+
 CARRY USER-PROVIDED VALUES ACROSS TURNS:
 - Re-read the prior turns of the conversation before each tool invocation and re-use any concrete values the user has already given (city, table name, file path, status code, etc.).
 - Never emit literal placeholder tokens like {Location}, {param}, {Path}, {Body}, or @parameters('X') in inputs.path, inputs.queries, inputs.uri, inputs.body, or any other field. If you don't have a concrete value yet, ask the user before calling the tool.
@@ -85,6 +91,16 @@ CARRY USER-PROVIDED VALUES ACROSS TURNS:
 CHAIN DEPENDENT ACTIONS WITH runAfter:
 - When a new action consumes the output of a previous action (for example a Response that references body('Get_X'), or any step that depends on the success of another), set configuration.runAfter to { "<PreviousActionName>": ["Succeeded"] } so it runs sequentially.
 - If you omit runAfter when adding to a workflow that already has actions, the tool will default to chaining after the most recently added action; pass an explicit runAfter (including {} for parallel execution) only when you intentionally want a different topology.
+
+PASS PARAMETERS BY NAME, NOT BY SLOT:
+- For ApiConnection actions (managed connectors), supply values via the top-level "parameters" field on logicapps_addAction — a flat object keyed by the swagger parameter name. Example: parameters: { Location: 'Seattle, WA', units: 'Imperial' }.
+- If you know the user gave connector parameter values but you are not sure of the swagger parameter names, still call logicapps_addAction with the action intent and connector hints; the tool also receives the user's natural request as parameterText and can infer safe values from connector swagger metadata.
+- Do NOT hand-craft inputs.queries, inputs.body, inputs.headers, or substitute path placeholders yourself. The tool reads the connector's swagger and routes each value to the correct slot, encodes path parameters as @{encodeURIComponent('value')}, and translates enum display names (e.g. "Imperial") to their underlying code values (e.g. "I").
+- For logicapps_modifyAction, put the same "parameters" object inside the modification JSON.
+
+PROMPT FOR MISSING REQUIRED PARAMETERS:
+- If logicapps_addAction or logicapps_modifyAction returns an error listing missing required parameters (the message starts with "Missing required parameters for ..."), immediately ask the user for those values in plain language (for example: "Which location should the weather action use?") before retrying the tool call.
+- Do not invent defaults, do not guess, and do not retry with placeholders. Wait for the user's answer, then re-invoke the tool with the values under "parameters".
 
 IMPORTANT: Always use the tools provided to execute actions. Do not just describe what you would do.`;
 
@@ -362,7 +378,7 @@ Return a JSON object with these fields:
   - "modifyAction": user wants to modify/change/update an existing workflow action
   - "help": user asks for help or capabilities
 - "projectName": Name of a NEW project to create (only for createProject action)
-- "targetProject": Name of an EXISTING project context for createWorkflows OR modifyAction (from phrases like "under TonyProject", "in MyApp", "for ProjectX")
+- "targetProject": Name of an EXISTING Logic App project folder for createWorkflows OR modifyAction. Extract only from explicit project/workspace context like "under project TonyProject", "in project MyApp", "within workspace ProjectX", or "in TonyProject, Workflow1". Do not extract locations, units, connector names, enum display names, or action parameters as projects. For example, "in Imperial units" is NOT a project.
 - "workflows": Array of workflow objects, each with:
   - "name": string - the workflow name
   - "type": "stateful" | "stateless" | "agentic" | "agent" (OMIT if user didn't specify a type)
@@ -529,7 +545,13 @@ export function extractTargetProjectFromPrompt(prompt: string): string | undefin
     return explicitContextMatch[1];
   }
 
-  const candidates = Array.from(prompt.matchAll(/\b(?:in|under|within|inside|project)\s+([A-Z][A-Za-z0-9_-]*)\b/g), (match) => match[1]);
+  const candidates = Array.from(
+    prompt.matchAll(/\b(?:under|within|inside)\s+(?:the\s+)?(?:project\s+|workspace\s+)?([A-Z][A-Za-z0-9_-]*)\b/g),
+    (match) => match[1]
+  );
+  candidates.push(
+    ...Array.from(prompt.matchAll(/\b(?:project|workspace)\s+(?:named\s+|called\s+)?([A-Z][A-Za-z0-9_-]*)\b/g), (match) => match[1])
+  );
 
   for (const candidate of candidates) {
     if (!candidate) {
@@ -544,6 +566,44 @@ export function extractTargetProjectFromPrompt(prompt: string): string | undefin
   }
 
   return undefined;
+}
+
+/**
+ * Detect workflow composition requests that describe a full workflow shape but omit
+ * details the chat agent needs before it can safely write workflow.json.
+ *
+ * @internal Exported for testing
+ */
+export function isUnderspecifiedWorkflowCompositionRequest(prompt: string): boolean {
+  const lowerPrompt = prompt.toLowerCase();
+  if (!/\b(?:create|add|build|make)\b/.test(lowerPrompt) || !lowerPrompt.includes('workflow')) {
+    return false;
+  }
+
+  const describesTriggerOrAction =
+    /\b(?:listen|listens|trigger|when|queue|service bus|storage queue|sql|cosmos|database|db|based on|message type)\b/i.test(prompt);
+
+  return describesTriggerOrAction;
+}
+
+function askForWorkflowCompositionDetails(stream: vscode.ChatResponseStream): LogicAppsChatResult {
+  stream.markdown(
+    localize(
+      'workflowCompositionDetailsRequired',
+      [
+        'I can help create that workflow, but I need a few required details before I write project or workflow files:',
+        '',
+        '- Workflow name and target Logic App project',
+        '- Queue provider (Service Bus queue or Azure Storage queue), queue name, and connection/auth details',
+        '- Where the message type is located in the message payload and what should happen for unknown values',
+        '- SQL server/database/table/auth details and how to map the message payload to columns',
+        '- Cosmos DB account/database/container/partition key/auth details and how to map the message payload to the document',
+        '',
+        'Please provide those details, or tell me which existing connections and workflow name to use.',
+      ].join('\n')
+    )
+  );
+  return { metadata: { command: ChatCommand.createWorkflow, needsParameter: 'workflowCompositionDetails' } };
 }
 
 interface InvokableTool {
@@ -570,6 +630,8 @@ const mutatingWorkflowTools = new Set<string>([ToolName.addAction, ToolName.modi
 
 const readOnlyWorkflowTools = new Set<string>([ToolName.getWorkflowDefinition, ToolName.listWorkflows]);
 
+const MAX_TOOL_PARAMETER_TEXT_LENGTH = 512;
+
 function withForcedProjectNameOnToolInput(toolName: string, input: object, forcedProjectName?: string): object {
   if (!forcedProjectName) {
     return input;
@@ -594,6 +656,53 @@ function withForcedProjectNameOnToolInput(toolName: string, input: object, force
 
   inputRecord.projectName = forcedProjectName;
   return inputRecord;
+}
+
+/**
+ * Remove model-inferred project names that do not correspond to actual Logic App projects.
+ *
+ * @internal Exported for testing.
+ */
+export function sanitizeWorkflowProjectNameOnToolInput(toolName: string, input: object, validProjectNames: string[]): object {
+  if (!workflowProjectScopedTools.has(toolName) || typeof input !== 'object' || input === null) {
+    return input;
+  }
+
+  const inputRecord = input as Record<string, unknown>;
+  if (typeof inputRecord.projectName !== 'string' || !inputRecord.projectName.trim()) {
+    return input;
+  }
+
+  const trimmedProjectName = inputRecord.projectName.trim();
+  const hasMatchingProject = validProjectNames.some((projectName) => projectName.toLowerCase() === trimmedProjectName.toLowerCase());
+  if (hasMatchingProject) {
+    return input;
+  }
+
+  const sanitizedInput = { ...inputRecord };
+  delete sanitizedInput.projectName;
+  return sanitizedInput;
+}
+
+export function withParameterTextOnAddActionToolInput(toolName: string, input: object, prompt: string): object {
+  if (toolName !== ToolName.addAction || typeof input !== 'object' || input === null) {
+    return input;
+  }
+
+  const inputRecord = input as Record<string, unknown>;
+  if (typeof inputRecord.parameterText === 'string' && inputRecord.parameterText.trim()) {
+    return input;
+  }
+
+  const trimmedPrompt = prompt.trim();
+  if (!trimmedPrompt) {
+    return input;
+  }
+
+  return {
+    ...inputRecord,
+    parameterText: trimmedPrompt.slice(0, MAX_TOOL_PARAMETER_TEXT_LENGTH),
+  };
 }
 
 function coerceToolInputToObject(input: unknown): object {
@@ -644,6 +753,7 @@ async function runToolOrchestration(
   let readToolUsed = false;
   let requestedProjectDisambiguation = false;
   let mutationNudgeSent = false;
+  let validProjectNames: string[] | undefined;
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     const response = await request.model.sendRequest(
@@ -651,7 +761,7 @@ async function runToolOrchestration(
       {
         tools: tools.map((tool) => ({
           name: tool.name,
-          description: tool.description,
+          description: tool.description ?? '',
           inputSchema: tool.inputSchema,
         })),
       },
@@ -694,7 +804,13 @@ async function runToolOrchestration(
       stream.progress(localize('executingTool', 'Executing...'));
 
       const baseInput = coerceToolInputToObject(toolCall.input);
-      const toolInput = withForcedProjectNameOnToolInput(toolCall.name, baseInput, options?.forcedProjectName);
+      const forcedToolInput = withForcedProjectNameOnToolInput(toolCall.name, baseInput, options?.forcedProjectName);
+      let toolInput = forcedToolInput;
+      if (!options?.forcedProjectName && workflowProjectScopedTools.has(toolCall.name)) {
+        validProjectNames ??= (await findLogicAppProjects()).map((project) => project.name);
+        toolInput = sanitizeWorkflowProjectNameOnToolInput(toolCall.name, forcedToolInput, validProjectNames);
+      }
+      toolInput = withParameterTextOnAddActionToolInput(toolCall.name, toolInput, request.prompt);
 
       const signature = getToolCallSignature(toolCall.name, toolInput);
       if (calledSignatures.has(signature)) {
@@ -876,6 +992,10 @@ async function handleCreateWorkflowCommand(
   intent?: ParsedIntent
 ): Promise<LogicAppsChatResult> {
   stream.progress(localize('analyzingRequest', 'Analyzing your request...'));
+
+  if (isUnderspecifiedWorkflowCompositionRequest(request.prompt)) {
+    return askForWorkflowCompositionDetails(stream);
+  }
 
   // Check if user is responding to a project selection question
   const lastResult = getLastChatResult(context);
@@ -1621,7 +1741,7 @@ async function handleCreateProjectCommand(
       logicAppName: projectName,
       logicAppType: finalProjectType,
       workflowName: firstWorkflow.name,
-      workflowType: mapWorkflowTypeToProjectType(firstWorkflow.type),
+      workflowType: mapWorkflowTypeToProjectType(firstWorkflow.type ?? WorkflowTypeOption.stateful),
       workspaceFilePath: vscode.workspace.workspaceFile.fsPath,
       shouldCreateLogicAppProject: true,
       targetFramework: targetFramework,
@@ -1647,7 +1767,7 @@ async function handleCreateProjectCommand(
 
       for (let i = 1; i < finalWorkflows.length; i++) {
         const workflow = finalWorkflows[i];
-        await createAdditionalWorkflow(logicAppFolderPath, workflow.name, workflow.type, finalProjectType);
+        await createAdditionalWorkflow(logicAppFolderPath, workflow.name, workflow.type ?? WorkflowTypeOption.stateful, finalProjectType);
       }
     }
 
@@ -1773,6 +1893,16 @@ async function handleModifyActionCommand(
 
   if (!forcedProjectName) {
     forcedProjectName = intent?.targetProject?.trim() || extractTargetProjectFromPrompt(pendingModificationPrompt);
+  }
+
+  if (forcedProjectName) {
+    const projects = await findLogicAppProjects();
+    const matchingProject = projects.find((project) => project.name.toLowerCase() === forcedProjectName!.toLowerCase());
+    if (matchingProject) {
+      forcedProjectName = matchingProject.name;
+    } else {
+      forcedProjectName = undefined;
+    }
   }
 
   if (forcedProjectName && !/project name\s*:/i.test(effectivePrompt)) {

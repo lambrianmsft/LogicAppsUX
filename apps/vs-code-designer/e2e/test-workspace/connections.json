@@ -1,4 +1,19 @@
 {
   "serviceProviderConnections": {},
-  "managedApiConnections": {}
+  "managedApiConnections": {
+    "msnweather": {
+      "api": {
+        "id": "/subscriptions/80d4fe69-c95b-4dd2-a938-9250f1c8ab03/providers/Microsoft.Web/locations/eastus2euap/managedApis/msnweather"
+      },
+      "connection": {
+        "id": "/subscriptions/80d4fe69-c95b-4dd2-a938-9250f1c8ab03/resourceGroups/lambrian_iactest/providers/Microsoft.Web/connections/msnweather-2"
+      },
+      "connectionRuntimeUrl": "https://9d51d1ffc9f77572.00.common.logic-df.azure-apihub.net/apim/msnweather/0ff2fca817b444339c733f980548f258/",
+      "authentication": {
+        "type": "Raw",
+        "scheme": "Key",
+        "parameter": "@appsetting('msnweather-connectionKey')"
+      }
+    }
+  }
 }
