@@ -1,16 +1,16 @@
-# Graph Report - src  (2026-05-19)
+# Graph Report - src  (2026-05-26)
 
 ## Corpus Check
-- 351 files · ~633,331 words
+- 351 files · ~633,340 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 13912 nodes · 16214 edges · 414 communities (367 shown, 47 thin omitted)
+- 14014 nodes · 17565 edges · 379 communities (352 shown, 27 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 681 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `18cccad3`
+- Built from commit: `ea53459a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -146,81 +146,54 @@
 - [[_COMMUNITY_Community 353|Community 353]]
 - [[_COMMUNITY_Community 354|Community 354]]
 - [[_COMMUNITY_Community 355|Community 355]]
-- [[_COMMUNITY_Community 356|Community 356]]
-- [[_COMMUNITY_Community 357|Community 357]]
-- [[_COMMUNITY_Community 358|Community 358]]
 - [[_COMMUNITY_Community 359|Community 359]]
 - [[_COMMUNITY_Community 360|Community 360]]
-- [[_COMMUNITY_Community 361|Community 361]]
 - [[_COMMUNITY_Community 362|Community 362]]
 - [[_COMMUNITY_Community 363|Community 363]]
 - [[_COMMUNITY_Community 364|Community 364]]
 - [[_COMMUNITY_Community 365|Community 365]]
-- [[_COMMUNITY_Community 366|Community 366]]
 - [[_COMMUNITY_Community 368|Community 368]]
 - [[_COMMUNITY_Community 369|Community 369]]
-- [[_COMMUNITY_Community 370|Community 370]]
 - [[_COMMUNITY_Community 371|Community 371]]
 - [[_COMMUNITY_Community 372|Community 372]]
 - [[_COMMUNITY_Community 373|Community 373]]
 - [[_COMMUNITY_Community 374|Community 374]]
 - [[_COMMUNITY_Community 375|Community 375]]
 - [[_COMMUNITY_Community 376|Community 376]]
-- [[_COMMUNITY_Community 377|Community 377]]
 - [[_COMMUNITY_Community 378|Community 378]]
-- [[_COMMUNITY_Community 379|Community 379]]
 - [[_COMMUNITY_Community 380|Community 380]]
-- [[_COMMUNITY_Community 381|Community 381]]
 - [[_COMMUNITY_Community 382|Community 382]]
-- [[_COMMUNITY_Community 383|Community 383]]
 - [[_COMMUNITY_Community 384|Community 384]]
-- [[_COMMUNITY_Community 385|Community 385]]
-- [[_COMMUNITY_Community 386|Community 386]]
-- [[_COMMUNITY_Community 387|Community 387]]
 - [[_COMMUNITY_Community 389|Community 389]]
 - [[_COMMUNITY_Community 390|Community 390]]
 - [[_COMMUNITY_Community 391|Community 391]]
-- [[_COMMUNITY_Community 392|Community 392]]
-- [[_COMMUNITY_Community 393|Community 393]]
-- [[_COMMUNITY_Community 395|Community 395]]
-- [[_COMMUNITY_Community 396|Community 396]]
-- [[_COMMUNITY_Community 397|Community 397]]
 - [[_COMMUNITY_Community 398|Community 398]]
-- [[_COMMUNITY_Community 400|Community 400]]
-- [[_COMMUNITY_Community 401|Community 401]]
-- [[_COMMUNITY_Community 402|Community 402]]
-- [[_COMMUNITY_Community 403|Community 403]]
-- [[_COMMUNITY_Community 404|Community 404]]
-- [[_COMMUNITY_Community 405|Community 405]]
-- [[_COMMUNITY_Community 406|Community 406]]
-- [[_COMMUNITY_Community 407|Community 407]]
-- [[_COMMUNITY_Community 408|Community 408]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `map()` - 70 edges
-2. `equals()` - 51 edges
-3. `equals()` - 48 edges
-4. `IHttpClient` - 33 edges
-5. `isHybridLogicApp()` - 28 edges
-6. `StandardRunService` - 27 edges
-7. `includes()` - 27 edges
-8. `StandardRunService` - 26 edges
-9. `getAzureResourceRecursive()` - 26 edges
-10. `SchemaProcessor` - 25 edges
+1. `equals()` - 75 edges
+2. `map()` - 70 edges
+3. `IHttpClient` - 59 edges
+4. `OperationManifest` - 58 edges
+5. `Connector` - 53 edges
+6. `equals()` - 48 edges
+7. `getIntl()` - 40 edges
+8. `SettingScope` - 37 edges
+9. `BaseConnectionService` - 35 edges
+10. `BaseException` - 35 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `getInputByName()` --calls--> `equals()`  [INFERRED]
   parsers/lib/manifest/__test__/parser.spec.ts → utils/src/lib/helpers/functions.ts
 - `getOutputByName()` --calls--> `equals()`  [INFERRED]
   parsers/lib/manifest/__test__/parser.spec.ts → utils/src/lib/helpers/functions.ts
+- `splitEx()` --calls--> `isNullOrUndefined()`  [INFERRED]
+  parsers/lib/common/helpers/keysutility.ts → utils/src/lib/helpers/functions.ts
+- `includePathItemParameters()` --calls--> `equals()`  [EXTRACTED]
+  parsers/lib/swagger/parser.ts → utils/src/lib/helpers/functions.ts
 - `orderAdvancedAfterOthers()` --calls--> `equals()`  [INFERRED]
   parsers/lib/swagger/parser.ts → utils/src/lib/helpers/functions.ts
-- `orderImportantBeforeOthers()` --calls--> `equals()`  [INFERRED]
-  parsers/lib/swagger/parser.ts → utils/src/lib/helpers/functions.ts
-- `isTemplateExpression()` --calls--> `isNullOrEmpty()`  [INFERRED]
-  parsers/lib/common/helpers/expression.ts → utils/src/lib/helpers/functions.ts
 
-## Communities (414 total, 47 thin omitted)
+## Communities (379 total, 27 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.06
@@ -375,140 +348,144 @@ Cohesion: 0.01
 Nodes (168): Action, ActionDefinition, Actions, ActionsNode, ActiveDirectoryOAuthAuthentication, AgentAction, AgentChannels, AgentCondition (+160 more)
 
 ### Community 285 - "Community 285"
-Cohesion: 0.03
-Nodes (68): supportedBaseManifestTypes, ConsumptionOperationManifestServiceOptions, supportedConsumptionManifestObjects, supportedConsumptionManifestTypes, coreBadge, iseBadge, previewBadge, apiManagementActionManifest (+60 more)
+Cohesion: 0.07
+Nodes (38): ConsumptionOperationManifestServiceOptions, supportedConsumptionManifestObjects, supportedConsumptionManifestTypes, coreBadge, iseBadge, previewBadge, apiManagementActionManifest, apiManagementTriggerManifest (+30 more)
 
 ### Community 286 - "Community 286"
 Cohesion: 0.04
-Nodes (80): hasTermsOfUse(), addPrefix(), arrayEquals(), arrayEqualsOrderInsensitive(), BUILT_IN_AGENT_TOOLS, clone(), combineObjects(), copy() (+72 more)
+Nodes (84): hasTermsOfUse(), addPrefix(), arrayEquals(), arrayEqualsOrderInsensitive(), BUILT_IN_AGENT_TOOLS, clone(), combineObjects(), copy() (+76 more)
 
 ### Community 287 - "Community 287"
-Cohesion: 0.04
-Nodes (47): builtInConnectorIds, builtInOperationsMetadata, foreachOperationInfo, getAccessTokenType, supportedBaseManifestObjects, ConnectorConnectionErrorCode, ConnectorConnectionException, InvalidFormatException (+39 more)
+Cohesion: 0.06
+Nodes (40): builtInConnectorIds, builtInOperationsMetadata, getAccessTokenType, supportedBaseManifestObjects, supportedBaseManifestTypes, addToTimeManifest, convertTimezoneManifest, currentTimeManifest (+32 more)
 
 ### Community 288 - "Community 288"
 Cohesion: 0.04
-Nodes (59): BaseOAuthService, OAuthPopup, ConsumptionConnectionServiceOptions, copyArray(), createCopy(), ConnectionCreationInfo, IOAuthPopup, IOAuthService (+51 more)
+Nodes (56): connectionInfo, connector, mockHttpClient, mockLoggerService, connectionInfo, connector, mockHttpClient, mockLoggerService (+48 more)
 
 ### Community 289 - "Community 289"
-Cohesion: 0.04
-Nodes (61): ChunkSizeCapabilities, ExpressionConstants, FILE_PARAMETER_KEYS, Formats, OutputKeys, ParameterLocations, Permissions, PropertyName (+53 more)
+Cohesion: 0.07
+Nodes (33): ChunkSizeCapabilities, ExpressionConstants, FILE_PARAMETER_KEYS, Formats, OutputKeys, ParameterLocations, Permissions, PropertyName (+25 more)
 
 ### Community 290 - "Community 290"
-Cohesion: 0.04
-Nodes (42): ApiManagementServiceOptions, BaseAppServiceServiceOptions, connectorIsAppService(), BaseConnectorServiceOptions, _executeAzureDynamicApi(), _fetchData(), _getAllPagedValues(), _getErrorMessageFromConnectorResponse() (+34 more)
+Cohesion: 0.03
+Nodes (46): BaseConnectorService, BaseConnectorServiceOptions, _executeAzureDynamicApi(), _fetchData(), _getAllPagedValues(), _getErrorMessageFromConnectorResponse(), _getResponseFromDynamicApi(), GetSchemaFunction (+38 more)
 
 ### Community 291 - "Community 291"
-Cohesion: 0.05
-Nodes (32): BaseCognitiveServiceServiceOptions, BaseGatewayServiceOptions, BaseResourceServiceOptions, BaseRoleServiceOptions, BaseTenantService, BaseTenantServiceOptions, getAzureResourceRecursive(), Tenant (+24 more)
+Cohesion: 0.03
+Nodes (56): ApiManagementServiceOptions, BaseAppServiceServiceOptions, connectorIsAppService(), BaseCloneService, BaseCloneServiceOptions, queryParameters, BaseCognitiveServiceServiceOptions, ApiHubServiceDetails (+48 more)
 
 ### Community 292 - "Community 292"
 Cohesion: 0.03
 Nodes (68): Action, ActionDefinition, Actions, ActiveDirectoryOAuthAuthentication, ApiConnectionAction, ApiConnectionHeaders, ApiConnectionHost, ApiConnectionHostApi (+60 more)
 
 ### Community 293 - "Community 293"
-Cohesion: 0.05
-Nodes (39): ConsumptionConnectorService, getResourceName(), optional(), ConnectionParametersMetadata, ConnectionService(), ConnectorWithSwagger, CreateConnectionResult, IConnectionService (+31 more)
+Cohesion: 0.06
+Nodes (31): mcpDynamicState, mockMcpToolsResponse, nonMcpDynamicState, mcpDynamicState, mockMcpToolsResponse, nonMcpDynamicState, InitWorkflowService(), IWorkflowService (+23 more)
 
 ### Community 294 - "Community 294"
 Cohesion: 0.07
-Nodes (32): AzureOperationsFetchResponse, BaseSearchServiceOptions, getActiveSearchOperations(), getAgentConnectorOperation(), getAgentWorkflows(), getAllAzureConnectors(), getAllAzureOperations(), getAllCustomApiConnectors() (+24 more)
+Nodes (32): BaseSearchService, getActiveSearchOperations(), getAgentConnectorOperation(), getAgentWorkflows(), getAllAzureConnectors(), getAllAzureOperations(), getAllCustomApiConnectors(), getAllCustomApiOperations() (+24 more)
 
 ### Community 295 - "Community 295"
-Cohesion: 0.10
-Nodes (28): InternalSchemaProcessorOptions, ParentPropertyInfo, SchemaObject, SchemaProcessor, dereferenceRefSchema(), EmptyRefs, getEditorForParameter(), getEditorOptionsForParameter() (+20 more)
+Cohesion: 0.09
+Nodes (34): InternalSchemaProcessorOptions, ParentPropertyInfo, SchemaObject, SchemaProcessor, aggregate(), create(), dereferenceRefSchema(), EmptyRefs (+26 more)
 
 ### Community 296 - "Community 296"
-Cohesion: 0.06
-Nodes (42): group, groupId, ILoggerService, InitLoggerService(), logEntry, LogEntryWithoutTimestamp, Service, traceIds (+34 more)
+Cohesion: 0.03
+Nodes (57): ConsumptionConnectorServiceOptions, ConsumptionRunService, getRecordEntry(), isNullOrUndefined(), parseErrorMessage(), getCallbackUrl(), CallbackInfo, HttpRequestOptions (+49 more)
 
 ### Community 297 - "Community 297"
-Cohesion: 0.08
+Cohesion: 0.09
 Nodes (46): buildAgentsUri(), buildAgentUri(), buildProjectEndpointFromResourceId(), buildProxyUri(), buildUpdateBody(), CreateFoundryAgentOptions, createFoundryAgentViaProxy(), extractVersionsData() (+38 more)
 
 ### Community 298 - "Community 298"
-Cohesion: 0.07
-Nodes (34): IStaticResultSchemaService, cleanDynamicSchemaParameters(), getStaticResultSchemaForAPIConnector(), wrapOutputsSchemaToOperationSchema(), intl, STATIC_RESULT_ERROR_OBJECT_CODE_TITLE, STATIC_RESULT_ERROR_OBJECT_MESSAGE_TITLE, STATIC_RESULT_OPERATION_CODE_TITLE (+26 more)
+Cohesion: 0.06
+Nodes (39): ExtensionProperties, isManagedConnectorId(), isSharedManagedConnectorId(), isSharedManagedConnectorIdFromPApps(), IStaticResultSchemaService, ManifestParser, SupportedChannels, cleanDynamicSchemaParameters() (+31 more)
 
 ### Community 299 - "Community 299"
-Cohesion: 0.07
-Nodes (35): ConnectionsResponse, ConsentLink, createConnectionInApiHub(), deleteConnection(), getAccessTokenType, _getAdditionalPropertiesForCreateConnection(), getAllConnectionsInLocation(), getAzureConnectionRequestPath() (+27 more)
+Cohesion: 0.04
+Nodes (60): BaseConnectionService, ConnectionsResponse, ConsentLink, createConnectionInApiHub(), deleteConnection(), getAccessTokenType, _getAdditionalPropertiesForCreateConnection(), getAllConnectionsInLocation() (+52 more)
 
 ### Community 300 - "Community 300"
-Cohesion: 0.06
-Nodes (16): BaseExperimentationService, BaseOperationManifestServiceOptions, getBuiltInOperationInfo(), isBuiltInOperation(), ConsumptionOperationManifestService, ExperimentationService(), IExperimentationService, InitExperimentationServiceService() (+8 more)
+Cohesion: 0.10
+Nodes (10): BaseOperationManifestService, BaseOperationManifestServiceOptions, getBuiltInOperationInfo(), isBuiltInOperation(), IOperationManifestService, OperationInfo, aiOperationsGroup, isServiceProviderOperation() (+2 more)
 
 ### Community 301 - "Community 301"
 Cohesion: 0.05
 Nodes (43): ContactObject, DefinitionsObject, Document, ExampleObject, ExternalDocumentationObject, GeneralParameterObject, HeaderObject, HeadersObject (+35 more)
 
 ### Community 302 - "Community 302"
-Cohesion: 0.09
-Nodes (5): isIdentityAssociatedWithLogicApp(), getRecordEntry(), StandardConnectionService, isHybridLogicApp(), StandardRunService
+Cohesion: 0.08
+Nodes (25): firstPageResponse, mockContent, mockResponse, secondPageResponse, firstPageResponse, mockContent, mockResponse, secondPageResponse (+17 more)
 
 ### Community 303 - "Community 303"
-Cohesion: 0.12
-Nodes (18): ExpressionEvaluator, ExpressionEvaluatorErrorCode, ExpressionEvaluatorException, ExpressionEvaluatorOptions, isAppSettingExpression(), isBooleanLiteral(), isFunction(), isLiteralExpression() (+10 more)
+Cohesion: 0.06
+Nodes (43): ExpressionException, ExpressionExceptionCode, ExpressionParserErrorCode, ParserException, ScannerException, ExpressionBuilder, ExpressionBuilderErrorCode, ExpressionBuilderException (+35 more)
 
 ### Community 304 - "Community 304"
-Cohesion: 0.05
-Nodes (37): ActionSetting, BindingMode, BuiltInOutput, ConnectionMetadata, ConnectionReferenceKeyFormat, ConnectionReferenceKeyFormatMapping, ConnectionType, CustomSwaggerServiceDetails (+29 more)
+Cohesion: 0.13
+Nodes (10): ConnectorManifest, inlineCSharpManifest, inlinePowershellManifest, inlinePythonManifest, connector, invokeFunctionManifest, OperationManifest, OperationOptions (+2 more)
 
 ### Community 305 - "Community 305"
 Cohesion: 0.05
 Nodes (37): ApiKeySecurityScheme, BodyParameter, Contact, Definitions, Example, ExternalDocumentation, Header, Headers (+29 more)
 
 ### Community 306 - "Community 306"
-Cohesion: 0.07
-Nodes (15): ArgumentException, AssertionErrorCode, AssertionException, ConnectorServiceErrorCode, ConnectorServiceException, Exception, InvalidFormatException, SerializationErrorCode (+7 more)
+Cohesion: 0.08
+Nodes (18): ArgumentException, AssertionException, BaseException, ConnectorServiceException, Exception, InvalidFormatException, SerializationErrorCode, SerializationException (+10 more)
 
 ### Community 307 - "Community 307"
-Cohesion: 0.12
-Nodes (21): ExpressionException, ExpressionExceptionCode, ExpressionParserErrorCode, ParserException, ScannerException, ExpressionBuilderErrorCode, ExpressionBuilderException, TokenToParse (+13 more)
+Cohesion: 0.25
+Nodes (7): BaseOAuthService, OAuthPopup, IOAuthPopup, IOAuthService, IOAuthServiceOptions, LoginResult, OAuthPopupOptions
 
 ### Community 308 - "Community 308"
-Cohesion: 0.09
-Nodes (11): generateUniqueName(), getPropertyValue(), map(), removeKeys(), setObjectPropertyValue(), unmap(), ManifestParser, orderAdvancedAfterOthers() (+3 more)
+Cohesion: 0.08
+Nodes (8): BaseApiManagementService, BaseAppServiceService, Annotation, LAOperation, OutputParameters, DownloadChunkMetadata, UploadChunkMetadata, SwaggerParser
 
 ### Community 309 - "Community 309"
 Cohesion: 0.10
 Nodes (5): getHybridAppBaseRelativeUrl(), isHybridLogicApp(), isServiceProviderOperation(), StandardOperationManifestService, StandardRunService
 
 ### Community 310 - "Community 310"
-Cohesion: 0.09
-Nodes (25): CLIENT_CERTIFICATE_CONSTANTS, connectorContainsAllClientCertificateConnectionParameters(), connectorContainsAllServicePrincipalConnectionParameters(), connectorsShownAsAzure, getAuthRedirect(), _getConnectionParameterSetParametersUsingType(), getConnectionParametersWithType(), getIdentityDropdownOptions() (+17 more)
+Cohesion: 0.10
+Nodes (23): CLIENT_CERTIFICATE_CONSTANTS, connectorContainsAllClientCertificateConnectionParameters(), connectorContainsAllServicePrincipalConnectionParameters(), connectorsShownAsAzure, getAuthRedirect(), _getConnectionParameterSetParametersUsingType(), getConnectionParametersWithType(), getIdentityDropdownOptions() (+15 more)
 
 ### Community 311 - "Community 311"
-Cohesion: 0.08
-Nodes (23): dereferenceJsonSchema(), SchemaObject, api, functionOperation, swaggerFunctionOperation, integrationAccountArtifactLookupOperation, liquidJsonToJsonOperation, liquidJsonToTextOperation (+15 more)
+Cohesion: 0.05
+Nodes (41): flatFileDecodingManifest, flatFileEncodingManifest, integrationAccount, settings, xmlTransformManifest, xmlValidationManifest, api, apiManagementActionOperation (+33 more)
 
 ### Community 312 - "Community 312"
-Cohesion: 0.08
-Nodes (26): ExtensionProperties, createItem, getEmails, onNewEmail, DynamicListExtension, DynamicSchemaType, DynamicValuesType, allInputParameters (+18 more)
+Cohesion: 0.04
+Nodes (51): createItem, getEmails, onNewEmail, DependentParameterInfo, DeserializationType, DynamicList, DynamicListExtension, DynamicParameter (+43 more)
 
 ### Community 313 - "Community 313"
-Cohesion: 0.07
-Nodes (26): ConnectorsMock, connectorsSearchResultsMock, Capabilities, ConnectionAlternativeParameters, ConnectionParameterAllowedValue, ConnectionParameterMetadata, ConnectionParameterSchemaFormat, ConnectionParameterSchemaType (+18 more)
+Cohesion: 0.03
+Nodes (59): connectionsMock, ConnectorsMock, connectorsSearchResultsMock, MockAzureOperation, MockSearchOperations, MockSearchOperationsBuiltIn, Capabilities, ConnectionAlternativeParameters (+51 more)
 
 ### Community 314 - "Community 314"
 Cohesion: 0.10
-Nodes (10): areApiIdsEqual(), canStringBeConverted(), escapeString(), idDisplayCase(), labelCase(), normalizeApiId(), removeIdTag(), toPascalCase() (+2 more)
+Nodes (11): areApiIdsEqual(), canStringBeConverted(), capitalizeFirstLetter(), escapeString(), idDisplayCase(), labelCase(), normalizeApiId(), removeIdTag() (+3 more)
 
 ### Community 315 - "Community 315"
-Cohesion: 0.09
-Nodes (3): BaseCognitiveServiceService, BaseResourceService, fetchAppsByQuery()
+Cohesion: 0.07
+Nodes (16): BaseCognitiveServiceService, BaseResourceService, BaseResourceServiceOptions, BaseRoleService, fetchAppsByQuery(), getResourceNameFromId(), HTTP_METHODS, IResourceService (+8 more)
 
 ### Community 316 - "Community 316"
 Cohesion: 0.13
-Nodes (19): OutputSource, cleanIndexedValue(), _codeBook, createEx(), decodePropertySegment(), _decodeSegment(), encodePropertySegment(), _encodeSegment() (+11 more)
+Nodes (20): OutputSource, cleanIndexedValue(), _codeBook, createEx(), decodePropertySegment(), _decodeSegment(), encodePropertySegment(), _encodeSegment() (+12 more)
+
+### Community 317 - "Community 317"
+Cohesion: 0.28
+Nodes (6): BaseExperimentationService, ExperimentationService(), IExperimentationService, InitExperimentationServiceService(), enableAPIMGatewayConnection(), EXP_FLAGS
 
 ### Community 318 - "Community 318"
 Cohesion: 0.08
 Nodes (23): options, parameters, processor, properties, propertiesForSchemaWithGrandLevelSchema, propertiesForSchemaWithGrandNestArray, propertiesForSchemaWithNestArray, propertiesForSchemaWithNestArrayBothTitle (+15 more)
 
 ### Community 319 - "Community 319"
-Cohesion: 0.13
-Nodes (17): getCallbackUrl(), getIsCallbackUrlSupported(), getRequestTriggerName(), getRunTriggerName(), getTriggerName(), isCallbackInfoWithRelativePath(), armConnectorIds, connector (+9 more)
+Cohesion: 0.17
+Nodes (14): getIsCallbackUrlSupported(), getRequestTriggerName(), getRunTriggerName(), getTriggerName(), CallbackInfo, CallbackInfoWithRelativePath, callbackInfo, definition (+6 more)
 
 ### Community 320 - "Community 320"
 Cohesion: 0.10
@@ -519,48 +496,48 @@ Cohesion: 0.09
 Nodes (21): Artifact, Connection, ConnectionInfo, ConnectorRuntimeType, ContentInfo, DetailsType, FeaturedConnector, FeaturedConnectorType (+13 more)
 
 ### Community 322 - "Community 322"
-Cohesion: 0.12
+Cohesion: 0.14
 Nodes (9): BaseTemplateService, BaseTemplateServiceOptions, resourceName, ConsumptionTemplateService, ConsumptionTemplateServiceOptions, CustomTemplateResource, ITemplateService, StandardTemplateService (+1 more)
 
 ### Community 323 - "Community 323"
-Cohesion: 0.12
-Nodes (12): BaseRoleService, customLengthGuid(), guid(), hexValues, isAGuid(), generatedGuid, guid1, guid2 (+4 more)
+Cohesion: 0.18
+Nodes (11): customLengthGuid(), guid(), hexValues, isAGuid(), generatedGuid, guid1, guid2, guid3 (+3 more)
 
 ### Community 324 - "Community 324"
-Cohesion: 0.10
-Nodes (19): AgentMetadata, BindFunction, BoundParameter, BoundParameters, CallbackInfo, CallbackInfoWithRelativePath, CallbackInfoWithValue, ChatHistory (+11 more)
+Cohesion: 0.17
+Nodes (11): integrationAccount, jsonContent, liquidJsonToJsonManifest, liquidJsonToTextManifest, liquidXmlToJsonManifest, liquidXmlToTextManifest, objectOutput, settings (+3 more)
 
 ### Community 325 - "Community 325"
-Cohesion: 0.15
-Nodes (15): ActionTemplate, buildActionTemplate(), CopilotToolDefinition, deriveReferenceName(), discoverConnectors(), executeCopilotTool(), getConnectorOperations(), rerankByConnectorName() (+7 more)
+Cohesion: 0.11
+Nodes (19): ActionTemplate, buildActionTemplate(), COPILOT_WORKFLOW_TOOLS, CopilotToolDefinition, deriveReferenceName(), discoverConnectors(), executeCopilotTool(), getConnectorOperations() (+11 more)
 
 ### Community 326 - "Community 326"
-Cohesion: 0.15
-Nodes (16): CopilotWorkflowEditorService(), ICopilotWorkflowEditorService, InitCopilotWorkflowEditorService(), isCopilotWorkflowEditorServiceInitialized(), WorkflowChange, WorkflowEditResponse, change, changeTypes (+8 more)
+Cohesion: 0.14
+Nodes (17): svc, CopilotWorkflowEditorService(), InitCopilotWorkflowEditorService(), isCopilotWorkflowEditorServiceInitialized(), WorkflowChange, WorkflowChangeTargetType, WorkflowChangeType, change (+9 more)
 
 ### Community 327 - "Community 327"
 Cohesion: 0.11
-Nodes (18): getAllValidationErrorType(), getValidationErrorSchema(), intl, STATIC_RESULT_ERROR_LINE_NUMBER, STATIC_RESULT_ERROR_LINE_POSITION, STATIC_RESULT_HTTP_BODY_TITLE, STATIC_RESULT_OPERATION_OUTPUT_TITLE, STATIC_RESULT_PARSE_JSON_CHILD_ERRORS (+10 more)
+Nodes (19): getAllValidationErrorType(), getValidationErrorSchema(), intl, ParseJsonStaticResultSchema, STATIC_RESULT_ERROR_LINE_NUMBER, STATIC_RESULT_ERROR_LINE_POSITION, STATIC_RESULT_HTTP_BODY_TITLE, STATIC_RESULT_OPERATION_OUTPUT_TITLE (+11 more)
 
 ### Community 328 - "Community 328"
-Cohesion: 0.13
-Nodes (12): canRunBeInvokedWithPayload(), getTriggerType(), cache, IntlGlobalProvider(), IntlGlobalProviderProps, resetIntl(), IntlProvider(), IntlProviderProps (+4 more)
+Cohesion: 0.14
+Nodes (13): canRunBeInvokedWithPayload(), getTriggerFromDefinition(), getTriggerType(), cache, IntlGlobalProvider(), IntlGlobalProviderProps, resetIntl(), IntlProvider() (+5 more)
 
 ### Community 329 - "Community 329"
-Cohesion: 0.13
-Nodes (5): BaseTemplateResourceService, ITemplateResourceServiceOptions, getTemplateManifestFromResourceManifest(), ITemplateResourceService, WorkflowData
+Cohesion: 0.18
+Nodes (5): ConsumptionOperationManifestService, getBuiltInConnectorsInConsumption(), definition, msiSet, result
 
 ### Community 330 - "Community 330"
-Cohesion: 0.12
-Nodes (16): connectionsMock, Api, Connection, ConnectionAuthenticatedUser, ConnectionFeatureType, ConnectionParameterSetValues, ConnectionParameterValue, ConnectionParameterValues (+8 more)
+Cohesion: 0.29
+Nodes (6): msiSet, names, msiSet, names, msiSet, names
 
 ### Community 331 - "Community 331"
-Cohesion: 0.15
-Nodes (6): validateRequiredServiceArguments(), ICustomCodeService, UploadCustomCodeAppFilePayload, UploadCustomCodePayload, CustomCodeServiceOptions, StandardCustomCodeService
+Cohesion: 0.26
+Nodes (5): ICustomCodeService, UploadCustomCodeAppFilePayload, UploadCustomCodePayload, CustomCodeServiceOptions, StandardCustomCodeService
 
 ### Community 332 - "Community 332"
-Cohesion: 0.27
-Nodes (3): ExpressionScanner, isNumeric(), isWhitespace()
+Cohesion: 0.34
+Nodes (3): ExpressionScanner, isWhitespace(), ExpressionToken
 
 ### Community 333 - "Community 333"
 Cohesion: 0.13
@@ -575,11 +552,11 @@ Cohesion: 0.12
 Nodes (16): ArtifactInformation, ContentAndSchemaInputs, EmptyNodeGenerationMode, FlatFileDecodingAction, FlatFileEncodingAction, FlatFileEncodingInputs, FunctionInput, IntegrationAccountArtifactLookupAction (+8 more)
 
 ### Community 336 - "Community 336"
-Cohesion: 0.19
-Nodes (6): ApiHubServiceDetails, ArtifactServiceOptions, FileDetails, MapArtifact, SchemaArtifact, StandardArtifactService
+Cohesion: 0.33
+Nodes (5): api, rosettaNetDecodeOperation, rosettaNetEncodeOperation, rosettaNetGroup, rosettaNetWairForResponseOperation
 
 ### Community 337 - "Community 337"
-Cohesion: 0.20
+Cohesion: 0.23
 Nodes (6): IDesignerUiInteractionsService, DropdownMenuCustomNode, DropdownMenuItem, DropdownMenuOption, TopLevelDropdownMenuItem, UiInteractionData
 
 ### Community 338 - "Community 338"
@@ -587,8 +564,8 @@ Cohesion: 0.13
 Nodes (14): API, code:typescript (import { isVersionSupported } from '@microsoft/logic-apps-sh), code:typescript (import { isMultiVariableSupport } from '@microsoft/logic-app), code:typescript (import { isVersionSupported } from '@microsoft/logic-apps-sh), code:typescript (import { isVersionSupported } from '@microsoft/logic-apps-sh), code:typescript (// Old (deprecated)), Feature Flags Based on Version, `isMultiVariableSupport(version?)` (deprecated) (+6 more)
 
 ### Community 339 - "Community 339"
-Cohesion: 0.17
-Nodes (13): MockAzureOperation, MockSearchOperations, MockSearchOperationsBuiltIn, BuiltInOperation, DiscoveryOpArray, DiscoveryOperation, DiscoveryResultTypes, DiscoveryWorkflow (+5 more)
+Cohesion: 0.40
+Nodes (4): dereferenceJsonSchema(), SchemaObject, result, schema
 
 ### Community 340 - "Community 340"
 Cohesion: 0.13
@@ -600,15 +577,15 @@ Nodes (7): LiteralSegment, Modes, Segment, Types, UriTemplateGenerator, UriTempl
 
 ### Community 342 - "Community 342"
 Cohesion: 0.14
-Nodes (12): BaseCopilotWorkflowEditorServiceOptions, controller, defaultOptions, mockAxiosPost, mockGetAccessToken, simpleWorkflow, svc, textResponse (+4 more)
+Nodes (12): svc, controller, defaultOptions, mockAxiosPost, mockGetAccessToken, simpleWorkflow, svc, textResponse (+4 more)
 
 ### Community 343 - "Community 343"
-Cohesion: 0.14
-Nodes (13): WorkflowChangeTargetType, WorkflowChangeType, bareDefinition, inner, llmResponse, parsed, raw, repaired (+5 more)
+Cohesion: 0.17
+Nodes (11): bareDefinition, inner, llmResponse, parsed, raw, repaired, response, result (+3 more)
 
 ### Community 344 - "Community 344"
-Cohesion: 0.20
-Nodes (12): ConnectionParameterEditorService(), IConnectionCredentialMappingEditorProps, IConnectionCredentialMappingInfo, IConnectionCredentialMappingOptions, IConnectionParameterEditorOptions, IConnectionParameterEditorProps, IConnectionParameterEditorService, IConnectionParameterInfo (+4 more)
+Cohesion: 0.21
+Nodes (14): ConnectionParameterEditorService(), IConnectionCredentialMappingEditorProps, IConnectionCredentialMappingInfo, IConnectionCredentialMappingOptions, IConnectionParameterEditorOptions, IConnectionParameterEditorProps, IConnectionParameterEditorService, IConnectionParameterInfo (+6 more)
 
 ### Community 345 - "Community 345"
 Cohesion: 0.18
@@ -627,8 +604,8 @@ Cohesion: 0.14
 Nodes (13): ConnectionAndOrder, emptyCanvasRect, FunctionMetadata, FunctionMetadataV1, FunctionPositionMetadata, IFileSysTreeItem, ITreeDirectory, ITreeFile (+5 more)
 
 ### Community 349 - "Community 349"
-Cohesion: 0.14
-Nodes (13): WorkflowDefinition, ApiHubAuthentication, ConnectionMapping, ConnectionReference, ConnectionReferences, ConsumptionWorkflowMetadata, Impersonation, ImpersonationSource (+5 more)
+Cohesion: 0.17
+Nodes (11): ApiHubAuthentication, ConnectionMapping, ConnectionReference, ConnectionReferences, ConsumptionWorkflowMetadata, Impersonation, ImpersonationSource, NodeId (+3 more)
 
 ### Community 350 - "Community 350"
 Cohesion: 0.21
@@ -638,29 +615,21 @@ Nodes (8): normalizeTemplate(), replaceTemplatePlaceholders(), WORKFLOW_EDGE_TYP
 Cohesion: 0.15
 Nodes (12): DataMapSchema, InputFormat, NamespaceDictionary, NormalizedDataType, PathItem, SchemaExtended, SchemaFileFormat, SchemaNode (+4 more)
 
+### Community 353 - "Community 353"
+Cohesion: 0.40
+Nodes (4): api, as2DecodeOperation, as2EncodeOperation, as2Group
+
 ### Community 354 - "Community 354"
-Cohesion: 0.24
-Nodes (3): BaseChatbotService, ChatbotServiceOptions, IChatbotService
+Cohesion: 0.27
+Nodes (4): BaseChatbotService, ChatbotServiceOptions, IChatbotService, DocumentationMetadataState
 
 ### Community 355 - "Community 355"
 Cohesion: 0.18
 Nodes (10): chunktext, composeOperation, csvTableOperation, htmlTableOperation, joinOperation, parsedocument, parsedocumentwithmetadata, parseJsonOperation (+2 more)
 
-### Community 356 - "Community 356"
-Cohesion: 0.42
-Nodes (3): aggregate(), create(), ParametersProcessor
-
-### Community 358 - "Community 358"
-Cohesion: 0.22
-Nodes (4): BaseCloneService, BaseCloneServiceOptions, queryParameters, ICloneService
-
 ### Community 359 - "Community 359"
-Cohesion: 0.33
-Nodes (9): constructor(), fallbackConnectorIconUrl(), getAllConnectorProperties(), getBrandColorFromConnector(), getDescriptionFromConnector(), getDisplayNameFromConnector(), getIconUriFromConnector(), isIndependentPublisherConnector() (+1 more)
-
-### Community 361 - "Community 361"
-Cohesion: 0.20
-Nodes (6): COPILOT_WORKFLOW_TOOLS, builtInOps, ops, parsed, summaries, tool
+Cohesion: 0.13
+Nodes (17): constructor(), fallbackConnectorIconUrl(), getAllConnectorProperties(), getBrandColorFromConnector(), getDescriptionFromConnector(), getDisplayNameFromConnector(), getIconUriFromConnector(), isIndependentPublisherConnector() (+9 more)
 
 ### Community 362 - "Community 362"
 Cohesion: 0.20
@@ -679,8 +648,8 @@ Cohesion: 0.22
 Nodes (8): AddSubtractTimeInputs, AddSubtractTimeInputsType, ConvertTimeZoneInputs, ConvertTimeZoneInputsType, CurrentTimeInputs, ExpressionAction, OffsetTimeInputs, OffsetTimeInputsType
 
 ### Community 371 - "Community 371"
-Cohesion: 0.29
-Nodes (6): ArmResource, ArmResources, ApiToGatewayMapping, Gateway, GatewayProperties, GatewayType
+Cohesion: 0.08
+Nodes (16): AgentQueryParams, AgentURL, AGENT_MODEL_CONFIG, SUPPORTED_AGENT_OPENAI_MODELS, SUPPORTED_FOUNDRY_AGENT_MODELS, OperationMetadata, SummaryMetadata, ApiToGatewayMapping (+8 more)
 
 ### Community 372 - "Community 372"
 Cohesion: 0.25
@@ -702,77 +671,53 @@ Nodes (6): httpActionOperation, httpSwaggerActionOperation, httpSwaggerTriggerOp
 Cohesion: 0.29
 Nodes (6): appendArrayVariableOperation, appendStringVariableOperation, decrementVariableOperation, incrementVariableOperation, initializeVariableOperation, setVariableOperation
 
-### Community 377 - "Community 377"
-Cohesion: 0.29
-Nodes (3): ContentType, IHostService, IsConnectorFn
-
 ### Community 378 - "Community 378"
 Cohesion: 0.29
 Nodes (6): agentModelTypeOptions, deploymentVisValues, dropdownValues, inputs, kbVisValues, v2Option
 
 ### Community 380 - "Community 380"
-Cohesion: 0.43
-Nodes (4): BundleVersionRequirements, compareVersions(), isVersionSupported(), parseVersion()
-
-### Community 383 - "Community 383"
-Cohesion: 0.40
-Nodes (3): CONSUMPTION_SYSTEM_PROMPT, DEFAULT_SYSTEM_PROMPT, LogicAppsSku
+Cohesion: 0.11
+Nodes (6): LOCAL_STORAGE_KEYS, getFrequencyValues(), BundleVersionRequirements, compareVersions(), isVersionSupported(), parseVersion()
 
 ### Community 384 - "Community 384"
 Cohesion: 0.40
 Nodes (4): delayOperation, delayUntilOperation, recurrenceOperation, slidingWindowOperation
 
-### Community 385 - "Community 385"
-Cohesion: 0.40
-Nodes (4): api, apiManagementActionOperation, apiManagementGroup, apiManagementTriggerOperation
-
-### Community 386 - "Community 386"
-Cohesion: 0.40
-Nodes (4): api, appServiceActionOperation, appServiceGroup, appServiceTriggerOperation
-
-### Community 387 - "Community 387"
-Cohesion: 0.40
-Nodes (4): api, batchTriggerOperation, selectBatchWorkflowGroup, sendToBatchOperation
-
 ### Community 389 - "Community 389"
 Cohesion: 0.40
 Nodes (4): Assertion, AssertionDefinition, OperationMock, UnitTestDefinition
 
-### Community 392 - "Community 392"
-Cohesion: 0.50
-Nodes (3): invokeNestedAgentOperation, invokeWorkflowGroup, invokeWorkflowOperation
+### Community 390 - "Community 390"
+Cohesion: 0.33
+Nodes (6): BaseCopilotWorkflowEditorService, BaseCopilotWorkflowEditorServiceOptions, ICopilotWorkflowEditorService, WorkflowEditResponse, WorkflowDefinition, Workflow
 
-### Community 395 - "Community 395"
-Cohesion: 0.50
-Nodes (3): AGENT_MODEL_CONFIG, SUPPORTED_AGENT_OPENAI_MODELS, SUPPORTED_FOUNDRY_AGENT_MODELS
+### Community 391 - "Community 391"
+Cohesion: 0.29
+Nodes (6): a2aRequestOperation, agentOperation, a2aRequestOperation, agentOperation, a2aRequestOperation, agentOperation
 
-### Community 396 - "Community 396"
-Cohesion: 0.50
-Nodes (3): DocumentationMetadataState, OperationMetadata, SummaryMetadata
-
-### Community 397 - "Community 397"
-Cohesion: 0.50
-Nodes (3): ManagedIdentity, ManagedIdentityData, ResourceIdentityType
+### Community 398 - "Community 398"
+Cohesion: 0.20
+Nodes (4): handoffOperation, inlinePythonCodeOperation, requestOperation, responseOperation
 
 ## Knowledge Gaps
-- **11169 isolated node(s):** `CyclicalRefMetadata`, `DereferencedDocument`, `ParametersProcessorOptions`, `Parameter`, `GetOperationsOptions` (+11164 more)
+- **11108 isolated node(s):** `CyclicalRefMetadata`, `DereferencedDocument`, `ParametersProcessorOptions`, `Parameter`, `GetOperationsOptions` (+11103 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `loadLocaleData()` connect `Community 328` to `Community 264`, `Community 265`, `Community 266`, `Community 267`, `Community 268`, `Community 269`, `Community 270`, `Community 271`, `Community 272`, `Community 273`, `Community 274`, `Community 275`, `Community 276`, `Community 277`, `Community 278`, `Community 279`, `Community 280`, `Community 281`, `Community 282`, `Community 283`?**
-  _High betweenness centrality (0.756) - this node is a cross-community bridge._
-- **Why does `getIntl()` connect `Community 295` to `Community 352`, `Community 290`, `Community 356`, `Community 357`, `Community 328`, `Community 366`, `Community 303`, `Community 302`, `Community 370`?**
-  _High betweenness centrality (0.118) - this node is a cross-community bridge._
-- **Why does `equals()` connect `Community 303` to `Community 288`, `Community 289`, `Community 356`, `Community 293`, `Community 295`, `Community 328`, `Community 299`, `Community 332`, `Community 300`, `Community 302`, `Community 308`, `Community 310`, `Community 312`, `Community 379`, `Community 286`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+  _High betweenness centrality (0.770) - this node is a cross-community bridge._
+- **Why does `IHttpClient` connect `Community 291` to `Community 288`, `Community 290`, `Community 322`, `Community 293`, `Community 294`, `Community 296`, `Community 329`, `Community 297`, `Community 299`, `Community 331`, `Community 300`, `Community 302`, `Community 307`, `Community 315`, `Community 287`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `BaseException` connect `Community 306` to `Community 303`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Are the 30 inferred relationships involving `equals()` (e.g. with `orderAdvancedAfterOthers()` and `orderImportantBeforeOthers()`) actually correct?**
+  _`equals()` has 30 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 65 inferred relationships involving `map()` (e.g. with `getTemplateManifestFromResourceManifest()` and `._updateOperationsIfNeeded()`) actually correct?**
   _`map()` has 65 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 30 inferred relationships involving `equals()` (e.g. with `.isReservedParameter()` and `orderAdvancedAfterOthers()`) actually correct?**
-  _`equals()` has 30 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 41 inferred relationships involving `equals()` (e.g. with `._listDynamicValues()` and `._getIdentityDetailsForApiHubAuth()`) actually correct?**
-  _`equals()` has 41 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `CyclicalRefMetadata`, `DereferencedDocument`, `ParametersProcessorOptions` to the rest of the system?**
-  _11169 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _11108 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Community 0` be split into smaller, more focused modules?**
+  _Cohesion score 0.06033182503770739 - nodes in this community are weakly interconnected._

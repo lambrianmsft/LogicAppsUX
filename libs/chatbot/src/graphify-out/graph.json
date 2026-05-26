@@ -9,7 +9,7 @@
       "source_file": "index.ts",
       "source_location": "L1",
       "id": "index_ts",
-      "community": 23,
+      "community": 20,
       "norm_label": "index.ts"
     },
     {
@@ -27,7 +27,7 @@
       "source_file": "lib/index.tsx",
       "source_location": "L1",
       "id": "lib_index_tsx",
-      "community": 24,
+      "community": 20,
       "norm_label": "index.tsx"
     },
     {
@@ -36,7 +36,7 @@
       "source_file": "lib/styles.ts",
       "source_location": "L1",
       "id": "lib_styles_ts",
-      "community": 25,
+      "community": 20,
       "norm_label": "styles.ts"
     },
     {
@@ -870,14 +870,80 @@
   ],
   "links": [
     {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "index.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "index_ts",
+      "target": "lib_index_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "index.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "index_ts",
+      "target": "lib_styles_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/index.tsx",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "lib_index_tsx",
+      "target": "lib_ui_chatbotui_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/index.tsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "lib_index_tsx",
+      "target": "lib_ui_copilotchatbot_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/index.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "lib_index_tsx",
+      "target": "lib_common_models_query_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/styles.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "lib_styles_ts",
+      "target": "lib_ui_styles_ts",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/__test__/intl-test-helper.tsx",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_test_intl_test_helper_tsx",
-      "target": "test_intl_test_helper_cache",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_cache"
     },
     {
       "relation": "contains",
@@ -885,9 +951,9 @@
       "source_file": "lib/__test__/intl-test-helper.tsx",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_test_intl_test_helper_tsx",
-      "target": "test_intl_test_helper_intl",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_intl"
     },
     {
       "relation": "contains",
@@ -895,9 +961,9 @@
       "source_file": "lib/__test__/intl-test-helper.tsx",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_test_intl_test_helper_tsx",
-      "target": "test_intl_test_helper_mockuseintl",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_mockuseintl"
     },
     {
       "relation": "contains",
@@ -905,9 +971,9 @@
       "source_file": "lib/__test__/intl-test-helper.tsx",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_test_intl_test_helper_tsx",
-      "target": "test_intl_test_helper_gettestintl",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_gettestintl"
     },
     {
       "relation": "imports_from",
@@ -916,9 +982,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "lib_test_intl_test_helper_tsx",
-      "confidence_score": 1.0
+      "target": "lib_test_intl_test_helper_tsx"
     },
     {
       "relation": "imports_from",
@@ -927,9 +993,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "lib_test_intl_test_helper_tsx",
-      "confidence_score": 1.0
+      "target": "lib_test_intl_test_helper_tsx"
     },
     {
       "relation": "imports_from",
@@ -938,9 +1004,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "lib_test_intl_test_helper_tsx",
-      "confidence_score": 1.0
+      "target": "lib_test_intl_test_helper_tsx"
     },
     {
       "relation": "imports",
@@ -949,9 +1015,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_intl_test_helper_mockuseintl",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_mockuseintl"
     },
     {
       "relation": "imports",
@@ -960,9 +1026,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_intl_test_helper_mockuseintl",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_mockuseintl"
     },
     {
       "relation": "imports",
@@ -971,9 +1037,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_intl_test_helper_mockuseintl",
-      "confidence_score": 1.0
+      "target": "test_intl_test_helper_mockuseintl"
     },
     {
       "relation": "imports_from",
@@ -982,9 +1048,9 @@
       "source_file": "lib/ui/ChatbotUi.tsx",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_chatbotui_tsx",
-      "target": "lib_ui_styles_ts",
-      "confidence_score": 1.0
+      "target": "lib_ui_styles_ts"
     },
     {
       "relation": "imports",
@@ -993,9 +1059,9 @@
       "source_file": "lib/ui/ChatbotUi.tsx",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_chatbotui_tsx",
-      "target": "ui_styles_usechatbotstyles",
-      "confidence_score": 1.0
+      "target": "ui_styles_usechatbotstyles"
     },
     {
       "relation": "contains",
@@ -1003,9 +1069,9 @@
       "source_file": "lib/ui/ChatbotUi.tsx",
       "source_location": "L19",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_chatbotui_tsx",
-      "target": "ui_chatbotui_chatbotuiprops",
-      "confidence_score": 1.0
+      "target": "ui_chatbotui_chatbotuiprops"
     },
     {
       "relation": "contains",
@@ -1013,9 +1079,9 @@
       "source_file": "lib/ui/ChatbotUi.tsx",
       "source_location": "L63",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_chatbotui_tsx",
-      "target": "ui_chatbotui_chatbotui",
-      "confidence_score": 1.0
+      "target": "ui_chatbotui_chatbotui"
     },
     {
       "relation": "contains",
@@ -1023,9 +1089,9 @@
       "source_file": "lib/ui/ChatbotUi.tsx",
       "source_location": "L180",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_chatbotui_tsx",
-      "target": "ui_chatbotui_assistantchat",
-      "confidence_score": 1.0
+      "target": "ui_chatbotui_assistantchat"
     },
     {
       "relation": "imports_from",
@@ -1034,9 +1100,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "lib_ui_chatbotui_tsx",
-      "confidence_score": 1.0
+      "target": "lib_ui_chatbotui_tsx"
     },
     {
       "relation": "imports_from",
@@ -1045,9 +1111,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "lib_ui_chatbotui_tsx",
-      "confidence_score": 1.0
+      "target": "lib_ui_chatbotui_tsx"
     },
     {
       "relation": "imports",
@@ -1056,9 +1122,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "ui_chatbotui_chatbotui",
-      "confidence_score": 1.0
+      "target": "ui_chatbotui_chatbotui"
     },
     {
       "relation": "calls",
@@ -1078,9 +1144,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "ui_chatbotui_assistantchat",
-      "confidence_score": 1.0
+      "target": "ui_chatbotui_assistantchat"
     },
     {
       "relation": "imports",
@@ -1089,9 +1155,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "ui_chatbotui_assistantchat",
-      "confidence_score": 1.0
+      "target": "ui_chatbotui_assistantchat"
     },
     {
       "relation": "imports_from",
@@ -1100,9 +1166,9 @@
       "source_file": "lib/ui/panelheader.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_panelheader_tsx",
-      "target": "lib_ui_styles_ts",
-      "confidence_score": 1.0
+      "target": "lib_ui_styles_ts"
     },
     {
       "relation": "imports",
@@ -1111,9 +1177,9 @@
       "source_file": "lib/ui/panelheader.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_panelheader_tsx",
-      "target": "ui_styles_usechatbotstyles",
-      "confidence_score": 1.0
+      "target": "ui_styles_usechatbotstyles"
     },
     {
       "relation": "contains",
@@ -1121,9 +1187,9 @@
       "source_file": "lib/ui/panelheader.tsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_panelheader_tsx",
-      "target": "ui_panelheader_copilotpanelheader",
-      "confidence_score": 1.0
+      "target": "ui_panelheader_copilotpanelheader"
     },
     {
       "relation": "imports_from",
@@ -1132,9 +1198,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "lib_ui_panelheader_tsx",
-      "confidence_score": 1.0
+      "target": "lib_ui_panelheader_tsx"
     },
     {
       "relation": "imports_from",
@@ -1143,9 +1209,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "lib_ui_panelheader_tsx",
-      "confidence_score": 1.0
+      "target": "lib_ui_panelheader_tsx"
     },
     {
       "relation": "imports",
@@ -1154,9 +1220,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "ui_panelheader_copilotpanelheader",
-      "confidence_score": 1.0
+      "target": "ui_panelheader_copilotpanelheader"
     },
     {
       "relation": "imports",
@@ -1165,9 +1231,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "ui_panelheader_copilotpanelheader",
-      "confidence_score": 1.0
+      "target": "ui_panelheader_copilotpanelheader"
     },
     {
       "relation": "calls",
@@ -1187,9 +1253,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "lib_common_constants_ts",
-      "confidence_score": 1.0
+      "target": "lib_common_constants_ts"
     },
     {
       "relation": "imports_from",
@@ -1198,9 +1264,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "lib_common_models_query_ts",
-      "confidence_score": 1.0
+      "target": "lib_common_models_query_ts"
     },
     {
       "relation": "imports",
@@ -1209,9 +1275,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "models_query_requestdata",
-      "confidence_score": 1.0
+      "target": "models_query_requestdata"
     },
     {
       "relation": "imports_from",
@@ -1220,9 +1286,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "lib_core_util_index_ts",
-      "confidence_score": 1.0
+      "target": "lib_core_util_index_ts"
     },
     {
       "relation": "imports",
@@ -1231,9 +1297,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "util_index_issuccessresponse",
-      "confidence_score": 1.0
+      "target": "util_index_issuccessresponse"
     },
     {
       "relation": "contains",
@@ -1241,9 +1307,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "ui_copilotchatbot_copilotchatbotprops",
-      "confidence_score": 1.0
+      "target": "ui_copilotchatbot_copilotchatbotprops"
     },
     {
       "relation": "contains",
@@ -1251,9 +1317,9 @@
       "source_file": "lib/ui/CopilotChatbot.tsx",
       "source_location": "L47",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_copilotchatbot_tsx",
-      "target": "ui_copilotchatbot_copilotchatbot",
-      "confidence_score": 1.0
+      "target": "ui_copilotchatbot_copilotchatbot"
     },
     {
       "relation": "imports_from",
@@ -1262,9 +1328,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "lib_ui_copilotchatbot_tsx",
-      "confidence_score": 1.0
+      "target": "lib_ui_copilotchatbot_tsx"
     },
     {
       "relation": "imports",
@@ -1273,9 +1339,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "ui_copilotchatbot_copilotchatbot",
-      "confidence_score": 1.0
+      "target": "ui_copilotchatbot_copilotchatbot"
     },
     {
       "relation": "contains",
@@ -1283,9 +1349,9 @@
       "source_file": "lib/ui/styles.ts",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_styles_ts",
-      "target": "ui_styles_usechatbotstyles",
-      "confidence_score": 1.0
+      "target": "ui_styles_usechatbotstyles"
     },
     {
       "relation": "contains",
@@ -1293,9 +1359,9 @@
       "source_file": "lib/ui/styles.ts",
       "source_location": "L130",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_styles_ts",
-      "target": "ui_styles_usechatbotdarkstyles",
-      "confidence_score": 1.0
+      "target": "ui_styles_usechatbotdarkstyles"
     },
     {
       "relation": "contains",
@@ -1303,9 +1369,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L16",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_renderwithproviders",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_renderwithproviders"
     },
     {
       "relation": "contains",
@@ -1313,9 +1379,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L90",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_icon",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_icon"
     },
     {
       "relation": "contains",
@@ -1323,9 +1389,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L60",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_container",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_container"
     },
     {
       "relation": "contains",
@@ -1333,9 +1399,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L70",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_protectedlink",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_protectedlink"
     },
     {
       "relation": "contains",
@@ -1343,9 +1409,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L81",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_protectedpill",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_protectedpill"
     },
     {
       "relation": "contains",
@@ -1353,9 +1419,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L97",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_heading",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_heading"
     },
     {
       "relation": "contains",
@@ -1363,9 +1429,9 @@
       "source_file": "lib/ui/__test__/panelheader.spec.tsx",
       "source_location": "L105",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_panelheader_spec_tsx",
-      "target": "test_panelheader_spec_tooltiptrigger",
-      "confidence_score": 1.0
+      "target": "test_panelheader_spec_tooltiptrigger"
     },
     {
       "relation": "contains",
@@ -1373,9 +1439,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L13",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_capturedassistantchatprops",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_capturedassistantchatprops"
     },
     {
       "relation": "contains",
@@ -1383,9 +1449,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L39",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_mockgetcopilotresponse",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_mockgetcopilotresponse"
     },
     {
       "relation": "contains",
@@ -1393,9 +1459,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L40",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_mockgetworkflowedit",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_mockgetworkflowedit"
     },
     {
       "relation": "contains",
@@ -1403,9 +1469,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L43",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_actual",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_actual"
     },
     {
       "relation": "contains",
@@ -1413,9 +1479,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_renderwithproviders",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_renderwithproviders"
     },
     {
       "relation": "contains",
@@ -1423,9 +1489,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L65",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_mockworkflow",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_mockworkflow"
     },
     {
       "relation": "contains",
@@ -1433,9 +1499,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L72",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_defaultprops",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_defaultprops"
     },
     {
       "relation": "contains",
@@ -1443,9 +1509,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L152",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_querymessage",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_querymessage"
     },
     {
       "relation": "contains",
@@ -1453,9 +1519,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L172",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_replymessage",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_replymessage"
     },
     {
       "relation": "contains",
@@ -1463,9 +1529,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L189",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_errormessage",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_errormessage"
     },
     {
       "relation": "contains",
@@ -1473,9 +1539,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L223",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_closechatbot",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_closechatbot"
     },
     {
       "relation": "contains",
@@ -1483,9 +1549,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L279",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_greeting",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_greeting"
     },
     {
       "relation": "contains",
@@ -1493,9 +1559,9 @@
       "source_file": "lib/ui/__test__/CopilotChatbot.spec.tsx",
       "source_location": "L293",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_copilotchatbot_spec_tsx",
-      "target": "test_copilotchatbot_spec_rerender",
-      "confidence_score": 1.0
+      "target": "test_copilotchatbot_spec_rerender"
     },
     {
       "relation": "contains",
@@ -1503,9 +1569,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_actual",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_actual"
     },
     {
       "relation": "contains",
@@ -1513,9 +1579,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_renderwithproviders",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_renderwithproviders"
     },
     {
       "relation": "contains",
@@ -1523,9 +1589,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L65",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_createdefaultprops",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_createdefaultprops"
     },
     {
       "relation": "contains",
@@ -1533,9 +1599,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L329",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_props",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_props"
     },
     {
       "relation": "contains",
@@ -1543,9 +1609,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L114",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_container",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_container"
     },
     {
       "relation": "contains",
@@ -1553,9 +1619,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L119",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_messages",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_messages"
     },
     {
       "relation": "contains",
@@ -1563,9 +1629,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L184",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_submitbutton",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_submitbutton"
     },
     {
       "relation": "contains",
@@ -1573,9 +1639,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L224",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_input",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_input"
     },
     {
       "relation": "contains",
@@ -1583,9 +1649,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L189",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_onsubmit",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_onsubmit"
     },
     {
       "relation": "contains",
@@ -1593,9 +1659,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L249",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_save",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_save"
     },
     {
       "relation": "contains",
@@ -1603,9 +1669,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L253",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_savebutton",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_savebutton"
     },
     {
       "relation": "contains",
@@ -1613,9 +1679,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L259",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_test",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_test"
     },
     {
       "relation": "contains",
@@ -1623,9 +1689,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L263",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_testbutton",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_testbutton"
     },
     {
       "relation": "contains",
@@ -1633,9 +1699,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L287",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_abort",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_abort"
     },
     {
       "relation": "contains",
@@ -1643,9 +1709,9 @@
       "source_file": "lib/ui/__test__/ChatbotUi.spec.tsx",
       "source_location": "L328",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_ui_test_chatbotui_spec_tsx",
-      "target": "test_chatbotui_spec_ondismiss",
-      "confidence_score": 1.0
+      "target": "test_chatbotui_spec_ondismiss"
     },
     {
       "relation": "contains",
@@ -1653,9 +1719,9 @@
       "source_file": "lib/core/util/index.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_core_util_index_ts",
-      "target": "util_index_issuccessresponse",
-      "confidence_score": 1.0
+      "target": "util_index_issuccessresponse"
     },
     {
       "relation": "contains",
@@ -1663,9 +1729,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_connectionreference",
-      "confidence_score": 1.0
+      "target": "models_workflow_connectionreference"
     },
     {
       "relation": "contains",
@@ -1673,9 +1739,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L11",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_apihubauthentication",
-      "confidence_score": 1.0
+      "target": "models_workflow_apihubauthentication"
     },
     {
       "relation": "contains",
@@ -1683,9 +1749,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L16",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_impersonation",
-      "confidence_score": 1.0
+      "target": "models_workflow_impersonation"
     },
     {
       "relation": "contains",
@@ -1693,9 +1759,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L24",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_impersonationsource",
-      "confidence_score": 1.0
+      "target": "models_workflow_impersonationsource"
     },
     {
       "relation": "contains",
@@ -1703,9 +1769,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L26",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_referencekey",
-      "confidence_score": 1.0
+      "target": "models_workflow_referencekey"
     },
     {
       "relation": "contains",
@@ -1713,9 +1779,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L27",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_connectionreferences",
-      "confidence_score": 1.0
+      "target": "models_workflow_connectionreferences"
     },
     {
       "relation": "contains",
@@ -1723,9 +1789,9 @@
       "source_file": "lib/common/models/workflow.ts",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_workflow_ts",
-      "target": "models_workflow_workflowparameter",
-      "confidence_score": 1.0
+      "target": "models_workflow_workflowparameter"
     },
     {
       "relation": "contains",
@@ -1733,9 +1799,9 @@
       "source_file": "lib/common/models/Query.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_query_ts",
-      "target": "models_query_requestdata",
-      "confidence_score": 1.0
+      "target": "models_query_requestdata"
     },
     {
       "relation": "contains",
@@ -1743,9 +1809,9 @@
       "source_file": "lib/common/models/Query.ts",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_common_models_query_ts",
-      "target": "models_query_responsedata",
-      "confidence_score": 1.0
+      "target": "models_query_responsedata"
     },
     {
       "relation": "contains",
@@ -1799,5 +1865,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "18cccad31a5e4f34ab2d2709632a9d9b512dd14e"
+  "built_at_commit": "ea53459afac0d659db4c7ebe3853c79486afbf1b"
 }

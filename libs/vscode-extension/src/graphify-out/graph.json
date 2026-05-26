@@ -9,7 +9,7 @@
       "source_file": "index.ts",
       "source_location": "L1",
       "id": "index_ts",
-      "community": 45,
+      "community": 37,
       "norm_label": "index.ts"
     },
     {
@@ -234,7 +234,7 @@
       "source_file": "lib/services/index.ts",
       "source_location": "L1",
       "id": "lib_services_index_ts",
-      "community": 48,
+      "community": 37,
       "norm_label": "index.ts"
     },
     {
@@ -288,7 +288,7 @@
       "source_file": "lib/helpers/authorization.ts",
       "source_location": "L1",
       "id": "lib_helpers_authorization_ts",
-      "community": 40,
+      "community": 37,
       "norm_label": "authorization.ts"
     },
     {
@@ -297,7 +297,7 @@
       "source_file": "lib/helpers/authorization.ts",
       "source_location": "L1",
       "id": "helpers_authorization_getbasegraphapi",
-      "community": 40,
+      "community": 37,
       "norm_label": "getbasegraphapi()"
     },
     {
@@ -306,7 +306,7 @@
       "source_file": "lib/helpers/index.ts",
       "source_location": "L1",
       "id": "lib_helpers_index_ts",
-      "community": 46,
+      "community": 37,
       "norm_label": "index.ts"
     },
     {
@@ -315,7 +315,7 @@
       "source_file": "lib/helpers/__test__/authorization.spec.ts",
       "source_location": "L1",
       "id": "lib_helpers_test_authorization_spec_ts",
-      "community": 40,
+      "community": 37,
       "norm_label": "authorization.spec.ts"
     },
     {
@@ -441,7 +441,7 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L123",
       "id": "models_workflow_targetframework",
-      "community": 32,
+      "community": 1,
       "norm_label": "targetframework"
     },
     {
@@ -450,7 +450,7 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L130",
       "id": "models_workflow_workflowtype",
-      "community": 32,
+      "community": 1,
       "norm_label": "workflowtype"
     },
     {
@@ -459,7 +459,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L1",
       "id": "lib_models_functions_ts",
-      "community": 1,
+      "community": 38,
       "norm_label": "functions.ts"
     },
     {
@@ -468,7 +468,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L6",
       "id": "models_functions_funcversion",
-      "community": 33,
+      "community": 38,
       "norm_label": "funcversion"
     },
     {
@@ -477,7 +477,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L16",
       "id": "models_functions_azurefunctionsversion",
-      "community": 1,
+      "community": 38,
       "norm_label": "azurefunctionsversion"
     },
     {
@@ -486,7 +486,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L24",
       "id": "models_functions_icommandresult",
-      "community": 1,
+      "community": 38,
       "norm_label": "icommandresult"
     },
     {
@@ -495,7 +495,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L31",
       "id": "models_functions_pathrelativefunc",
-      "community": 1,
+      "community": 38,
       "norm_label": "pathrelativefunc"
     },
     {
@@ -504,7 +504,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L33",
       "id": "models_functions_ifunctionwizardcontext",
-      "community": 1,
+      "community": 35,
       "norm_label": "ifunctionwizardcontext"
     },
     {
@@ -513,7 +513,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L42",
       "id": "models_functions_icreatefunctionoptions",
-      "community": 1,
+      "community": 38,
       "norm_label": "icreatefunctionoptions"
     },
     {
@@ -522,7 +522,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L92",
       "id": "models_functions_inpmdisttag",
-      "community": 1,
+      "community": 38,
       "norm_label": "inpmdisttag"
     },
     {
@@ -531,7 +531,7 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L97",
       "id": "models_functions_ipackagemetadata",
-      "community": 1,
+      "community": 38,
       "norm_label": "ipackagemetadata"
     },
     {
@@ -594,7 +594,7 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L50",
       "id": "models_project_projectversion",
-      "community": 1,
+      "community": 38,
       "norm_label": "projectversion"
     },
     {
@@ -630,7 +630,7 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L65",
       "id": "models_project_iprojectwizardcontext",
-      "community": 1,
+      "community": 38,
       "norm_label": "iprojectwizardcontext"
     },
     {
@@ -747,7 +747,7 @@
       "source_file": "lib/models/hybridLogicApp.ts",
       "source_location": "L1",
       "id": "lib_models_hybridlogicapp_ts",
-      "community": 42,
+      "community": 36,
       "norm_label": "hybridlogicapp.ts"
     },
     {
@@ -756,7 +756,7 @@
       "source_file": "lib/models/hybridLogicApp.ts",
       "source_location": "L1",
       "id": "models_hybridlogicapp_fileshare",
-      "community": 42,
+      "community": 36,
       "norm_label": "fileshare"
     },
     {
@@ -765,7 +765,7 @@
       "source_file": "lib/models/process.ts",
       "source_location": "L1",
       "id": "lib_models_process_ts",
-      "community": 41,
+      "community": 36,
       "norm_label": "process.ts"
     },
     {
@@ -774,7 +774,7 @@
       "source_file": "lib/models/process.ts",
       "source_location": "L1",
       "id": "models_process_iprocessinfo",
-      "community": 41,
+      "community": 36,
       "norm_label": "iprocessinfo"
     },
     {
@@ -783,7 +783,7 @@
       "source_file": "lib/models/process.ts",
       "source_location": "L17",
       "id": "models_process_iprocesstreenode",
-      "community": 41,
+      "community": 36,
       "norm_label": "iprocesstreenode"
     },
     {
@@ -792,7 +792,7 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L1",
       "id": "lib_models_tasks_ts",
-      "community": 38,
+      "community": 36,
       "norm_label": "tasks.ts"
     },
     {
@@ -801,7 +801,7 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L3",
       "id": "models_tasks_itasksjson",
-      "community": 38,
+      "community": 36,
       "norm_label": "itasksjson"
     },
     {
@@ -810,7 +810,7 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L9",
       "id": "models_tasks_itask",
-      "community": 38,
+      "community": 36,
       "norm_label": "itask"
     },
     {
@@ -819,7 +819,7 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L15",
       "id": "models_tasks_itaskinputs",
-      "community": 38,
+      "community": 36,
       "norm_label": "itaskinputs"
     },
     {
@@ -828,7 +828,7 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L22",
       "id": "models_tasks_itaskoptions",
-      "community": 38,
+      "community": 36,
       "norm_label": "itaskoptions"
     },
     {
@@ -1044,7 +1044,7 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L104",
       "id": "models_connection_storageoptions",
-      "community": 33,
+      "community": 38,
       "norm_label": "storageoptions"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L1",
       "id": "lib_models_context_ts",
-      "community": 33,
+      "community": 38,
       "norm_label": "context.ts"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L7",
       "id": "models_context_iidentitywizardcontext",
-      "community": 33,
+      "community": 38,
       "norm_label": "iidentitywizardcontext"
     },
     {
@@ -1107,7 +1107,7 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L15",
       "id": "models_context_ilogicappwizardcontext",
-      "community": 33,
+      "community": 38,
       "norm_label": "ilogicappwizardcontext"
     },
     {
@@ -1116,7 +1116,7 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L44",
       "id": "models_context_icreatelogicappcontext",
-      "community": 33,
+      "community": 38,
       "norm_label": "icreatelogicappcontext"
     },
     {
@@ -1125,7 +1125,7 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L48",
       "id": "models_context_idebugmodecontext",
-      "community": 33,
+      "community": 38,
       "norm_label": "idebugmodecontext"
     },
     {
@@ -1134,7 +1134,7 @@
       "source_file": "lib/models/operatingSystem.ts",
       "source_location": "L1",
       "id": "lib_models_operatingsystem_ts",
-      "community": 44,
+      "community": 36,
       "norm_label": "operatingsystem.ts"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_file": "lib/models/operatingSystem.ts",
       "source_location": "L2",
       "id": "models_operatingsystem_platform",
-      "community": 44,
+      "community": 36,
       "norm_label": "platform"
     },
     {
@@ -1179,7 +1179,7 @@
       "source_file": "lib/models/launch.ts",
       "source_location": "L1",
       "id": "lib_models_launch_ts",
-      "community": 43,
+      "community": 36,
       "norm_label": "launch.ts"
     },
     {
@@ -1188,7 +1188,7 @@
       "source_file": "lib/models/launch.ts",
       "source_location": "L3",
       "id": "models_launch_ilaunchjson",
-      "community": 43,
+      "community": 36,
       "norm_label": "ilaunchjson"
     },
     {
@@ -1260,7 +1260,7 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L1",
       "id": "lib_models_language_ts",
-      "community": 1,
+      "community": 38,
       "norm_label": "language.ts"
     },
     {
@@ -1269,7 +1269,7 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L1",
       "id": "models_language_projectlanguage",
-      "community": 1,
+      "community": 38,
       "norm_label": "projectlanguage"
     },
     {
@@ -1278,7 +1278,7 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L14",
       "id": "models_language_languagescript",
-      "community": 1,
+      "community": 38,
       "norm_label": "languagescript"
     },
     {
@@ -1287,7 +1287,7 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L22",
       "id": "models_language_workerruntime",
-      "community": 1,
+      "community": 38,
       "norm_label": "workerruntime"
     },
     {
@@ -1368,7 +1368,7 @@
       "source_file": "lib/models/index.ts",
       "source_location": "L1",
       "id": "lib_models_index_ts",
-      "community": 47,
+      "community": 36,
       "norm_label": "index.ts"
     },
     {
@@ -1377,7 +1377,7 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L1",
       "id": "lib_models_unittest_ts",
-      "community": 39,
+      "community": 36,
       "norm_label": "unittest.ts"
     },
     {
@@ -1386,7 +1386,7 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L1",
       "id": "models_unittest_assertionresults",
-      "community": 39,
+      "community": 36,
       "norm_label": "assertionresults"
     },
     {
@@ -1395,7 +1395,7 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L8",
       "id": "models_unittest_unittestresult",
-      "community": 39,
+      "community": 36,
       "norm_label": "unittestresult"
     },
     {
@@ -1404,7 +1404,7 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L15",
       "id": "models_unittest_unittestexecutionresult",
-      "community": 39,
+      "community": 36,
       "norm_label": "unittestexecutionresult"
     },
     {
@@ -2022,14 +2022,47 @@
   ],
   "links": [
     {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "index.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "index_ts",
+      "target": "lib_models_index_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "index.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "index_ts",
+      "target": "lib_helpers_index_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "index.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "index_ts",
+      "target": "lib_services_index_ts",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_httpoptions",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpoptions"
     },
     {
       "relation": "contains",
@@ -2037,9 +2070,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient"
     },
     {
       "relation": "contains",
@@ -2047,9 +2080,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L184",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_isarmresourceid",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isarmresourceid"
     },
     {
       "relation": "contains",
@@ -2057,9 +2090,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L188",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_getextraheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_getextraheaders"
     },
     {
       "relation": "contains",
@@ -2067,9 +2100,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L194",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_isurl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isurl"
     },
     {
       "relation": "contains",
@@ -2077,9 +2110,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L198",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_issuccessresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_issuccessresponse"
     },
     {
       "relation": "contains",
@@ -2087,8 +2120,19 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L202",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_httpclient_ts",
-      "target": "services_httpclient_parseresponse",
+      "target": "services_httpclient_parseresponse"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/services/index.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "lib_services_index_ts",
+      "target": "lib_services_httpclient_ts",
       "confidence_score": 1.0
     },
     {
@@ -2098,9 +2142,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "lib_services_httpclient_ts",
-      "confidence_score": 1.0
+      "target": "lib_services_httpclient_ts"
     },
     {
       "relation": "imports",
@@ -2109,9 +2153,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "services_httpclient_httpoptions",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpoptions"
     },
     {
       "relation": "method",
@@ -2119,9 +2163,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L18",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_constructor",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_constructor"
     },
     {
       "relation": "method",
@@ -2129,9 +2173,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_dispose",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_dispose"
     },
     {
       "relation": "method",
@@ -2139,9 +2183,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L27",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_get",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_get"
     },
     {
       "relation": "method",
@@ -2149,9 +2193,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L53",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_patch",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_patch"
     },
     {
       "relation": "method",
@@ -2159,9 +2203,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L79",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_post",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_post"
     },
     {
       "relation": "method",
@@ -2169,9 +2213,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L110",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_put",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_put"
     },
     {
       "relation": "method",
@@ -2179,9 +2223,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L141",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_delete",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_delete"
     },
     {
       "relation": "method",
@@ -2189,9 +2233,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L165",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient",
-      "target": "services_httpclient_httpclient_getrequesturl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_getrequesturl"
     },
     {
       "relation": "imports",
@@ -2200,9 +2244,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "services_httpclient_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient"
     },
     {
       "relation": "calls",
@@ -2211,9 +2255,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_constructor",
-      "target": "services_httpclient_getextraheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_getextraheaders"
     },
     {
       "relation": "calls",
@@ -2222,9 +2266,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L28",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_get",
-      "target": "services_httpclient_isarmresourceid",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isarmresourceid"
     },
     {
       "relation": "calls",
@@ -2233,9 +2277,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L31",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_get",
-      "target": "services_httpclient_httpclient_getrequesturl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_getrequesturl"
     },
     {
       "relation": "calls",
@@ -2244,9 +2288,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L54",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_patch",
-      "target": "services_httpclient_isarmresourceid",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isarmresourceid"
     },
     {
       "relation": "calls",
@@ -2255,9 +2299,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L57",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_patch",
-      "target": "services_httpclient_httpclient_getrequesturl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_getrequesturl"
     },
     {
       "relation": "calls",
@@ -2266,9 +2310,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L72",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_patch",
-      "target": "services_httpclient_issuccessresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_issuccessresponse"
     },
     {
       "relation": "calls",
@@ -2277,9 +2321,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L76",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_patch",
-      "target": "services_httpclient_parseresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_parseresponse"
     },
     {
       "relation": "calls",
@@ -2288,9 +2332,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L83",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_post",
-      "target": "services_httpclient_httpclient_getrequesturl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_getrequesturl"
     },
     {
       "relation": "calls",
@@ -2299,9 +2343,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L100",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_post",
-      "target": "services_httpclient_issuccessresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_issuccessresponse"
     },
     {
       "relation": "calls",
@@ -2310,9 +2354,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L104",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_post",
-      "target": "services_httpclient_parseresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_parseresponse"
     },
     {
       "relation": "calls",
@@ -2321,9 +2365,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L111",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_put",
-      "target": "services_httpclient_isarmresourceid",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isarmresourceid"
     },
     {
       "relation": "calls",
@@ -2332,9 +2376,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L114",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_put",
-      "target": "services_httpclient_httpclient_getrequesturl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_httpclient_getrequesturl"
     },
     {
       "relation": "calls",
@@ -2343,9 +2387,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L134",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_put",
-      "target": "services_httpclient_issuccessresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_issuccessresponse"
     },
     {
       "relation": "calls",
@@ -2354,9 +2398,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L138",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_put",
-      "target": "services_httpclient_parseresponse",
-      "confidence_score": 1.0
+      "target": "services_httpclient_parseresponse"
     },
     {
       "relation": "calls",
@@ -2365,9 +2409,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L176",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_getrequesturl",
-      "target": "services_httpclient_isurl",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isurl"
     },
     {
       "relation": "calls",
@@ -2376,9 +2420,9 @@
       "source_file": "lib/services/httpClient.ts",
       "source_location": "L178",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient_httpclient_getrequesturl",
-      "target": "services_httpclient_isarmresourceid",
-      "confidence_score": 1.0
+      "target": "services_httpclient_isarmresourceid"
     },
     {
       "relation": "contains",
@@ -2386,9 +2430,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_jwthelper_ts",
-      "target": "services_jwthelper_jwttokenconstants",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenconstants"
     },
     {
       "relation": "contains",
@@ -2396,9 +2440,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_jwthelper_ts",
-      "target": "services_jwthelper_idecodedjwttoken",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_idecodedjwttoken"
     },
     {
       "relation": "contains",
@@ -2406,8 +2450,19 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L18",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_jwthelper_ts",
-      "target": "services_jwthelper_jwttokenhelper",
+      "target": "services_jwthelper_jwttokenhelper"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/services/index.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "lib_services_index_ts",
+      "target": "lib_services_jwthelper_ts",
       "confidence_score": 1.0
     },
     {
@@ -2416,9 +2471,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L19",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_jwthelper_jwttokenhelper",
-      "target": "services_jwthelper_jwttokenhelper_createinstance",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenhelper_createinstance"
     },
     {
       "relation": "method",
@@ -2426,9 +2481,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_jwthelper_jwttokenhelper",
-      "target": "services_jwthelper_jwttokenhelper_extractjwttokenpayload",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenhelper_extractjwttokenpayload"
     },
     {
       "relation": "method",
@@ -2436,9 +2491,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_jwthelper_jwttokenhelper",
-      "target": "services_jwthelper_jwttokenhelper_decodejwt",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenhelper_decodejwt"
     },
     {
       "relation": "method",
@@ -2446,9 +2501,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L42",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_jwthelper_jwttokenhelper",
-      "target": "services_jwthelper_jwttokenhelper_base64decodestringurlsafe",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenhelper_base64decodestringurlsafe"
     },
     {
       "relation": "calls",
@@ -2457,9 +2512,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L24",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_jwthelper_jwttokenhelper_extractjwttokenpayload",
-      "target": "services_jwthelper_jwttokenhelper_decodejwt",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenhelper_decodejwt"
     },
     {
       "relation": "calls",
@@ -2468,9 +2523,9 @@
       "source_file": "lib/services/JwtHelper.ts",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_jwthelper_jwttokenhelper_extractjwttokenpayload",
-      "target": "services_jwthelper_jwttokenhelper_base64decodestringurlsafe",
-      "confidence_score": 1.0
+      "target": "services_jwthelper_jwttokenhelper_base64decodestringurlsafe"
     },
     {
       "relation": "contains",
@@ -2478,9 +2533,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L14",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "test_httpclient_spec_httpclientoptions",
-      "confidence_score": 1.0
+      "target": "test_httpclient_spec_httpclientoptions"
     },
     {
       "relation": "contains",
@@ -2488,9 +2543,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L245",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "test_httpclient_spec_responsedata",
-      "confidence_score": 1.0
+      "target": "test_httpclient_spec_responsedata"
     },
     {
       "relation": "contains",
@@ -2498,9 +2553,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L270",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "test_httpclient_spec_options",
-      "confidence_score": 1.0
+      "target": "test_httpclient_spec_options"
     },
     {
       "relation": "contains",
@@ -2508,9 +2563,9 @@
       "source_file": "lib/services/__test__/httpClient.spec.ts",
       "source_location": "L232",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_services_test_httpclient_spec_ts",
-      "target": "test_httpclient_spec_errormessage",
-      "confidence_score": 1.0
+      "target": "test_httpclient_spec_errormessage"
     },
     {
       "relation": "contains",
@@ -2518,31 +2573,42 @@
       "source_file": "lib/helpers/authorization.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_helpers_authorization_ts",
-      "target": "helpers_authorization_getbasegraphapi",
-      "confidence_score": 1.0
+      "target": "helpers_authorization_getbasegraphapi"
     },
     {
-      "relation": "imports_from",
-      "context": "import",
+      "relation": "re_exports",
+      "context": "export",
       "confidence": "EXTRACTED",
-      "source_file": "lib/helpers/__test__/authorization.spec.ts",
+      "source_file": "lib/helpers/index.ts",
       "source_location": "L1",
       "weight": 1.0,
-      "source": "lib_helpers_test_authorization_spec_ts",
+      "source": "lib_helpers_index_ts",
       "target": "lib_helpers_authorization_ts",
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/helpers/__test__/authorization.spec.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_helpers_test_authorization_spec_ts",
+      "target": "lib_helpers_authorization_ts"
+    },
+    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "lib/helpers/__test__/authorization.spec.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_helpers_test_authorization_spec_ts",
-      "target": "helpers_authorization_getbasegraphapi",
-      "confidence_score": 1.0
+      "target": "helpers_authorization_getbasegraphapi"
     },
     {
       "relation": "imports_from",
@@ -2551,9 +2617,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "lib_models_artifact_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_artifact_ts"
     },
     {
       "relation": "imports",
@@ -2562,9 +2628,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_artifact_artifacts",
-      "confidence_score": 1.0
+      "target": "models_artifact_artifacts"
     },
     {
       "relation": "imports",
@@ -2573,9 +2639,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_artifact_filedetails",
-      "confidence_score": 1.0
+      "target": "models_artifact_filedetails"
     },
     {
       "relation": "imports_from",
@@ -2584,9 +2650,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "lib_models_parameter_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_parameter_ts"
     },
     {
       "relation": "imports",
@@ -2595,9 +2661,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_parameter_parameter",
-      "confidence_score": 1.0
+      "target": "models_parameter_parameter"
     },
     {
       "relation": "contains",
@@ -2605,9 +2671,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_ilocalsettingsjson",
-      "confidence_score": 1.0
+      "target": "models_workflow_ilocalsettingsjson"
     },
     {
       "relation": "contains",
@@ -2615,9 +2681,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_idesignerpanelmetadata",
-      "confidence_score": 1.0
+      "target": "models_workflow_idesignerpanelmetadata"
     },
     {
       "relation": "contains",
@@ -2625,9 +2691,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L32",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_completefilesystemconnectiondata",
-      "confidence_score": 1.0
+      "target": "models_workflow_completefilesystemconnectiondata"
     },
     {
       "relation": "contains",
@@ -2635,9 +2701,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L38",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_standardapp",
-      "confidence_score": 1.0
+      "target": "models_workflow_standardapp"
     },
     {
       "relation": "contains",
@@ -2645,9 +2711,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L47",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_azureconnectordetails",
-      "confidence_score": 1.0
+      "target": "models_workflow_azureconnectordetails"
     },
     {
       "relation": "contains",
@@ -2655,9 +2721,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L59",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_workflowparameter",
-      "confidence_score": 1.0
+      "target": "models_workflow_workflowparameter"
     },
     {
       "relation": "contains",
@@ -2665,9 +2731,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L67",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_iworkflowfilecontent",
-      "confidence_score": 1.0
+      "target": "models_workflow_iworkflowfilecontent"
     },
     {
       "relation": "contains",
@@ -2675,9 +2741,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L77",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_icallbackurlresponse",
-      "confidence_score": 1.0
+      "target": "models_workflow_icallbackurlresponse"
     },
     {
       "relation": "contains",
@@ -2685,9 +2751,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L91",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_workflowprojecttype",
-      "confidence_score": 1.0
+      "target": "models_workflow_workflowprojecttype"
     },
     {
       "relation": "contains",
@@ -2695,9 +2761,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L93",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_isettingtoadd",
-      "confidence_score": 1.0
+      "target": "models_workflow_isettingtoadd"
     },
     {
       "relation": "contains",
@@ -2705,9 +2771,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L99",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_iworkflowstatetypestepoptions",
-      "confidence_score": 1.0
+      "target": "models_workflow_iworkflowstatetypestepoptions"
     },
     {
       "relation": "contains",
@@ -2715,9 +2781,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L121",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_mismatchbehavior",
-      "confidence_score": 1.0
+      "target": "models_workflow_mismatchbehavior"
     },
     {
       "relation": "contains",
@@ -2725,9 +2791,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L128",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_targetframework",
-      "confidence_score": 1.0
+      "target": "models_workflow_targetframework"
     },
     {
       "relation": "contains",
@@ -2735,9 +2801,9 @@
       "source_file": "lib/models/workflow.ts",
       "source_location": "L140",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_workflow_ts",
-      "target": "models_workflow_workflowtype",
-      "confidence_score": 1.0
+      "target": "models_workflow_workflowtype"
     },
     {
       "relation": "imports_from",
@@ -2746,8 +2812,52 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
+      "target": "lib_models_workflow_ts"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
       "target": "lib_models_workflow_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/workflow.ts",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "models_workflow_idesignerpanelmetadata",
+      "target": "models_parameter_parameter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/workflow.ts",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "models_workflow_idesignerpanelmetadata",
+      "target": "models_artifact_artifacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/workflow.ts",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "models_workflow_idesignerpanelmetadata",
+      "target": "models_artifact_filedetails",
       "confidence_score": 1.0
     },
     {
@@ -2757,7 +2867,18 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
+      "target": "models_workflow_workflowprojecttype"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L84",
+      "weight": 1.0,
+      "source": "models_project_iprojectwizardcontext",
       "target": "models_workflow_workflowprojecttype",
       "confidence_score": 1.0
     },
@@ -2768,7 +2889,29 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
+      "target": "models_workflow_targetframework"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "models_project_iprojectwizardcontext",
+      "target": "models_workflow_targetframework",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "models_project_iwebviewprojectcontext",
       "target": "models_workflow_targetframework",
       "confidence_score": 1.0
     },
@@ -2779,7 +2922,18 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
+      "target": "models_workflow_workflowtype"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L105",
+      "weight": 1.0,
+      "source": "models_project_iwebviewprojectcontext",
       "target": "models_workflow_workflowtype",
       "confidence_score": 1.0
     },
@@ -2790,9 +2944,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "lib_models_language_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_language_ts"
     },
     {
       "relation": "imports",
@@ -2801,9 +2955,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_language_projectlanguage",
-      "confidence_score": 1.0
+      "target": "models_language_projectlanguage"
     },
     {
       "relation": "imports_from",
@@ -2812,9 +2966,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "lib_models_functions_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_functions_ts"
     },
     {
       "relation": "imports",
@@ -2823,9 +2977,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_project_iprojectwizardcontext",
-      "confidence_score": 1.0
+      "target": "models_project_iprojectwizardcontext"
     },
     {
       "relation": "imports",
@@ -2834,9 +2988,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_project_projectversion",
-      "confidence_score": 1.0
+      "target": "models_project_projectversion"
     },
     {
       "relation": "imports_from",
@@ -2845,9 +2999,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "lib_models_templates_index_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_templates_index_ts"
     },
     {
       "relation": "contains",
@@ -2855,9 +3009,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_funcversion",
-      "confidence_score": 1.0
+      "target": "models_functions_funcversion"
     },
     {
       "relation": "contains",
@@ -2865,9 +3019,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_azurefunctionsversion",
-      "confidence_score": 1.0
+      "target": "models_functions_azurefunctionsversion"
     },
     {
       "relation": "contains",
@@ -2875,9 +3029,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L24",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_icommandresult",
-      "confidence_score": 1.0
+      "target": "models_functions_icommandresult"
     },
     {
       "relation": "contains",
@@ -2885,9 +3039,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L31",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_pathrelativefunc",
-      "confidence_score": 1.0
+      "target": "models_functions_pathrelativefunc"
     },
     {
       "relation": "contains",
@@ -2895,9 +3049,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L33",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_ifunctionwizardcontext",
-      "confidence_score": 1.0
+      "target": "models_functions_ifunctionwizardcontext"
     },
     {
       "relation": "contains",
@@ -2905,9 +3059,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L42",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_icreatefunctionoptions",
-      "confidence_score": 1.0
+      "target": "models_functions_icreatefunctionoptions"
     },
     {
       "relation": "contains",
@@ -2915,9 +3069,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L92",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_inpmdisttag",
-      "confidence_score": 1.0
+      "target": "models_functions_inpmdisttag"
     },
     {
       "relation": "contains",
@@ -2925,9 +3079,9 @@
       "source_file": "lib/models/functions.ts",
       "source_location": "L97",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_functions_ts",
-      "target": "models_functions_ipackagemetadata",
-      "confidence_score": 1.0
+      "target": "models_functions_ipackagemetadata"
     },
     {
       "relation": "imports_from",
@@ -2936,7 +3090,18 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
+      "target": "lib_models_functions_ts"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
       "target": "lib_models_functions_ts",
       "confidence_score": 1.0
     },
@@ -2944,12 +3109,23 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "lib/models/functions.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "lib_models_functions_ts",
+      "target": "templates_iworkflowtemplate_iworkflowtemplate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "lib/models/project.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_functions_funcversion",
-      "confidence_score": 1.0
+      "target": "models_functions_funcversion"
     },
     {
       "relation": "imports",
@@ -2958,75 +3134,130 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
+      "target": "models_functions_funcversion"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "models_project_iprojectwizardcontext",
       "target": "models_functions_funcversion",
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
+      "relation": "references",
+      "context": "field",
       "confidence": "EXTRACTED",
-      "source_file": "lib/models/project.ts",
-      "source_location": "L1",
+      "source_file": "lib/models/context.ts",
+      "source_location": "L16",
       "weight": 1.0,
-      "source": "lib_models_project_ts",
-      "target": "lib_models_clifeed_ts",
+      "source": "models_context_ilogicappwizardcontext",
+      "target": "models_functions_funcversion",
       "confidence_score": 1.0
     },
     {
-      "relation": "imports",
-      "context": "import",
+      "relation": "references",
+      "context": "field",
       "confidence": "EXTRACTED",
-      "source_file": "lib/models/project.ts",
-      "source_location": "L1",
+      "source_file": "lib/models/functions.ts",
+      "source_location": "L34",
       "weight": 1.0,
-      "source": "lib_models_project_ts",
-      "target": "models_clifeed_iworkerruntime",
+      "source": "models_functions_ifunctionwizardcontext",
+      "target": "templates_iworkflowtemplate_iworkflowtemplate",
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
+      "relation": "references",
+      "context": "field",
       "confidence": "EXTRACTED",
-      "source_file": "lib/models/project.ts",
-      "source_location": "L3",
+      "source_file": "lib/models/functions.ts",
+      "source_location": "L56",
       "weight": 1.0,
-      "source": "lib_models_project_ts",
-      "target": "lib_models_host_ts",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "lib/models/project.ts",
-      "source_location": "L3",
-      "weight": 1.0,
-      "source": "lib_models_project_ts",
-      "target": "models_host_iparsedhostjson",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "lib/models/project.ts",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "lib_models_project_ts",
-      "target": "lib_models_language_ts",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "lib/models/project.ts",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "lib_models_project_ts",
+      "source": "models_functions_icreatefunctionoptions",
       "target": "models_language_projectlanguage",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/functions.ts",
+      "source_location": "L66",
+      "weight": 1.0,
+      "source": "models_functions_icreatefunctionoptions",
+      "target": "models_project_projectversion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_models_project_ts",
+      "target": "lib_models_clifeed_ts"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_models_project_ts",
+      "target": "models_clifeed_iworkerruntime"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_models_project_ts",
+      "target": "lib_models_host_ts"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_models_project_ts",
+      "target": "models_host_iparsedhostjson"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_models_project_ts",
+      "target": "lib_models_language_ts"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_models_project_ts",
+      "target": "models_language_projectlanguage"
     },
     {
       "relation": "contains",
@@ -3034,9 +3265,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projectname",
-      "confidence_score": 1.0
+      "target": "models_project_projectname"
     },
     {
       "relation": "contains",
@@ -3044,9 +3275,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projectnametype",
-      "confidence_score": 1.0
+      "target": "models_project_projectnametype"
     },
     {
       "relation": "contains",
@@ -3054,9 +3285,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projectsource",
-      "confidence_score": 1.0
+      "target": "models_project_projectsource"
     },
     {
       "relation": "contains",
@@ -3064,9 +3295,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L35",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projectaccess",
-      "confidence_score": 1.0
+      "target": "models_project_projectaccess"
     },
     {
       "relation": "contains",
@@ -3074,9 +3305,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L48",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projectresource",
-      "confidence_score": 1.0
+      "target": "models_project_projectresource"
     },
     {
       "relation": "contains",
@@ -3084,9 +3315,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L50",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projectversion",
-      "confidence_score": 1.0
+      "target": "models_project_projectversion"
     },
     {
       "relation": "contains",
@@ -3094,9 +3325,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L52",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_applicationsettings",
-      "confidence_score": 1.0
+      "target": "models_project_applicationsettings"
     },
     {
       "relation": "contains",
@@ -3104,9 +3335,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L54",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_funchostrequest",
-      "confidence_score": 1.0
+      "target": "models_project_funchostrequest"
     },
     {
       "relation": "contains",
@@ -3114,9 +3345,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L56",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_iprojecttreeitem",
-      "confidence_score": 1.0
+      "target": "models_project_iprojecttreeitem"
     },
     {
       "relation": "contains",
@@ -3124,9 +3355,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L65",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_iprojectwizardcontext",
-      "confidence_score": 1.0
+      "target": "models_project_iprojectwizardcontext"
     },
     {
       "relation": "contains",
@@ -3134,9 +3365,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L97",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_iwebviewprojectcontext",
-      "confidence_score": 1.0
+      "target": "models_project_iwebviewprojectcontext"
     },
     {
       "relation": "contains",
@@ -3144,9 +3375,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L120",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_openbehavior",
-      "confidence_score": 1.0
+      "target": "models_project_openbehavior"
     },
     {
       "relation": "contains",
@@ -3154,9 +3385,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L128",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_projecttype",
-      "confidence_score": 1.0
+      "target": "models_project_projecttype"
     },
     {
       "relation": "contains",
@@ -3164,9 +3395,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L134",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_deploymentscripttype",
-      "confidence_score": 1.0
+      "target": "models_project_deploymentscripttype"
     },
     {
       "relation": "contains",
@@ -3174,9 +3405,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L136",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_routename",
-      "confidence_score": 1.0
+      "target": "models_project_routename"
     },
     {
       "relation": "contains",
@@ -3184,9 +3415,9 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L157",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_routenametype",
-      "confidence_score": 1.0
+      "target": "models_project_routenametype"
     },
     {
       "relation": "contains",
@@ -3194,8 +3425,41 @@
       "source_file": "lib/models/project.ts",
       "source_location": "L158",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_project_ts",
-      "target": "models_project_itargetdirectory",
+      "target": "models_project_itargetdirectory"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_project_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "models_project_iprojectwizardcontext",
+      "target": "models_language_projectlanguage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/project.ts",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "models_project_iprojectwizardcontext",
+      "target": "models_clifeed_iworkerruntime",
       "confidence_score": 1.0
     },
     {
@@ -3204,9 +3468,9 @@
       "source_file": "lib/models/host.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_host_ts",
-      "target": "models_host_ihostjsonv2",
-      "confidence_score": 1.0
+      "target": "models_host_ihostjsonv2"
     },
     {
       "relation": "contains",
@@ -3214,9 +3478,9 @@
       "source_file": "lib/models/host.ts",
       "source_location": "L32",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_host_ts",
-      "target": "models_host_ibundlemetadata",
-      "confidence_score": 1.0
+      "target": "models_host_ibundlemetadata"
     },
     {
       "relation": "contains",
@@ -3224,9 +3488,9 @@
       "source_file": "lib/models/host.ts",
       "source_location": "L37",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_host_ts",
-      "target": "models_host_ihostjsonv1",
-      "confidence_score": 1.0
+      "target": "models_host_ihostjsonv1"
     },
     {
       "relation": "contains",
@@ -3234,8 +3498,19 @@
       "source_file": "lib/models/host.ts",
       "source_location": "L43",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_host_ts",
-      "target": "models_host_iparsedhostjson",
+      "target": "models_host_iparsedhostjson"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_host_ts",
       "confidence_score": 1.0
     },
     {
@@ -3244,8 +3519,19 @@
       "source_file": "lib/models/hybridLogicApp.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_hybridlogicapp_ts",
-      "target": "models_hybridlogicapp_fileshare",
+      "target": "models_hybridlogicapp_fileshare"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_hybridlogicapp_ts",
       "confidence_score": 1.0
     },
     {
@@ -3254,9 +3540,9 @@
       "source_file": "lib/models/process.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_process_ts",
-      "target": "models_process_iprocessinfo",
-      "confidence_score": 1.0
+      "target": "models_process_iprocessinfo"
     },
     {
       "relation": "contains",
@@ -3264,8 +3550,19 @@
       "source_file": "lib/models/process.ts",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_process_ts",
-      "target": "models_process_iprocesstreenode",
+      "target": "models_process_iprocesstreenode"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_process_ts",
       "confidence_score": 1.0
     },
     {
@@ -3274,9 +3571,9 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_tasks_ts",
-      "target": "models_tasks_itasksjson",
-      "confidence_score": 1.0
+      "target": "models_tasks_itasksjson"
     },
     {
       "relation": "contains",
@@ -3284,9 +3581,9 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_tasks_ts",
-      "target": "models_tasks_itask",
-      "confidence_score": 1.0
+      "target": "models_tasks_itask"
     },
     {
       "relation": "contains",
@@ -3294,9 +3591,9 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_tasks_ts",
-      "target": "models_tasks_itaskinputs",
-      "confidence_score": 1.0
+      "target": "models_tasks_itaskinputs"
     },
     {
       "relation": "contains",
@@ -3304,8 +3601,19 @@
       "source_file": "lib/models/tasks.ts",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_tasks_ts",
-      "target": "models_tasks_itaskoptions",
+      "target": "models_tasks_itaskoptions"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_tasks_ts",
       "confidence_score": 1.0
     },
     {
@@ -3314,9 +3622,9 @@
       "source_file": "lib/models/artifact.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_artifact_ts",
-      "target": "models_artifact_iartifactfile",
-      "confidence_score": 1.0
+      "target": "models_artifact_iartifactfile"
     },
     {
       "relation": "contains",
@@ -3324,9 +3632,9 @@
       "source_file": "lib/models/artifact.ts",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_artifact_ts",
-      "target": "models_artifact_artifacts",
-      "confidence_score": 1.0
+      "target": "models_artifact_artifacts"
     },
     {
       "relation": "contains",
@@ -3334,9 +3642,9 @@
       "source_file": "lib/models/artifact.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_artifact_ts",
-      "target": "models_artifact_filedetails",
-      "confidence_score": 1.0
+      "target": "models_artifact_filedetails"
     },
     {
       "relation": "contains",
@@ -3344,8 +3652,19 @@
       "source_file": "lib/models/artifact.ts",
       "source_location": "L21",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_artifact_ts",
-      "target": "models_artifact_igithubreleaseinfo",
+      "target": "models_artifact_igithubreleaseinfo"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_artifact_ts",
       "confidence_score": 1.0
     },
     {
@@ -3354,9 +3673,9 @@
       "source_file": "lib/models/cliFeed.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_clifeed_ts",
-      "target": "models_clifeed_iworkerruntime",
-      "confidence_score": 1.0
+      "target": "models_clifeed_iworkerruntime"
     },
     {
       "relation": "contains",
@@ -3364,9 +3683,9 @@
       "source_file": "lib/models/cliFeed.ts",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_clifeed_ts",
-      "target": "models_clifeed_iclifeed",
-      "confidence_score": 1.0
+      "target": "models_clifeed_iclifeed"
     },
     {
       "relation": "contains",
@@ -3374,9 +3693,9 @@
       "source_file": "lib/models/cliFeed.ts",
       "source_location": "L31",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_clifeed_ts",
-      "target": "models_clifeed_irelease",
-      "confidence_score": 1.0
+      "target": "models_clifeed_irelease"
     },
     {
       "relation": "contains",
@@ -3384,8 +3703,19 @@
       "source_file": "lib/models/cliFeed.ts",
       "source_location": "L40",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_clifeed_ts",
-      "target": "models_clifeed_itag",
+      "target": "models_clifeed_itag"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_clifeed_ts",
       "confidence_score": 1.0
     },
     {
@@ -3394,9 +3724,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_connectionreferencemodel",
-      "confidence_score": 1.0
+      "target": "models_connection_connectionreferencemodel"
     },
     {
       "relation": "contains",
@@ -3404,9 +3734,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L24",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_functionconnectionmodel",
-      "confidence_score": 1.0
+      "target": "models_connection_functionconnectionmodel"
     },
     {
       "relation": "contains",
@@ -3414,9 +3744,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L37",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_serviceproviderconnectionmodel",
-      "confidence_score": 1.0
+      "target": "models_connection_serviceproviderconnectionmodel"
     },
     {
       "relation": "contains",
@@ -3424,9 +3754,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L45",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_apimanagementconnectionmodel",
-      "confidence_score": 1.0
+      "target": "models_connection_apimanagementconnectionmodel"
     },
     {
       "relation": "contains",
@@ -3434,9 +3764,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L57",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_agentconnectionmodel",
-      "confidence_score": 1.0
+      "target": "models_connection_agentconnectionmodel"
     },
     {
       "relation": "contains",
@@ -3444,9 +3774,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L64",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_agentmcpconnectionmodel",
-      "confidence_score": 1.0
+      "target": "models_connection_agentmcpconnectionmodel"
     },
     {
       "relation": "contains",
@@ -3454,9 +3784,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L70",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_connectionsdata",
-      "confidence_score": 1.0
+      "target": "models_connection_connectionsdata"
     },
     {
       "relation": "contains",
@@ -3464,9 +3794,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L79",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_connectionandsettings",
-      "confidence_score": 1.0
+      "target": "models_connection_connectionandsettings"
     },
     {
       "relation": "contains",
@@ -3474,9 +3804,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L84",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_customcode",
-      "confidence_score": 1.0
+      "target": "models_connection_customcode"
     },
     {
       "relation": "contains",
@@ -3484,9 +3814,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L91",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_customcodewithdata",
-      "confidence_score": 1.0
+      "target": "models_connection_customcodewithdata"
     },
     {
       "relation": "contains",
@@ -3494,9 +3824,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L95",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_customcodefilenamemapping",
-      "confidence_score": 1.0
+      "target": "models_connection_customcodefilenamemapping"
     },
     {
       "relation": "contains",
@@ -3504,9 +3834,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L97",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_allcustomcodefiles",
-      "confidence_score": 1.0
+      "target": "models_connection_allcustomcodefiles"
     },
     {
       "relation": "contains",
@@ -3514,9 +3844,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L108",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_storageoptions",
-      "confidence_score": 1.0
+      "target": "models_connection_storageoptions"
     },
     {
       "relation": "contains",
@@ -3524,9 +3854,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L110",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_iconnectionsfilecontent",
-      "confidence_score": 1.0
+      "target": "models_connection_iconnectionsfilecontent"
     },
     {
       "relation": "contains",
@@ -3534,9 +3864,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L116",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_connectionacl",
-      "confidence_score": 1.0
+      "target": "models_connection_connectionacl"
     },
     {
       "relation": "contains",
@@ -3544,9 +3874,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L132",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_connectionstrings",
-      "confidence_score": 1.0
+      "target": "models_connection_connectionstrings"
     },
     {
       "relation": "contains",
@@ -3554,9 +3884,9 @@
       "source_file": "lib/models/connection.ts",
       "source_location": "L139",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_connection_ts",
-      "target": "models_connection_filesystemconnectioninfo",
-      "confidence_score": 1.0
+      "target": "models_connection_filesystemconnectioninfo"
     },
     {
       "relation": "imports_from",
@@ -3565,7 +3895,18 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
+      "target": "lib_models_connection_ts"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
       "target": "lib_models_connection_ts",
       "confidence_score": 1.0
     },
@@ -3576,7 +3917,18 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
+      "target": "models_connection_storageoptions"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/context.ts",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "models_context_ilogicappwizardcontext",
       "target": "models_connection_storageoptions",
       "confidence_score": 1.0
     },
@@ -3586,9 +3938,9 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
-      "target": "models_context_iidentitywizardcontext",
-      "confidence_score": 1.0
+      "target": "models_context_iidentitywizardcontext"
     },
     {
       "relation": "contains",
@@ -3596,9 +3948,9 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
-      "target": "models_context_ilogicappwizardcontext",
-      "confidence_score": 1.0
+      "target": "models_context_ilogicappwizardcontext"
     },
     {
       "relation": "contains",
@@ -3606,9 +3958,9 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L44",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
-      "target": "models_context_icreatelogicappcontext",
-      "confidence_score": 1.0
+      "target": "models_context_icreatelogicappcontext"
     },
     {
       "relation": "contains",
@@ -3616,8 +3968,19 @@
       "source_file": "lib/models/context.ts",
       "source_location": "L48",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_context_ts",
-      "target": "models_context_idebugmodecontext",
+      "target": "models_context_idebugmodecontext"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_context_ts",
       "confidence_score": 1.0
     },
     {
@@ -3626,8 +3989,19 @@
       "source_file": "lib/models/operatingSystem.ts",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_operatingsystem_ts",
-      "target": "models_operatingsystem_platform",
+      "target": "models_operatingsystem_platform"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_operatingsystem_ts",
       "confidence_score": 1.0
     },
     {
@@ -3636,9 +4010,9 @@
       "source_file": "lib/models/extensioncommand.ts",
       "source_location": "L76",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_extensioncommand_ts",
-      "target": "models_extensioncommand_extensioncommand",
-      "confidence_score": 1.0
+      "target": "models_extensioncommand_extensioncommand"
     },
     {
       "relation": "contains",
@@ -3646,9 +4020,9 @@
       "source_file": "lib/models/extensioncommand.ts",
       "source_location": "L78",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_extensioncommand_ts",
-      "target": "models_extensioncommand_iextensionsjson",
-      "confidence_score": 1.0
+      "target": "models_extensioncommand_iextensionsjson"
     },
     {
       "relation": "imports_from",
@@ -3657,7 +4031,18 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
+      "target": "lib_models_extensioncommand_ts"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
       "target": "lib_models_extensioncommand_ts",
       "confidence_score": 1.0
     },
@@ -3668,9 +4053,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_extensioncommand_extensioncommand",
-      "confidence_score": 1.0
+      "target": "models_extensioncommand_extensioncommand"
     },
     {
       "relation": "contains",
@@ -3678,8 +4063,19 @@
       "source_file": "lib/models/launch.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_launch_ts",
-      "target": "models_launch_ilaunchjson",
+      "target": "models_launch_ilaunchjson"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_launch_ts",
       "confidence_score": 1.0
     },
     {
@@ -3688,9 +4084,9 @@
       "source_file": "lib/models/parameter.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_parameter_ts",
-      "target": "models_parameter_parametersdata",
-      "confidence_score": 1.0
+      "target": "models_parameter_parametersdata"
     },
     {
       "relation": "contains",
@@ -3698,9 +4094,9 @@
       "source_file": "lib/models/parameter.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_parameter_ts",
-      "target": "models_parameter_parameter",
-      "confidence_score": 1.0
+      "target": "models_parameter_parameter"
     },
     {
       "relation": "contains",
@@ -3708,8 +4104,19 @@
       "source_file": "lib/models/parameter.ts",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_parameter_ts",
-      "target": "models_parameter_iparametersfilecontent",
+      "target": "models_parameter_iparametersfilecontent"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_parameter_ts",
       "confidence_score": 1.0
     },
     {
@@ -3719,9 +4126,9 @@
       "source_file": "lib/models/bundleFeed.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_bundlefeed_ts",
-      "target": "lib_models_templates_index_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_templates_index_ts"
     },
     {
       "relation": "imports",
@@ -3730,9 +4137,9 @@
       "source_file": "lib/models/bundleFeed.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_bundlefeed_ts",
-      "target": "templates_index_itemplatesrelease",
-      "confidence_score": 1.0
+      "target": "templates_index_itemplatesrelease"
     },
     {
       "relation": "contains",
@@ -3740,9 +4147,9 @@
       "source_file": "lib/models/bundleFeed.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_bundlefeed_ts",
-      "target": "models_bundlefeed_ibundlefeed",
-      "confidence_score": 1.0
+      "target": "models_bundlefeed_ibundlefeed"
     },
     {
       "relation": "contains",
@@ -3750,8 +4157,30 @@
       "source_file": "lib/models/bundleFeed.ts",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_bundlefeed_ts",
-      "target": "models_bundlefeed_ibundledependencyfeed",
+      "target": "models_bundlefeed_ibundledependencyfeed"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_bundlefeed_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/bundleFeed.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "models_bundlefeed_ibundlefeed",
+      "target": "templates_index_itemplatesrelease",
       "confidence_score": 1.0
     },
     {
@@ -3760,9 +4189,9 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_language_ts",
-      "target": "models_language_projectlanguage",
-      "confidence_score": 1.0
+      "target": "models_language_projectlanguage"
     },
     {
       "relation": "contains",
@@ -3770,9 +4199,9 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L20",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_language_ts",
-      "target": "models_language_languagescript",
-      "confidence_score": 1.0
+      "target": "models_language_languagescript"
     },
     {
       "relation": "contains",
@@ -3780,8 +4209,19 @@
       "source_file": "lib/models/language.ts",
       "source_location": "L27",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_language_ts",
-      "target": "models_language_workerruntime",
+      "target": "models_language_workerruntime"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_language_ts",
       "confidence_score": 1.0
     },
     {
@@ -3790,9 +4230,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_initializedata",
-      "confidence_score": 1.0
+      "target": "models_datamapper_initializedata"
     },
     {
       "relation": "contains",
@@ -3800,9 +4240,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_fetchschemadata",
-      "confidence_score": 1.0
+      "target": "models_datamapper_fetchschemadata"
     },
     {
       "relation": "contains",
@@ -3810,9 +4250,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_schemapathdata",
-      "confidence_score": 1.0
+      "target": "models_datamapper_schemapathdata"
     },
     {
       "relation": "contains",
@@ -3820,9 +4260,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_mapdefinitiondata",
-      "confidence_score": 1.0
+      "target": "models_datamapper_mapdefinitiondata"
     },
     {
       "relation": "contains",
@@ -3830,9 +4270,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_xsltdata",
-      "confidence_score": 1.0
+      "target": "models_datamapper_xsltdata"
     },
     {
       "relation": "contains",
@@ -3840,9 +4280,9 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_messagetowebview",
-      "confidence_score": 1.0
+      "target": "models_datamapper_messagetowebview"
     },
     {
       "relation": "contains",
@@ -3850,8 +4290,41 @@
       "source_file": "lib/models/dataMapper.ts",
       "source_location": "L40",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_datamapper_ts",
-      "target": "models_datamapper_messagetovsix",
+      "target": "models_datamapper_messagetovsix"
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_datamapper_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_templates_index_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/index.ts",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "lib_models_index_ts",
+      "target": "lib_models_unittest_ts",
       "confidence_score": 1.0
     },
     {
@@ -3860,9 +4333,9 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_unittest_ts",
-      "target": "models_unittest_assertionresults",
-      "confidence_score": 1.0
+      "target": "models_unittest_assertionresults"
     },
     {
       "relation": "contains",
@@ -3870,9 +4343,9 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_unittest_ts",
-      "target": "models_unittest_unittestresult",
-      "confidence_score": 1.0
+      "target": "models_unittest_unittestresult"
     },
     {
       "relation": "contains",
@@ -3880,9 +4353,9 @@
       "source_file": "lib/models/unitTest.ts",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_unittest_ts",
-      "target": "models_unittest_unittestexecutionresult",
-      "confidence_score": 1.0
+      "target": "models_unittest_unittestexecutionresult"
     },
     {
       "relation": "imports_from",
@@ -3891,9 +4364,9 @@
       "source_file": "lib/models/templates/IWorkflowTemplate.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_iworkflowtemplate_ts",
-      "target": "lib_models_templates_ibindingtemplate_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_templates_ibindingtemplate_ts"
     },
     {
       "relation": "imports",
@@ -3902,9 +4375,9 @@
       "source_file": "lib/models/templates/IWorkflowTemplate.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_iworkflowtemplate_ts",
-      "target": "templates_ibindingtemplate_ibindingsetting",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_ibindingsetting"
     },
     {
       "relation": "contains",
@@ -3912,9 +4385,9 @@
       "source_file": "lib/models/templates/IWorkflowTemplate.ts",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_iworkflowtemplate_ts",
-      "target": "templates_iworkflowtemplate_templatecategory",
-      "confidence_score": 1.0
+      "target": "templates_iworkflowtemplate_templatecategory"
     },
     {
       "relation": "contains",
@@ -3922,9 +4395,9 @@
       "source_file": "lib/models/templates/IWorkflowTemplate.ts",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_iworkflowtemplate_ts",
-      "target": "templates_iworkflowtemplate_iworkflowtemplate",
-      "confidence_score": 1.0
+      "target": "templates_iworkflowtemplate_iworkflowtemplate"
     },
     {
       "relation": "imports_from",
@@ -3933,9 +4406,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "lib_models_templates_iworkflowtemplate_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_templates_iworkflowtemplate_ts"
     },
     {
       "relation": "imports",
@@ -3944,7 +4417,29 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
+      "target": "templates_iworkflowtemplate_iworkflowtemplate"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/templates/IWorkflowTemplate.ts",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "templates_iworkflowtemplate_iworkflowtemplate",
+      "target": "templates_ibindingtemplate_ibindingsetting",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/templates/index.ts",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "templates_index_itemplates",
       "target": "templates_iworkflowtemplate_iworkflowtemplate",
       "confidence_score": 1.0
     },
@@ -3954,9 +4449,9 @@
       "source_file": "lib/models/templates/IBindingTemplate.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_ibindingtemplate_ts",
-      "target": "templates_ibindingtemplate_bindingsettingvalue",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_bindingsettingvalue"
     },
     {
       "relation": "contains",
@@ -3964,9 +4459,9 @@
       "source_file": "lib/models/templates/IBindingTemplate.ts",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_ibindingtemplate_ts",
-      "target": "templates_ibindingtemplate_ibindingtemplate",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_ibindingtemplate"
     },
     {
       "relation": "contains",
@@ -3974,9 +4469,9 @@
       "source_file": "lib/models/templates/IBindingTemplate.ts",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_ibindingtemplate_ts",
-      "target": "templates_ibindingtemplate_ibindingsetting",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_ibindingsetting"
     },
     {
       "relation": "contains",
@@ -3984,9 +4479,9 @@
       "source_file": "lib/models/templates/IBindingTemplate.ts",
       "source_location": "L40",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_ibindingtemplate_ts",
-      "target": "templates_ibindingtemplate_resourcetype",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_resourcetype"
     },
     {
       "relation": "contains",
@@ -3994,9 +4489,9 @@
       "source_file": "lib/models/templates/IBindingTemplate.ts",
       "source_location": "L49",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_ibindingtemplate_ts",
-      "target": "templates_ibindingtemplate_valuetype",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_valuetype"
     },
     {
       "relation": "contains",
@@ -4004,9 +4499,9 @@
       "source_file": "lib/models/templates/IBindingTemplate.ts",
       "source_location": "L51",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_ibindingtemplate_ts",
-      "target": "templates_ibindingtemplate_ienumvalue",
-      "confidence_score": 1.0
+      "target": "templates_ibindingtemplate_ienumvalue"
     },
     {
       "relation": "imports_from",
@@ -4015,9 +4510,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "lib_models_templates_ibindingtemplate_ts",
-      "confidence_score": 1.0
+      "target": "lib_models_templates_ibindingtemplate_ts"
     },
     {
       "relation": "imports",
@@ -4026,7 +4521,18 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
+      "target": "templates_ibindingtemplate_ibindingtemplate"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/models/templates/index.ts",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "templates_index_itemplates",
       "target": "templates_ibindingtemplate_ibindingtemplate",
       "confidence_score": 1.0
     },
@@ -4036,9 +4542,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "templates_index_itemplatesrelease",
-      "confidence_score": 1.0
+      "target": "templates_index_itemplatesrelease"
     },
     {
       "relation": "contains",
@@ -4046,9 +4552,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L16",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "templates_index_templatepromptresult",
-      "confidence_score": 1.0
+      "target": "templates_index_templatepromptresult"
     },
     {
       "relation": "contains",
@@ -4056,9 +4562,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L18",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "templates_index_itemplates",
-      "confidence_score": 1.0
+      "target": "templates_index_itemplates"
     },
     {
       "relation": "contains",
@@ -4066,9 +4572,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L28",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "templates_index_templatetype",
-      "confidence_score": 1.0
+      "target": "templates_index_templatetype"
     },
     {
       "relation": "contains",
@@ -4076,9 +4582,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L33",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "templates_index_irawtemplate",
-      "confidence_score": 1.0
+      "target": "templates_index_irawtemplate"
     },
     {
       "relation": "contains",
@@ -4086,9 +4592,9 @@
       "source_file": "lib/models/templates/index.ts",
       "source_location": "L43",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_models_templates_index_ts",
-      "target": "templates_index_irawsetting",
-      "confidence_score": 1.0
+      "target": "templates_index_irawsetting"
     },
     {
       "relation": "contains",
@@ -4472,5 +4978,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "18cccad31a5e4f34ab2d2709632a9d9b512dd14e"
+  "built_at_commit": "ea53459afac0d659db4c7ebe3853c79486afbf1b"
 }
