@@ -850,10 +850,11 @@ describe('createLocalConfigurationFiles', () => {
       APP_KIND: 'workflowapp',
       ProjectDirectoryPath: path.join('test', 'workspace', 'TestLogicApp'),
       AzureWebJobsFeatureFlags: 'EnableMultiLanguageWorker',
+      AzureFunctionsJobHost__extensionBundle__version: '1.165.50',
     });
 
-    // Verify exactly 6 properties exist (5 standard + 1 feature flag)
-    expect(Object.keys(localSettingsData.Values)).toHaveLength(6);
+    expect(localSettingsData.Values).not.toHaveProperty('Functions_ExtensionBundle_Source_URI');
+    expect(Object.keys(localSettingsData.Values)).toHaveLength(7);
   });
 
   it('should include global.json in .funcignore for rules engine projects', async () => {
@@ -896,10 +897,11 @@ describe('createLocalConfigurationFiles', () => {
       APP_KIND: 'workflowapp',
       ProjectDirectoryPath: path.join('test', 'workspace', 'TestLogicApp'),
       AzureWebJobsFeatureFlags: 'EnableMultiLanguageWorker',
+      AzureFunctionsJobHost__extensionBundle__version: '1.165.50',
     });
 
-    // Verify exactly 6 properties exist (5 standard + 1 feature flag)
-    expect(Object.keys(localSettingsData.Values)).toHaveLength(6);
+    expect(localSettingsData.Values).not.toHaveProperty('Functions_ExtensionBundle_Source_URI');
+    expect(Object.keys(localSettingsData.Values)).toHaveLength(7);
   });
 
   it('should include extension bundle configuration in host.json', async () => {

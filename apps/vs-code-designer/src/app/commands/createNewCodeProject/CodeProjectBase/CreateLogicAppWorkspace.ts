@@ -5,7 +5,9 @@ import {
   azureWebJobsStorageKey,
   defaultVersionRange,
   devContainerFolderName,
+  codefulExtensionBundleVersion,
   extensionBundleId,
+  extensionBundleVersionSettingKey,
   extensionCommand,
   funcIgnoreFileName,
   functionsInprocNet8Enabled,
@@ -138,6 +140,7 @@ export async function createLocalConfigurationFiles(
   if (myWebviewProjectContext.logicAppType !== ProjectType.logicApp) {
     funcignore.push('global.json');
     localSettingsJson.Values[azureWebJobsFeatureFlagsKey] = multiLanguageWorkerSetting;
+    localSettingsJson.Values[extensionBundleVersionSettingKey] = codefulExtensionBundleVersion;
   }
 
   const hostJsonPath: string = path.join(logicAppFolderPath, hostFileName);

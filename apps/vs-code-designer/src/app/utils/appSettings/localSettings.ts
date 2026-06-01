@@ -12,6 +12,8 @@ import {
   logicAppKind,
   workerRuntimeKey,
   azureStorageTypeSetting,
+  codefulExtensionBundleVersion,
+  extensionBundleVersionSettingKey,
   functionsInprocNet8Enabled,
   functionsInprocNet8EnabledTrue,
 } from '../../../constants';
@@ -185,6 +187,7 @@ export const getLocalSettingsSchema = (isDesignTime: boolean, projectPath?: stri
         ? { [azureWebJobsSecretStorageTypeKey]: azureStorageTypeSetting }
         : { [azureWebJobsStorageKey]: localEmulatorConnectionString }),
       ...(isDesignTime ? {} : { [functionsInprocNet8Enabled]: functionsInprocNet8EnabledTrue }),
+      ...(isDesignTime ? {} : { [extensionBundleVersionSettingKey]: codefulExtensionBundleVersion }),
     },
   };
 };

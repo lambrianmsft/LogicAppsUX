@@ -279,6 +279,8 @@ export const useSmbDeployment = 'useSmbDeploymentForHybrid';
 // host.json
 export const extensionBundleId = 'Microsoft.Azure.Functions.ExtensionBundle.Workflows';
 export const targetBundleKey = 'FUNCTIONS_EXTENSIONBUNDLE_SOURCE_URI';
+export const extensionBundleVersionSettingKey = 'AzureFunctionsJobHost__extensionBundle__version';
+export const codefulExtensionBundleVersion = '1.165.50';
 
 // local.settings.json
 export const localEmulatorConnectionString = 'UseDevelopmentStorage=true';

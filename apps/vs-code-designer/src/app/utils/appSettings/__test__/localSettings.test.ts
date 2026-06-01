@@ -6,6 +6,8 @@ import {
   azureStorageTypeSetting,
   azureWebJobsSecretStorageTypeKey,
   azureWebJobsStorageKey,
+  codefulExtensionBundleVersion,
+  extensionBundleVersionSettingKey,
   localEmulatorConnectionString,
   workerRuntimeKey,
 } from '../../../../constants';
@@ -37,6 +39,8 @@ describe('utils/appSettings', () => {
       const settings = getLocalSettingsSchema(false, projectPath);
       expect(settings['Values']).toHaveProperty(azureWebJobsStorageKey, localEmulatorConnectionString);
       expect(settings['Values']).toHaveProperty(ProjectDirectoryPathKey, projectPath);
+      expect(settings['Values']).toHaveProperty(extensionBundleVersionSettingKey, codefulExtensionBundleVersion);
+      expect(settings['Values']).not.toHaveProperty('Functions_ExtensionBundle_Source_URI');
     });
   });
 });
