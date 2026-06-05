@@ -59,6 +59,10 @@ async function validateFuncCoreToolsIsLatestBinaries(majorVersion?: string): Pro
 
     context.telemetry.properties.binaryCommand = getFunctionsCommand();
   });
+
+  if (!(await binariesExist(funcDependencyName))) {
+    throw new Error('Functions Core Tools binary validation completed without an installed func binary.');
+  }
 }
 
 async function validateFuncCoreToolsIsLatestSystem(): Promise<void> {

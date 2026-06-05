@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { validateFuncCoreToolsIsLatest } from '../validateFuncCoreToolsIsLatest';
 import { useBinariesDependencies, binariesExist } from '../../../utils/binaries';
 import { isDevContainerWorkspace } from '../../../utils/devContainerUtils';
+import { installFuncCoreToolsBinaries } from '../installFuncCoreTools';
 
 // Factory mocks required to break problematic import chains:
 // - binaries: circular dep with onboarding.ts
@@ -95,6 +96,18 @@ describe('validateFuncCoreToolsIsLatest', () => {
       await validateFuncCoreToolsIsLatest('4');
 
       expect(binariesExist).toHaveBeenCalledWith('FuncCoreTools');
+    });
+
+    it('should throw if binary validation completes without an installed func binary', async () => {
+      vi.mocked(isDevContainerWorkspace).mockResolvedValue(false);
+      vi.mocked(useBinariesDependencies).mockResolvedValue(true);
+      vi.mocked(binariesExist).mockResolvedValue(false);
+      vi.mocked(installFuncCoreToolsBinaries).mockResolvedValue(undefined);
+
+      await expect(validateFuncCoreToolsIsLatest('4')).rejects.toThrow(
+        'Functions Core Tools binary validation completed without an installed func binary.'
+      );
+      expect(installFuncCoreToolsBinaries).toHaveBeenCalled();
     });
 
     it('should not call binariesExist when not using binaries', async () => {

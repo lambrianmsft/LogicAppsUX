@@ -154,7 +154,7 @@ describe('validateAndInstallBinaries', () => {
   it('logs dependency validation errors and surfaces troubleshooting guidance', async () => {
     (timeout as Mock).mockRejectedValueOnce(new Error('Node validation failed'));
 
-    await validateAndInstallBinaries(context);
+    await expect(validateAndInstallBinaries(context)).rejects.toThrow('Node validation failed');
 
     expect(context.telemetry.properties).toMatchObject({
       lastStep: 'validateNodeJsIsLatest',

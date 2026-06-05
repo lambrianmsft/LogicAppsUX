@@ -182,6 +182,34 @@ describe('binaries', () => {
       expect(context.telemetry.properties.error).toContain('disk full');
     });
 
+    it('removes the target folder when extraction fails after download finishes', async () => {
+      const downloadUrl = 'https://example.com/dependency.zip';
+      const targetFolder = 'targetFolder';
+      const dependencyName = funcDependencyName;
+      const writer = {
+        on: vi.fn((event: string, callback: () => void) => {
+          if (event === 'finish') {
+            callback();
+          }
+          return writer;
+        }),
+      } as any;
+
+      (axios.get as Mock).mockResolvedValue({
+        data: {
+          on: vi.fn(),
+          pipe: vi.fn().mockImplementation((writer) => writer),
+        },
+      });
+      (fs.createWriteStream as Mock).mockReturnValue(writer);
+
+      await expect(downloadAndExtractDependency(context, downloadUrl, targetFolder, dependencyName)).rejects.toThrow(
+        'Error downloading and extracting the FuncCoreTools zip file:'
+      );
+      expect(fs.rmSync).toHaveBeenCalledWith(path.join(targetFolder, dependencyName), { recursive: true, force: true });
+      expect(context.telemetry.properties.error).toContain('FuncCoreTools');
+    });
+
     it('should throw error when the compression file extension is not supported', async () => {
       const downloadUrl = 'https://example.com/dependency.zip222';
       const targetFolder = 'targetFolder';
@@ -432,8 +460,19 @@ describe('binaries', () => {
 
   describe('getFunctionCoreToolsBinariesReleaseUrl', () => {
     it('should return the correct Function Core Tools binaries release URL', () => {
-      const version = '3.0.0';
-      const osPlatform = 'win-x64';
+      const version = '4.0.7030';
+      const osPlatform = 'linux';
+      const arch = 'x64';
+      const result = getFunctionCoreToolsBinariesReleaseUrl(version, osPlatform, arch);
+
+      expect(result).toStrictEqual(
+        `https://functionscdn.azureedge.net/public/4.0.194/Azure.Functions.Cli.${osPlatform}-${arch}.${version}.zip`
+      );
+    });
+
+    it('should return the GitHub release URL for unmapped Function Core Tools versions', () => {
+      const version = '4.0.9999';
+      const osPlatform = 'linux';
       const arch = 'x64';
       const result = getFunctionCoreToolsBinariesReleaseUrl(version, osPlatform, arch);
 

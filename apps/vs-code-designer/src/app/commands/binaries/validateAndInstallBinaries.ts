@@ -121,6 +121,7 @@ export async function validateAndInstallBinaries(context: IActionContext) {
             `The Validation and Installation of Runtime Dependencies encountered an error. To resolve this issue, please click [here](${helpLink}) to access our troubleshooting documentation for step-by-step instructions.`
           )
         );
+        throw error;
       }
     }
   );

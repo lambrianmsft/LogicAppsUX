@@ -151,7 +151,7 @@ export async function downloadAndExtractDependency(
         executeCommand(ext.outputChannel, undefined, 'echo', `Removed ${tempFolderPath}`);
         resolve();
       } catch (error) {
-        reject(error);
+        await rejectDownload(error instanceof Error ? error : new Error(String(error)));
       }
     });
     writer.on('error', async (error) => {
@@ -291,6 +291,14 @@ export function getNodeJsBinariesReleaseUrl(version: string, osPlatform: string,
 }
 
 export function getFunctionCoreToolsBinariesReleaseUrl(version: string, osPlatform: string, arch: string): string {
+  const functionCoreToolsCdnBuildIds: Record<string, string> = {
+    '4.0.7030': '4.0.194',
+  };
+  const cdnBuildId = functionCoreToolsCdnBuildIds[version];
+  if (cdnBuildId) {
+    return `https://functionscdn.azureedge.net/public/${cdnBuildId}/Azure.Functions.Cli.${osPlatform}-${arch}.${version}.zip`;
+  }
+
   return `https://github.com/Azure/azure-functions-core-tools/releases/download/${version}/Azure.Functions.Cli.${osPlatform}-${arch}.${version}.zip`;
 }
 
@@ -394,15 +402,17 @@ function cleanDirectory(targetFolder: string): void {
 }
 
 async function extractDependency(dependencyFilePath: string, targetFolder: string, dependencyName: string): Promise<void> {
-  // Clear targetFolder's contents without deleting the folder itself
-  // TODO(aeldridge): It is possible there is a lock on a file in targetFolder, should be handled.
-  cleanDirectory(targetFolder);
   await executeCommand(ext.outputChannel, undefined, 'echo', `Extracting ${dependencyFilePath}`);
   try {
     if (dependencyFilePath.endsWith('.zip')) {
       const zip = new AdmZip(dependencyFilePath);
+      // Clear targetFolder only after the archive is verified as readable.
+      cleanDirectory(targetFolder);
       zip.extractAllTo(targetFolder, /* overwrite */ true, /* Permissions */ true);
     } else {
+      // Clear targetFolder's contents without deleting the folder itself.
+      // TODO(aeldridge): It is possible there is a lock on a file in targetFolder, should be handled.
+      cleanDirectory(targetFolder);
       await executeCommand(ext.outputChannel, undefined, 'tar', '-xzvf', dependencyFilePath, '-C', targetFolder);
     }
     extractContainerFolder(targetFolder);
