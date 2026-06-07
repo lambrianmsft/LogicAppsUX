@@ -58,7 +58,9 @@ vi.mock('fs-extra', () => ({
 }));
 
 vi.mock('path', () => ({
+  dirname: vi.fn(),
   join: vi.fn(),
+  relative: vi.fn(),
   resolve: vi.fn(),
 }));
 
@@ -1091,7 +1093,9 @@ describe('updateWorkspaceFile', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(path.dirname).mockImplementation((filePath: string) => actualPath.dirname(filePath));
     vi.mocked(path.join).mockImplementation((...args: string[]) => actualPath.join(...args));
+    vi.mocked(path.relative).mockImplementation((from: string, to: string) => actualPath.relative(from, to));
     vi.mocked(path.resolve).mockImplementation((...args: string[]) => actualPath.resolve(...args));
     vi.mocked(fse.readJson).mockResolvedValue({ folders: [] });
     vi.mocked(fse.writeJson).mockResolvedValue(undefined);
@@ -1145,6 +1149,42 @@ describe('updateWorkspaceFile', () => {
     // Verify folder order
     expect(folders[0].name).toBe('TestLogicAppCustomCode');
     expect(folders[1].name).toBe('CustomCodeFunctions');
+  });
+
+  it('should use workspace-relative paths when adding sibling project folders', async () => {
+    const optionsWithSiblingPaths: IWebviewProjectContext = {
+      ...mockOptionsCustomCode,
+      logicAppWorkspaceRelativePath: '../TestLogicAppCustomCode',
+      functionWorkspaceRelativePath: '../CustomCodeFunctions',
+    };
+
+    await CreateLogicAppWorkspaceModule.updateWorkspaceFile(optionsWithSiblingPaths);
+
+    const writeCall = vi.mocked(fse.writeJson).mock.calls[0];
+    const folders = writeCall[1].folders;
+
+    expect(folders).toEqual([
+      {
+        name: 'TestLogicAppCustomCode',
+        path: '../TestLogicAppCustomCode',
+      },
+      {
+        name: 'CustomCodeFunctions',
+        path: '../CustomCodeFunctions',
+      },
+    ]);
+  });
+
+  it('normalizes generated workspace-relative paths to forward slashes', () => {
+    vi.mocked(path.dirname).mockReturnValue('C:\\workspace\\ExistingProject');
+    vi.mocked(path.relative).mockReturnValue('..\\NewProject');
+
+    expect(
+      CreateLogicAppWorkspaceModule.getWorkspaceRelativeFolderPath(
+        'C:\\workspace\\ExistingProject\\ExistingProject.code-workspace',
+        'C:\\workspace\\NewProject'
+      )
+    ).toBe('../NewProject');
   });
 
   it('should add function folder for rules engine projects', async () => {

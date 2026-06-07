@@ -59,19 +59,6 @@ export interface AddActionParams {
   operationId?: string;
   method?: string;
   path?: string;
-  /**
-   * Flat dictionary of swagger parameter values keyed by parameter name (e.g.
-   * `{ Location: 'Seattle, WA', units: 'Imperial' }`). The tool routes each value
-   * to the correct ApiConnection slot (path / queries / body / headers) based on
-   * the connector's swagger. Prefer this over hand-crafting inputs.queries/body.
-   */
-  parameters?: Record<string, unknown>;
-  /**
-   * Current natural-language user request. Used only as untrusted context to
-   * infer missing connector parameter values from swagger metadata; explicit
-   * `parameters` values always win.
-   */
-  parameterText?: string;
   serviceProviderConnection?: ServiceProviderConnectionInput;
 }
 
@@ -354,12 +341,6 @@ interface WorkflowToolsTestOverrides {
   getAuthData?: typeof getAuthData;
   getAuthorizationToken?: typeof getAuthorizationToken;
   showInputBox?: (options: vscode.InputBoxOptions) => Thenable<string | undefined>;
-  /**
-   * Optional override that returns a mock swagger document for a managed connector ID.
-   * When set, this is used instead of fetching the swagger from ARM. Tests use this to
-   * exercise the parameter router without network access.
-   */
-  fetchConnectorSwagger?: (connectorId: string) => Promise<Record<string, unknown> | undefined>;
 }
 
 const workflowToolsTestOverridesKey = '__LOGICAPPS_WORKFLOW_TOOLS_TEST_OVERRIDES__';
@@ -2181,20 +2162,8 @@ async function createServiceProviderConnection(
     connectionsData.serviceProviderConnections = {};
   }
   const spConns = connectionsData.serviceProviderConnections as Record<string, unknown>;
-  const explicitConnection = resolveExplicitServiceProviderConnection(serviceProviderId, serviceProviderConnection);
 
-  if (explicitConnection.usesExplicitInput && explicitConnection.missingFields?.length) {
-    return {
-      success: false,
-      requiresUserInput: true,
-      error: buildServiceProviderConnectionPromptMessage(connectorDisplayName, serviceProviderId, {
-        missingFields: explicitConnection.missingFields,
-      }),
-    };
-  }
-
-  // If connection already exists, reuse it. Missing explicit fields are handled above,
-  // but complete chat-provided details should not overwrite an existing connection.
+  // If connection already exists, return early
   if (spConns[connectionName]) {
     console.log(`[chat-tools] Service provider connection "${connectionName}" already exists`);
     return { success: true, alreadyExists: true };
@@ -2204,10 +2173,19 @@ async function createServiceProviderConnection(
   const azureContext = await getAzureContextFromLocalSettings(projectPath);
   let connectionString: string | undefined;
   let completionNote: string | undefined;
+  const explicitConnection = resolveExplicitServiceProviderConnection(serviceProviderId, serviceProviderConnection);
 
   if (explicitConnection.connectionString) {
     connectionString = explicitConnection.connectionString;
     completionNote = `Created connection for "${connectionName}" from chat-provided connection details.`;
+  } else if (explicitConnection.usesExplicitInput && explicitConnection.missingFields?.length) {
+    return {
+      success: false,
+      requiresUserInput: true,
+      error: buildServiceProviderConnectionPromptMessage(connectorDisplayName, serviceProviderId, {
+        missingFields: explicitConnection.missingFields,
+      }),
+    };
   }
 
   if (!connectionString && azureContext?.subscriptionId) {
@@ -2607,51 +2585,6 @@ export function isTriggerType(actionType: string): boolean {
 }
 
 /**
- * Compute a default `runAfter` value for a newly added action.
- *
- * When the caller passes an explicit `runAfter` (either top-level on the configuration
- * or nested under `inputs`), it is preserved verbatim — including `{}` to opt into
- * parallel execution. Otherwise, when prior actions already exist in the workflow,
- * the new action is chained after the last one in insertion order so Response-style
- * actions don't race with their dependencies.
- *
- * @internal Exported for testing
- */
-export function inferDefaultRunAfter(
-  existingActions: Record<string, unknown> | undefined,
-  callerConfig: Record<string, unknown> | undefined
-): Record<string, unknown> {
-  if (callerConfig) {
-    if (Object.prototype.hasOwnProperty.call(callerConfig, 'runAfter')) {
-      const explicit = callerConfig.runAfter;
-      if (typeof explicit === 'object' && explicit !== null) {
-        return explicit as Record<string, unknown>;
-      }
-    }
-
-    const inputs = callerConfig.inputs;
-    if (inputs && typeof inputs === 'object' && Object.prototype.hasOwnProperty.call(inputs, 'runAfter')) {
-      const nested = (inputs as Record<string, unknown>).runAfter;
-      if (typeof nested === 'object' && nested !== null) {
-        return nested as Record<string, unknown>;
-      }
-    }
-  }
-
-  if (!existingActions || typeof existingActions !== 'object') {
-    return {};
-  }
-
-  const actionNames = Object.keys(existingActions).filter((name) => name.trim().length > 0);
-  if (actionNames.length === 0) {
-    return {};
-  }
-
-  const lastActionName = actionNames[actionNames.length - 1];
-  return { [lastActionName]: ['Succeeded'] };
-}
-
-/**
  * Build a trigger definition from an actionType/configuration pair.
  * @internal Exported for testing
  */
@@ -2809,30 +2742,6 @@ function extractActionInputs(configuration?: Record<string, unknown>): Record<st
   return configuration;
 }
 
-/**
- * Extract the caller-supplied flat `parameters` dictionary from a tool configuration.
- * Looks first at the top-level `configuration.parameters`, then at `configuration.inputs.parameters`
- * for back-compat. Returns undefined when not present or not an object.
- * @internal
- */
-function extractCallerParameters(configuration?: Record<string, unknown>): Record<string, unknown> | undefined {
-  if (!configuration) {
-    return undefined;
-  }
-  const top = configuration.parameters;
-  if (typeof top === 'object' && top !== null && !Array.isArray(top)) {
-    return top as Record<string, unknown>;
-  }
-  const inputs = configuration.inputs;
-  if (typeof inputs === 'object' && inputs !== null) {
-    const nested = (inputs as Record<string, unknown>).parameters;
-    if (typeof nested === 'object' && nested !== null && !Array.isArray(nested)) {
-      return nested as Record<string, unknown>;
-    }
-  }
-  return undefined;
-}
-
 function extractApiConnectionHints(
   configuration?: Record<string, unknown>,
   overrideHints?: Partial<ApiConnectionHints>
@@ -2973,6 +2882,29 @@ export function validateApiConnectionReferenceExists(
   return `ApiConnection reference "${referenceNameHint}" could not be resolved to a managed API with api.id in connections.json.${hint}`;
 }
 
+/**
+ * Build a Seattle weather connector action in ApiConnection shape.
+ * @internal Exported for testing
+ */
+export function buildSeattleWeatherConnectorAction(referenceName: string): Record<string, unknown> {
+  return {
+    type: 'ApiConnection',
+    inputs: {
+      host: {
+        connection: {
+          referenceName,
+        },
+      },
+      method: 'get',
+      path: "/current/@{encodeURIComponent('98101')}",
+      queries: {
+        units: 'I',
+      },
+    },
+    runAfter: {},
+  };
+}
+
 function resolveManagedApiReferenceByConnectorId(
   connectorIdHint: string | undefined,
   managedApiIdByReference: Record<string, string>
@@ -3018,26 +2950,10 @@ export interface ManagedApiOperation {
   };
 }
 
-export interface SwaggerOperationParameter {
-  name: string;
-  in: 'path' | 'query' | 'header' | 'body' | 'formData';
-  required: boolean;
-  type?: string;
-  enum?: unknown[];
-  xMsEnum?: { values?: Array<{ value: unknown; displayName?: string }> };
-  xMsSummary?: string;
-  description?: string;
-  default?: unknown;
-}
-
 export interface SwaggerOperationResolution {
   method: string;
   path: string;
   operationId?: string;
-  /** Original normalized path template with `{Name}` placeholders preserved for routing. */
-  pathTemplate?: string;
-  /** Declared parameters for the operation (path/query/body/header), if available. */
-  parameters?: SwaggerOperationParameter[];
 }
 interface ManagedConnectorOfflineResolution {
   method: string;
@@ -3051,8 +2967,6 @@ interface SwaggerOperationCandidate {
   operationId: string;
   summary?: string;
   description?: string;
-  parameters?: SwaggerOperationParameter[];
-  pathTemplate?: string;
 }
 
 function normalizeManagedConnectorPath(pathValue: string): string {
@@ -3477,77 +3391,6 @@ function scoreOperationForActionName(actionName: string, operation: ManagedApiOp
   return score;
 }
 
-function normalizeSwaggerParameter(param: unknown): SwaggerOperationParameter | undefined {
-  if (typeof param !== 'object' || param === null) {
-    return undefined;
-  }
-  const record = param as Record<string, unknown>;
-  // Swagger 2.0 $ref parameters are not resolved here; skip them rather than guessing.
-  if (typeof record.$ref === 'string') {
-    return undefined;
-  }
-  const name = typeof record.name === 'string' ? record.name : undefined;
-  const inValue = typeof record.in === 'string' ? record.in.toLowerCase() : undefined;
-  if (!name || !inValue) {
-    return undefined;
-  }
-  if (inValue !== 'path' && inValue !== 'query' && inValue !== 'header' && inValue !== 'body' && inValue !== 'formData') {
-    return undefined;
-  }
-  const xMsEnumRaw = record['x-ms-enum'];
-  const xMsEnum =
-    typeof xMsEnumRaw === 'object' && xMsEnumRaw !== null && Array.isArray((xMsEnumRaw as Record<string, unknown>).values)
-      ? {
-          values: ((xMsEnumRaw as Record<string, unknown>).values as Record<string, unknown>[])
-            .map((entry) => ({
-              value: entry?.value,
-              displayName: typeof entry?.displayName === 'string' ? entry.displayName : undefined,
-            }))
-            .filter((entry) => entry.value !== undefined),
-        }
-      : undefined;
-  return {
-    name,
-    in: inValue as SwaggerOperationParameter['in'],
-    required: record.required === true,
-    type: typeof record.type === 'string' ? record.type : undefined,
-    enum: Array.isArray(record.enum) ? (record.enum as unknown[]) : undefined,
-    xMsEnum,
-    xMsSummary: typeof record['x-ms-summary'] === 'string' ? (record['x-ms-summary'] as string) : undefined,
-    description: typeof record.description === 'string' ? record.description : undefined,
-    default: record.default,
-  };
-}
-
-function collectOperationParameters(
-  pathItemRecord: Record<string, unknown>,
-  operationRecord: Record<string, unknown>
-): SwaggerOperationParameter[] | undefined {
-  const merged: SwaggerOperationParameter[] = [];
-  const seen = new Set<string>();
-  const addAll = (raw: unknown) => {
-    if (!Array.isArray(raw)) {
-      return;
-    }
-    for (const item of raw) {
-      const normalized = normalizeSwaggerParameter(item);
-      if (!normalized) {
-        continue;
-      }
-      const key = `${normalized.in}::${normalized.name.toLowerCase()}`;
-      if (seen.has(key)) {
-        continue;
-      }
-      seen.add(key);
-      merged.push(normalized);
-    }
-  };
-  // Path-level shared parameters first, then operation-level (operation wins on dedup keys).
-  addAll(pathItemRecord.parameters);
-  addAll(operationRecord.parameters);
-  return merged.length > 0 ? merged : undefined;
-}
-
 function listSwaggerOperationCandidates(swagger: Record<string, unknown>): SwaggerOperationCandidate[] {
   const paths = typeof swagger.paths === 'object' && swagger.paths !== null ? (swagger.paths as Record<string, unknown>) : undefined;
   if (!paths) {
@@ -3575,15 +3418,12 @@ function listSwaggerOperationCandidates(swagger: Record<string, unknown>): Swagg
           ? operationRecord.operationId
           : `${method}:${pathValue}`;
 
-      const normalizedPath = normalizeManagedConnectorPath(pathValue);
       candidates.push({
         method,
-        path: normalizedPath,
+        path: normalizeManagedConnectorPath(pathValue),
         operationId,
         summary: typeof operationRecord.summary === 'string' ? operationRecord.summary : undefined,
         description: typeof operationRecord.description === 'string' ? operationRecord.description : undefined,
-        parameters: collectOperationParameters(pathItemRecord, operationRecord),
-        pathTemplate: normalizedPath,
       });
     }
   }
@@ -3764,8 +3604,6 @@ export function resolveSwaggerOperation(
     method: selectedCandidate.method,
     path: selectedCandidate.path,
     operationId: selectedCandidate.operationId,
-    pathTemplate: selectedCandidate.pathTemplate ?? selectedCandidate.path,
-    parameters: selectedCandidate.parameters,
   };
 }
 function tokenizeOperationText(value: string): string[] {
@@ -3823,15 +3661,6 @@ async function listManagedApiOperations(connectorId: string, client: HttpClient)
 }
 
 async function fetchConnectorSwagger(connectorId: string, client: HttpClient): Promise<Record<string, unknown> | undefined> {
-  const override = getWorkflowToolsTestOverrides()?.fetchConnectorSwagger;
-  if (override) {
-    try {
-      return await override(connectorId);
-    } catch (error) {
-      console.error('[chat-tools] Test swagger override failed:', error instanceof Error ? error.message : String(error));
-      return undefined;
-    }
-  }
   try {
     console.log(`[chat-tools] Fetching swagger: ${connectorId}?export=true`);
     const swagger = await client.get<Record<string, unknown>>({
@@ -3856,17 +3685,7 @@ async function resolveManagedApiOperationFromSwagger(
   actionName: string,
   hints: ApiConnectionHints,
   projectConnections: ProjectConnectionsInfo
-): Promise<
-  | {
-      method: string;
-      path: string;
-      operationId?: string;
-      failureReason?: string;
-      pathTemplate?: string;
-      parameters?: SwaggerOperationParameter[];
-    }
-  | undefined
-> {
+): Promise<{ method: string; path: string; operationId?: string; failureReason?: string } | undefined> {
   let failureReason = '';
 
   if (getWorkflowToolsTestOverrides()?.disableArmSwaggerResolution) {
@@ -3912,400 +3731,7 @@ async function resolveManagedApiOperationFromSwagger(
     method: resolved.method,
     path: resolved.path,
     operationId: selectedOperation?.name ?? resolved.operationId ?? hints.operationId,
-    pathTemplate: resolved.pathTemplate,
-    parameters: resolved.parameters,
   };
-}
-
-export interface RouteParametersResult {
-  /** Final path with `{X}` placeholders replaced by `@{encodeURIComponent('value')}` expressions. */
-  path: string;
-  queries?: Record<string, unknown>;
-  body?: unknown;
-  headers?: Record<string, unknown>;
-  /** Names of required swagger parameters that the caller did not supply. */
-  missing: string[];
-  /** Caller-supplied keys in `parameters` that did not match any swagger parameter. */
-  unmapped: Record<string, unknown>;
-}
-
-const MAX_PARAMETER_TEXT_LENGTH = 512;
-
-const naturalEnumSynonymGroups: Array<{ canonical: string; synonyms: string[] }> = [
-  { canonical: 'imperial', synonyms: ['imperial', 'fahrenheit', 'f'] },
-  { canonical: 'metric', synonyms: ['metric', 'celsius', 'centigrade', 'c'] },
-];
-
-/**
- * Look up a value by case-insensitive key in a flat record. Returns undefined when missing.
- * @internal
- */
-function lookupCaseInsensitive(source: Record<string, unknown> | undefined, key: string): { hit: boolean; value: unknown } {
-  if (!source) {
-    return { hit: false, value: undefined };
-  }
-  if (Object.prototype.hasOwnProperty.call(source, key)) {
-    return { hit: true, value: source[key] };
-  }
-  const lowered = key.toLowerCase();
-  for (const sourceKey of Object.keys(source)) {
-    if (sourceKey.toLowerCase() === lowered) {
-      return { hit: true, value: source[sourceKey] };
-    }
-  }
-  return { hit: false, value: undefined };
-}
-
-function getParameterText(configuration?: Record<string, unknown>): string | undefined {
-  const value = configuration?.parameterText;
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed ? trimmed.slice(0, MAX_PARAMETER_TEXT_LENGTH) : undefined;
-}
-
-function hasExplicitParameterValue(
-  callerParameters: Record<string, unknown> | undefined,
-  callerInputsRecord: Record<string, unknown>,
-  param: SwaggerOperationParameter,
-  inputQueries: Record<string, unknown> | undefined,
-  inputHeaders: Record<string, unknown> | undefined,
-  inputBody: unknown
-): boolean {
-  if (lookupCaseInsensitive(callerParameters, param.name).hit) {
-    return true;
-  }
-
-  if (param.in === 'query') {
-    return lookupCaseInsensitive(inputQueries, param.name).hit;
-  }
-  if (param.in === 'header') {
-    return lookupCaseInsensitive(inputHeaders, param.name).hit;
-  }
-  if (param.in === 'body' || param.in === 'formData') {
-    return inputBody !== undefined;
-  }
-  if (param.in === 'path') {
-    return lookupCaseInsensitive(callerInputsRecord, param.name).hit;
-  }
-
-  return false;
-}
-
-function normalizeSearchText(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function phraseAppearsInText(text: string, phrase: string): boolean {
-  const normalizedPhrase = normalizeSearchText(phrase);
-  if (!normalizedPhrase) {
-    return false;
-  }
-
-  const escaped = normalizedPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(normalizeSearchText(text));
-}
-
-function getEnumOptions(parameter: SwaggerOperationParameter): Array<{ value: unknown; labels: string[] }> {
-  const byValue = new Map<string, { value: unknown; labels: string[] }>();
-
-  const addOption = (value: unknown, labels: Array<string | undefined>) => {
-    if (value === undefined || value === null) {
-      return;
-    }
-    const key = String(value).toLowerCase();
-    const existing = byValue.get(key) ?? { value, labels: [] };
-    for (const label of labels) {
-      const trimmed = label?.trim();
-      if (trimmed && !existing.labels.some((existingLabel) => existingLabel.toLowerCase() === trimmed.toLowerCase())) {
-        existing.labels.push(trimmed);
-      }
-    }
-    byValue.set(key, existing);
-  };
-
-  for (const entry of parameter.xMsEnum?.values ?? []) {
-    addOption(entry.value, [String(entry.value), entry.displayName]);
-  }
-  for (const entry of parameter.enum ?? []) {
-    addOption(entry, [String(entry)]);
-  }
-
-  return [...byValue.values()];
-}
-
-function getEnumSynonymLabels(parameter: SwaggerOperationParameter, option: { value: unknown; labels: string[] }): string[] {
-  const normalizedLabels = option.labels.map((label) => normalizeSearchText(label));
-  const synonyms: string[] = [];
-  for (const group of naturalEnumSynonymGroups) {
-    if (normalizedLabels.includes(group.canonical)) {
-      synonyms.push(...group.synonyms);
-    }
-  }
-
-  return synonyms.filter((label) => !normalizedLabels.includes(label));
-}
-
-function normalizeEnumValue(value: unknown, parameter: SwaggerOperationParameter): unknown {
-  if (value === undefined || value === null) {
-    return value;
-  }
-  const valueStr = typeof value === 'string' ? value : String(value);
-
-  const options = getEnumOptions(parameter);
-  const exactValueMatch = options.find((option) => String(option.value).toLowerCase() === valueStr.toLowerCase());
-  if (exactValueMatch) {
-    return exactValueMatch.value;
-  }
-
-  const labelMatch = options.find((option) => option.labels.some((label) => label.toLowerCase() === valueStr.toLowerCase()));
-  if (labelMatch) {
-    return labelMatch.value;
-  }
-
-  const synonymMatch = options.find((option) =>
-    getEnumSynonymLabels(parameter, option).some((label) => label.toLowerCase() === valueStr.toLowerCase())
-  );
-  return synonymMatch?.value ?? value;
-}
-
-function inferEnumParameterFromText(parameter: SwaggerOperationParameter, parameterText: string): unknown {
-  if (parameter.in === 'body' || parameter.in === 'formData' || parameter.name.toLowerCase() === 'connectionid') {
-    return undefined;
-  }
-
-  const matches: unknown[] = [];
-  for (const option of getEnumOptions(parameter)) {
-    const labels = [...option.labels, ...getEnumSynonymLabels(parameter, option)].sort((a, b) => b.length - a.length);
-    if (labels.some((label) => phraseAppearsInText(parameterText, label))) {
-      matches.push(option.value);
-    }
-  }
-
-  const uniqueMatches = [...new Map(matches.map((value) => [String(value).toLowerCase(), value])).values()];
-  return uniqueMatches.length === 1 ? uniqueMatches[0] : undefined;
-}
-
-function isLocationLikeParameter(parameter: SwaggerOperationParameter): boolean {
-  const metadata = [parameter.name, parameter.xMsSummary, parameter.description].filter(Boolean).join(' ').toLowerCase();
-  return /\b(location|city|address|place)\b/.test(metadata);
-}
-
-function extractNaturalLocationValue(parameterText: string): string | undefined {
-  const cueMatch = /\b(?:for|near|at)\s+(.+?)(?=\s+(?:in|using|with)\s+[^,.!?]*(?:unit|units)\b|[.!?]|$)/i.exec(parameterText);
-  const value = cueMatch?.[1]
-    ?.trim()
-    .replace(/^["']|["']$/g, '')
-    .replace(/,$/, '')
-    .trim();
-  if (!value || value.length > 80 || /\b(?:and|or)\b/i.test(value)) {
-    return undefined;
-  }
-
-  return value;
-}
-
-export function inferParametersFromNaturalText(
-  callerParameters: Record<string, unknown> | undefined,
-  callerInputs: Record<string, unknown> | undefined,
-  swaggerParameters: SwaggerOperationParameter[] | undefined,
-  parameterText?: string
-): Record<string, unknown> | undefined {
-  const sanitizedText = typeof parameterText === 'string' ? parameterText.trim().slice(0, MAX_PARAMETER_TEXT_LENGTH) : '';
-  if (!sanitizedText || !swaggerParameters || swaggerParameters.length === 0) {
-    return undefined;
-  }
-
-  const inferred: Record<string, unknown> = {};
-  const callerInputsRecord = callerInputs ?? {};
-  const inputQueries =
-    typeof callerInputsRecord.queries === 'object' && callerInputsRecord.queries !== null
-      ? (callerInputsRecord.queries as Record<string, unknown>)
-      : undefined;
-  const inputHeaders =
-    typeof callerInputsRecord.headers === 'object' && callerInputsRecord.headers !== null
-      ? (callerInputsRecord.headers as Record<string, unknown>)
-      : undefined;
-  const inputBody = callerInputsRecord.body;
-
-  for (const param of swaggerParameters) {
-    if (hasExplicitParameterValue(callerParameters, callerInputsRecord, param, inputQueries, inputHeaders, inputBody)) {
-      continue;
-    }
-
-    const enumValue = inferEnumParameterFromText(param, sanitizedText);
-    if (enumValue !== undefined) {
-      inferred[param.name] = enumValue;
-    }
-  }
-
-  const locationLikeRequiredPathParams = swaggerParameters.filter(
-    (param) =>
-      param.in === 'path' &&
-      param.required &&
-      (param.type === undefined || param.type === 'string') &&
-      param.name.toLowerCase() !== 'connectionid' &&
-      isLocationLikeParameter(param) &&
-      !hasExplicitParameterValue(callerParameters, callerInputsRecord, param, inputQueries, inputHeaders, inputBody)
-  );
-  if (locationLikeRequiredPathParams.length === 1) {
-    const locationValue = extractNaturalLocationValue(sanitizedText);
-    if (locationValue) {
-      inferred[locationLikeRequiredPathParams[0].name] = locationValue;
-    }
-  }
-
-  return Object.keys(inferred).length > 0 ? inferred : undefined;
-}
-
-/**
- * Replace `{Name}` in a swagger path template with `@{encodeURIComponent('value')}` expressions.
- * If the value is already a workflow expression (starts with `@`), use it directly without wrapping.
- * @internal
- */
-function substitutePathParameter(pathTemplate: string, paramName: string, value: unknown): string {
-  const placeholder = new RegExp(`\\{${paramName.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\}`, 'gi');
-  if (typeof value === 'string' && value.startsWith('@')) {
-    return pathTemplate.replace(placeholder, value);
-  }
-  const stringValue = typeof value === 'string' ? value : String(value);
-  const escaped = stringValue.replace(/'/g, "''");
-  return pathTemplate.replace(placeholder, `@{encodeURIComponent('${escaped}')}`);
-}
-
-/**
- * Route caller-supplied parameter values to the correct ApiConnection input slots
- * (path / queries / body / headers) based on swagger parameter declarations.
- *
- * @param callerParameters Flat top-level `parameters` dict passed by the chat tool caller.
- * @param callerInputs The existing `configuration.inputs` shape, used as a back-compat fallback.
- * @param pathTemplate The swagger path template (may contain `{Name}` placeholders).
- * @param swaggerParameters Declared parameters for the operation, if available.
- */
-export function routeParametersToApiConnectionInputs(
-  callerParameters: Record<string, unknown> | undefined,
-  callerInputs: Record<string, unknown> | undefined,
-  pathTemplate: string,
-  swaggerParameters: SwaggerOperationParameter[] | undefined,
-  parameterText?: string
-): RouteParametersResult {
-  const result: RouteParametersResult = {
-    path: pathTemplate,
-    missing: [],
-    unmapped: {},
-  };
-
-  if (!swaggerParameters || swaggerParameters.length === 0) {
-    // No swagger metadata available → pass-through. Caller is responsible for shape.
-    return result;
-  }
-
-  const matchedCallerKeys = new Set<string>();
-  const callerInputsRecord = callerInputs ?? {};
-  const inputQueries =
-    typeof callerInputsRecord.queries === 'object' && callerInputsRecord.queries !== null
-      ? (callerInputsRecord.queries as Record<string, unknown>)
-      : undefined;
-  const inputHeaders =
-    typeof callerInputsRecord.headers === 'object' && callerInputsRecord.headers !== null
-      ? (callerInputsRecord.headers as Record<string, unknown>)
-      : undefined;
-  const inputBody = (callerInputsRecord as Record<string, unknown>).body;
-  const inferredParameters = inferParametersFromNaturalText(callerParameters, callerInputsRecord, swaggerParameters, parameterText);
-
-  for (const param of swaggerParameters) {
-    if (param.name.toLowerCase() === 'connectionid') {
-      continue;
-    }
-
-    // Resolution order:
-    // 1. callerParameters[exact] or case-insensitive match
-    // 2. callerInputs slot (queries/headers/body) for that `in`
-    // 3. callerInputs[param.name] top level (path params only — common in legacy callers)
-    let lookup = lookupCaseInsensitive(callerParameters, param.name);
-    if (lookup.hit && callerParameters) {
-      const exact = Object.prototype.hasOwnProperty.call(callerParameters, param.name)
-        ? param.name
-        : Object.keys(callerParameters).find((k) => k.toLowerCase() === param.name.toLowerCase());
-      if (exact) {
-        matchedCallerKeys.add(exact);
-      }
-    }
-
-    if (!lookup.hit) {
-      if (param.in === 'query') {
-        lookup = lookupCaseInsensitive(inputQueries, param.name);
-      } else if (param.in === 'header') {
-        lookup = lookupCaseInsensitive(inputHeaders, param.name);
-      } else if (param.in === 'body') {
-        if (inputBody !== undefined) {
-          lookup = { hit: true, value: inputBody };
-        }
-      } else if (param.in === 'path') {
-        lookup = lookupCaseInsensitive(callerInputsRecord, param.name);
-      }
-    }
-
-    if (!lookup.hit) {
-      lookup = lookupCaseInsensitive(inferredParameters, param.name);
-    }
-
-    if (!lookup.hit && param.default !== undefined) {
-      lookup = { hit: true, value: param.default };
-    }
-
-    if (!lookup.hit) {
-      if (param.required) {
-        result.missing.push(param.name);
-      }
-      continue;
-    }
-
-    const normalizedValue = normalizeEnumValue(lookup.value, param);
-
-    switch (param.in) {
-      case 'path':
-        result.path = substitutePathParameter(result.path, param.name, normalizedValue);
-        break;
-      case 'query':
-        result.queries = { ...(result.queries ?? {}), [param.name]: normalizedValue };
-        break;
-      case 'header':
-        result.headers = { ...(result.headers ?? {}), [param.name]: normalizedValue };
-        break;
-      case 'body':
-        result.body = normalizedValue;
-        break;
-      case 'formData':
-        // Treat formData like body for now (not commonly used by Logic Apps connectors).
-        result.body = normalizedValue;
-        break;
-    }
-  }
-
-  // If a required path placeholder is still present after substitution, also report it as missing.
-  const stillUnresolved = result.path.match(/\{([^/{}]+)\}/g);
-  if (stillUnresolved) {
-    for (const placeholder of stillUnresolved) {
-      const name = placeholder.slice(1, -1);
-      const param = swaggerParameters.find((p) => p.in === 'path' && p.name.toLowerCase() === name.toLowerCase());
-      if (param?.required && !result.missing.includes(param.name)) {
-        result.missing.push(param.name);
-      }
-    }
-  }
-
-  if (callerParameters) {
-    for (const [key, value] of Object.entries(callerParameters)) {
-      if (!matchedCallerKeys.has(key)) {
-        result.unmapped[key] = value;
-      }
-    }
-  }
-
-  return result;
 }
 
 async function resolveGenericApiConnectionAction(
@@ -4394,8 +3820,6 @@ async function resolveGenericApiConnectionAction(
 
   let swaggerResolutionApplied = false;
   let swaggerFailureReason = '';
-  let swaggerParameters: SwaggerOperationParameter[] | undefined;
-  let swaggerPathTemplate: string | undefined;
   if (shouldAttemptSwaggerResolution && resolvedConnectorId) {
     const swaggerResolution = await resolveManagedApiOperationFromSwagger(resolvedConnectorId, actionName, hints, projectConnections);
 
@@ -4404,8 +3828,6 @@ async function resolveGenericApiConnectionAction(
       pathValue = swaggerResolution.path;
       operationId = operationId ?? swaggerResolution.operationId;
       swaggerResolutionApplied = true;
-      swaggerParameters = swaggerResolution.parameters;
-      swaggerPathTemplate = swaggerResolution.pathTemplate ?? swaggerResolution.path;
     } else if (swaggerResolution?.failureReason) {
       swaggerFailureReason = swaggerResolution.failureReason;
     }
@@ -4438,72 +3860,6 @@ async function resolveGenericApiConnectionAction(
     return {};
   }
 
-  // Phase 3: Route caller-supplied parameter values into the right ApiConnection input slots
-  // (path / queries / body / headers) using swagger parameter metadata. When swagger metadata
-  // is unavailable (offline, fetch failed), this is a no-op and caller inputs pass through.
-  let effectiveConfiguration = configuration;
-  const parameterText = getParameterText(configuration);
-  if (swaggerParameters && swaggerParameters.length > 0 && swaggerPathTemplate) {
-    const callerParameters = extractCallerParameters(configuration);
-    const callerInputs = extractActionInputs(configuration);
-    const routed = routeParametersToApiConnectionInputs(
-      callerParameters,
-      callerInputs,
-      swaggerPathTemplate,
-      swaggerParameters,
-      parameterText
-    );
-
-    if (routed.missing.length > 0) {
-      const connectorLabel = effectiveReference ?? 'connector';
-      const opLabel = operationId ?? `${method.toUpperCase()} ${pathValue}`;
-      return {
-        error: `Missing required parameters for ${connectorLabel}/${opLabel}: ${routed.missing.join(
-          ', '
-        )}. Ask the user for these values and re-invoke ${normalizedType === 'apiconnection' ? 'addAction' : 'the action tool'} with them under the top-level "parameters" field.`,
-      };
-    }
-
-    pathValue = routed.path;
-
-    // Merge routed slots into a cloned configuration so buildManagedApiConnectionAction picks
-    // them up via extractActionInputs. Caller-supplied keys we did not route are preserved.
-    const baseInputs: Record<string, unknown> = { ...callerInputs };
-    const baseQueries =
-      typeof baseInputs.queries === 'object' && baseInputs.queries !== null ? { ...(baseInputs.queries as Record<string, unknown>) } : {};
-    const baseHeaders =
-      typeof baseInputs.headers === 'object' && baseInputs.headers !== null ? { ...(baseInputs.headers as Record<string, unknown>) } : {};
-    if (routed.queries) {
-      Object.assign(baseQueries, routed.queries);
-    }
-    if (routed.headers) {
-      Object.assign(baseHeaders, routed.headers);
-    }
-    if (Object.keys(baseQueries).length > 0) {
-      baseInputs.queries = baseQueries;
-    }
-    if (Object.keys(baseHeaders).length > 0) {
-      baseInputs.headers = baseHeaders;
-    }
-    if (routed.body !== undefined) {
-      baseInputs.body = routed.body;
-    }
-    // The path we set on the action is the routed path; strip any stale path/method/parameters
-    // from the cloned inputs so buildManagedApiConnectionAction's overwrite is unambiguous.
-    delete baseInputs.path;
-    delete baseInputs.method;
-    delete baseInputs.parameters;
-    delete baseInputs.parameterText;
-    effectiveConfiguration = {
-      ...(configuration ?? {}),
-      inputs: baseInputs,
-    };
-  }
-  if (effectiveConfiguration && Object.prototype.hasOwnProperty.call(effectiveConfiguration, 'parameterText')) {
-    effectiveConfiguration = { ...effectiveConfiguration };
-    delete effectiveConfiguration.parameterText;
-  }
-
   if (isNewConnectorReference && resolvedConnectorId && projectConnections.projectPath) {
     // Try to resolve the connection automatically (reuse existing, metadata-driven create, or OAuth)
     let connectionNote = '';
@@ -4527,7 +3883,7 @@ async function resolveGenericApiConnectionAction(
       }
     }
 
-    const action = buildManagedApiConnectionAction(effectiveReference, method, pathValue, effectiveConfiguration);
+    const action = buildManagedApiConnectionAction(effectiveReference, method, pathValue, configuration);
     if (operationId) {
       action.operationId = operationId;
     }
@@ -4535,7 +3891,7 @@ async function resolveGenericApiConnectionAction(
     return { action, completionSuffix };
   }
 
-  const action = buildManagedApiConnectionAction(effectiveReference, method, pathValue, effectiveConfiguration);
+  const action = buildManagedApiConnectionAction(effectiveReference, method, pathValue, configuration);
   if (operationId) {
     action.operationId = operationId;
   }
@@ -4908,8 +4264,6 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
       operationId,
       method,
       path: operationPath,
-      parameters,
-      parameterText,
       serviceProviderConnection,
     } = options.input;
 
@@ -4957,31 +4311,6 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
       let operationTypeName = actionType;
       let completionSuffix = '';
 
-      // Compute a default `runAfter` once, based on the workflow's existing actions.
-      // Builders that consume `configuration.runAfter` (ApiConnection / ServiceProvider /
-      // generic action builders) will pick this up; explicit caller `runAfter` is preserved.
-      const existingActions =
-        definition?.definition?.actions && typeof definition.definition.actions === 'object'
-          ? (definition.definition.actions as Record<string, unknown>)
-          : undefined;
-      const inferredRunAfter = inferDefaultRunAfter(existingActions, configuration);
-      const effectiveConfiguration: Record<string, unknown> = {
-        ...(configuration ?? {}),
-        runAfter: inferredRunAfter,
-      };
-      // Surface the top-level `parameters` field into the configuration so the swagger-aware
-      // router in resolveGenericApiConnectionAction can route them to the correct input slots.
-      if (parameters && typeof parameters === 'object') {
-        const existingParams =
-          typeof effectiveConfiguration.parameters === 'object' && effectiveConfiguration.parameters !== null
-            ? (effectiveConfiguration.parameters as Record<string, unknown>)
-            : undefined;
-        effectiveConfiguration.parameters = { ...(existingParams ?? {}), ...parameters };
-      }
-      if (typeof parameterText === 'string' && parameterText.trim()) {
-        effectiveConfiguration.parameterText = parameterText.trim().slice(0, MAX_PARAMETER_TEXT_LENGTH);
-      }
-
       if (isTrigger) {
         if (!definition.definition.triggers) {
           definition.definition.triggers = {};
@@ -4999,7 +4328,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
             actionName,
             connectorHint,
             projectConnections,
-            effectiveConfiguration,
+            configuration,
             serviceProviderConnection
           );
           if (builtInResult?.action) {
@@ -5027,7 +4356,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
         const genericResolvedAction = await resolveGenericApiConnectionAction(
           actionType,
           actionName,
-          effectiveConfiguration,
+          configuration,
           projectConnections,
           {
             connectorReference,
@@ -5047,56 +4376,25 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
           operationTypeName = 'ApiConnection';
           completionSuffix = genericResolvedAction.completionSuffix ?? '';
         } else if (shouldAutoUseWeatherConnector(actionType, actionName, configuration)) {
-          // Weather intent detected. Route through the generic resolver with a synthesized
-          // `msnweather` hint so ARM discovery + placeholder provisioning + swagger-based
-          // parameter routing run (matching how every other managed connector is handled).
-          // If the LLM did not pass a Location parameter, the resolver returns a missing-param
-          // error so the LLM can prompt the user.
-          const weatherResolution = await resolveGenericApiConnectionAction(
-            'ApiConnection',
-            actionName,
-            effectiveConfiguration,
-            projectConnections,
-            {
-              connectorReference: connectorReference || projectConnections.weatherManagedReference || 'msnweather',
-              connectorId: connectorId || projectConnections.weatherManagedReference || 'msnweather',
-              operationId: operationId || 'CurrentWeather',
-              method: method || 'get',
-              path: operationPath,
-            },
-            false
-          );
-
-          if (weatherResolution.error) {
+          if (!projectConnections.weatherManagedReference) {
             const refsHint =
               projectConnections.managedApiReferences.length > 0
                 ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
                 : ' No managed connection references found in connections.json.';
+
             return new vscode.LanguageModelToolResult([
               new vscode.LanguageModelTextPart(
-                `Weather action requested but no weather managed API connection could be resolved (msnweather). ${weatherResolution.error}${refsHint}`
+                `Weather action requested but no weather managed API connection was found in connections.json.${refsHint}`
               ),
             ]);
           }
 
-          if (!weatherResolution.action) {
-            const refsHint =
-              projectConnections.managedApiReferences.length > 0
-                ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
-                : ' No managed connection references found in connections.json.';
-            return new vscode.LanguageModelToolResult([
-              new vscode.LanguageModelTextPart(
-                `Weather action requested but no weather managed API connection was found in connections.json and msnweather could not be auto-provisioned (no Azure context available in local.settings.json).${refsHint}`
-              ),
-            ]);
-          }
-
-          nodeToWrite = weatherResolution.action;
+          nodeToWrite = buildSeattleWeatherConnectorAction(projectConnections.weatherManagedReference);
           operationTypeName = 'ApiConnection';
-          completionSuffix = weatherResolution.completionSuffix ?? '';
+          completionSuffix = ` Used connector reference "${projectConnections.weatherManagedReference}" from connections.json for a Logic Apps weather action.`;
         } else {
           if (normalizedType === 'apiconnection') {
-            const validationError = validateApiConnectionConfiguration(extractActionInputs(effectiveConfiguration));
+            const validationError = validateApiConnectionConfiguration(extractActionInputs(configuration));
             if (validationError) {
               const refs = projectConnections.managedApiReferences;
               const refsHint =
@@ -5108,7 +4406,7 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
             }
 
             const referenceValidationError = validateApiConnectionReferenceExists(
-              extractActionInputs(effectiveConfiguration),
+              extractActionInputs(configuration),
               projectConnections.managedApiReferencesWithApiId
             );
             if (referenceValidationError) {
@@ -5117,13 +4415,13 @@ class AddActionTool implements vscode.LanguageModelTool<AddActionParams> {
           }
 
           if (normalizedType === 'serviceprovider') {
-            const validationError = validateServiceProviderConfiguration(extractActionInputs(effectiveConfiguration));
+            const validationError = validateServiceProviderConfiguration(extractActionInputs(configuration));
             if (validationError) {
               return new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(validationError)]);
             }
           }
 
-          nodeToWrite = buildActionDefinition(actionType, effectiveConfiguration);
+          nodeToWrite = buildActionDefinition(actionType, configuration);
         }
 
         if (!definition.definition.actions) {
@@ -5225,49 +4523,20 @@ class ModifyActionTool implements vscode.LanguageModelTool<ModifyActionParams> {
           if (genericResolvedAction.action) {
             definition.definition.actions[actionName] = genericResolvedAction.action;
           } else if (shouldAutoUseWeatherConnector(mergedType, actionName, mergedAction)) {
-            // Weather intent: route through the generic resolver (msnweather), which now handles
-            // existing weather references, ARM discovery, placeholder provisioning, and swagger
-            // parameter routing in one place. Missing required params (e.g. Location) surface
-            // as an error so the LLM is forced to ask the user.
-            const weatherResolution = await resolveGenericApiConnectionAction(
-              'ApiConnection',
-              actionName,
-              mergedAction,
-              projectConnections,
-              {
-                connectorReference: projectConnections.weatherManagedReference || 'msnweather',
-                connectorId: projectConnections.weatherManagedReference || 'msnweather',
-                operationId: 'CurrentWeather',
-                method: 'get',
-              },
-              false
-            );
-
-            if (weatherResolution.error) {
+            if (!projectConnections.weatherManagedReference) {
               const refsHint =
                 projectConnections.managedApiReferences.length > 0
                   ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
                   : ' No managed connection references found in connections.json.';
+
               return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(
-                  `Weather action requested but no weather managed API connection could be resolved (msnweather). ${weatherResolution.error}${refsHint}`
+                  `Weather action requested but no weather managed API connection was found in connections.json.${refsHint}`
                 ),
               ]);
             }
 
-            if (!weatherResolution.action) {
-              const refsHint =
-                projectConnections.managedApiReferences.length > 0
-                  ? ` Available managed connection references: ${projectConnections.managedApiReferences.join(', ')}.`
-                  : ' No managed connection references found in connections.json.';
-              return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(
-                  `Weather action requested but no weather managed API connection was found in connections.json and msnweather could not be auto-provisioned (no Azure context available in local.settings.json).${refsHint}`
-                ),
-              ]);
-            }
-
-            definition.definition.actions[actionName] = weatherResolution.action;
+            definition.definition.actions[actionName] = buildSeattleWeatherConnectorAction(projectConnections.weatherManagedReference);
           } else {
             if (normalizedMergedType === 'apiconnection') {
               const validationError = validateApiConnectionConfiguration(extractActionInputs(mergedAction));
@@ -5353,7 +4622,7 @@ async function findLogicAppProjects(workspacePath: string): Promise<string[]> {
 
   const entries = await fse.readdir(workspacePath, { withFileTypes: true });
   for (const entry of entries) {
-    if (entry.isDirectory() && !shouldSkipLogicAppProjectDirectory(entry.name)) {
+    if (entry.isDirectory() && !entry.name.startsWith('.')) {
       const subPath = path.join(workspacePath, entry.name);
       if (await isLogicAppProjectPath(subPath)) {
         projectPaths.push(subPath);
@@ -5362,15 +4631,6 @@ async function findLogicAppProjects(workspacePath: string): Promise<string[]> {
   }
 
   return projectPaths;
-}
-
-/**
- * Exclude generated/runtime folders from user-selectable Logic App projects.
- *
- * @internal Exported for testing
- */
-export function shouldSkipLogicAppProjectDirectory(name: string): boolean {
-  return name.startsWith('.') || ['workflow-designtime', 'node_modules', 'dist', 'out', 'build'].includes(name.toLowerCase());
 }
 
 async function isLogicAppProjectPath(projectPath: string): Promise<boolean> {

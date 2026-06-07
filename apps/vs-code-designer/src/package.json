@@ -118,6 +118,10 @@
               "enum": ["stateful", "stateless", "agentic", "agent"],
               "description": "The type of workflow to create. Stateful maintains run history, stateless is for high-throughput scenarios."
             },
+            "projectName": {
+              "type": "string",
+              "description": "Optional Logic App project name to add the workflow to. Provide this when multiple Logic App projects are open."
+            },
             "description": {
               "type": "string",
               "description": "Optional description of what the workflow does"

@@ -295,16 +295,24 @@ export async function createWorkspaceStructure(webviewProjectContext: IWebviewPr
  * @param context - Project wizard context
  */
 export async function updateWorkspaceFile(context: IWebviewProjectContext) {
-  const { workspaceFilePath, logicAppName = 'LogicApp', shouldCreateLogicAppProject, logicAppType, functionFolderName } = context;
+  const {
+    workspaceFilePath,
+    logicAppName = 'LogicApp',
+    logicAppWorkspaceRelativePath,
+    shouldCreateLogicAppProject,
+    logicAppType,
+    functionFolderName,
+    functionWorkspaceRelativePath,
+  } = context;
   const workspaceContent = await fse.readJson(workspaceFilePath);
   const workspaceFolders = [];
 
   if (shouldCreateLogicAppProject) {
-    workspaceFolders.push({ name: logicAppName, path: `./${logicAppName}` });
+    workspaceFolders.push({ name: logicAppName, path: logicAppWorkspaceRelativePath ?? `./${logicAppName}` });
   }
 
   if (logicAppType === ProjectType.customCode || logicAppType === ProjectType.rulesEngine) {
-    workspaceFolders.push({ name: functionFolderName, path: `./${functionFolderName}` });
+    workspaceFolders.push({ name: functionFolderName, path: functionWorkspaceRelativePath ?? `./${functionFolderName}` });
   }
 
   workspaceContent.folders = [...workspaceContent.folders, ...workspaceFolders];
@@ -317,6 +325,14 @@ export async function updateWorkspaceFile(context: IWebviewProjectContext) {
   }
 
   await fse.writeJson(context.workspaceFilePath, workspaceContent, { spaces: 2 });
+}
+
+export function getWorkspaceRelativeFolderPath(workspaceFilePath: string, targetFolderPath: string): string {
+  const relativePath = path.relative(path.dirname(workspaceFilePath), targetFolderPath).replace(/\\/g, '/');
+  if (!relativePath) {
+    return '.';
+  }
+  return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
 }
 
 export async function createLogicAppWorkspace(context: IActionContext, options: any, fromPackage: boolean): Promise<void> {

@@ -1,6 +1,3 @@
-<!-- AUTO-GENERATED from docs/ai-setup/packages/vs-code-designer.md. DO NOT EDIT directly. -->
-
-
 # VS Code Designer Extension
 
 The VS Code extension host for Azure Logic Apps. This is the main extension that gets published to the VS Code marketplace.
@@ -82,6 +79,35 @@ The extension is packaged with dependencies:
 pnpm run test:extension-unit
 ```
 
+### Chat E2E Tests (with Copilot/LLM — the "F5 experience")
+
+These tests exercise the `@logicapps` chat participant end-to-end with real Copilot models.
+
+**Steps:**
+1. Compile tests: `npx tsc -p tsconfig.e2e.json`
+2. Build extension: `pnpm run build:extension` (from repo root)
+3. In VS Code, select **"Chat Tests (Extension Host)"** from the debug dropdown and press F5
+4. Monitor results in `chat-test-results.log` (look for `=== DONE`)
+
+**Why F5?** Chat tests require `vscode.lm.selectChatModels()` to return real Copilot models. Copilot is built into VS Code (not in `~/.vscode/extensions`), so only the F5 `extensionHost` debug launch works — it runs from the current VS Code process and inherits auth. The `code` CLI and `@vscode/test-cli` spawn separate instances without Copilot access.
+
+**Key files:**
+- Launch config: `LogicAppsUX/.vscode/launch.json` → "Chat Tests (Extension Host)"
+- Test runner: `src/test/e2e/runChatTests.ts`
+- Test file: `src/test/e2e/integration/chatParticipant.test.ts`
+- Results log: `chat-test-results.log`
+
+**Without Copilot (tool-only tests):**
+```bash
+npx vscode-test --label chatTests   # from apps/vs-code-designer/
+```
+Runs 53 tool registration/schema/addAction tests. 11 LLM-dependent tests fail (expected).
+
+**Pitfalls:**
+- The nested `apps/vs-code-designer/.vscode/launch.json` doesn't work in multi-root workspaces — use the **root** `.vscode/launch.json`
+- `.vscode-test.mjs` committed version is correct; don't add user-data copying machinery
+- Expect 67 pass, 2 pending, 0 fail when run with Copilot
+
 ### E2E Tests (vscode-extension-tester)
 ```bash
 pnpm run vscode:designer:e2e:ui      # With UI
@@ -141,7 +167,7 @@ Each test runs in its own fresh VS Code session to avoid workspace-switch conten
 | 4.3 | inlineJavascript.test.ts | Execute JavaScript Code action (ADO #10109800) |
 | 4.4 | statelessVariables.test.ts | Initialize Variable action (ADO #10109878) |
 | 4.5 | designerViewExtended.test.ts | Parallel branches + run-after (ADO #10109401) |
-| 4.6 | keyboardNavigation.test.ts | Ctrl+Up/Down + Ctrl+Alt+P / Ctrl+Shift+P hotkey contract |
+| 4.6 | keyboardNavigation.test.ts | Ctrl+Up/Down navigation (ADO #10273324) |
 | 4.7 | dataMapper.test.ts, demo, smoke, standalone | Data Mapper + generic tests |
 
 ### Shared Helper Modules
@@ -186,23 +212,12 @@ cd apps/vs-code-designer
 npx tsup --config tsup.e2e.test.config.ts   # Compile
 
 # Run modes:
-$env:E2E_MODE = "full"                    # All phases (single runner, ~30+ min) — local debug fallback
-$env:E2E_MODE = "createonly"              # Phase 4.1 only
-$env:E2E_MODE = "designeronly"            # Phase 4.2 only (requires prior 4.1 manifest)
-$env:E2E_MODE = "newtestsonly"            # Phases 4.3-4.6 only (requires prior 4.1 manifest)
-$env:E2E_MODE = "conversiononly"          # Phases 4.8a-e only (requires prior 4.1 manifest)
-$env:E2E_MODE = "conversioncreateonly"    # Phase 4.8b only (builds own legacy fixture)
-$env:E2E_MODE = "nonlogicappstartup"      # Phase 4.0 only
-
-# CI matrix shard modes (each runs on its own GitHub Actions runner):
-$env:E2E_MODE = "independentonly"         # 4.0 + 4.8b — no Phase 4.1 dep
-$env:E2E_MODE = "createplusdesigner"      # 4.1 → 4.2, 4.7
-$env:E2E_MODE = "createplusnewtests"      # 4.1 → 4.3, 4.4, 4.5, 4.6
-$env:E2E_MODE = "createplusconversion"    # 4.1 → 4.8a, 4.8c, 4.8d, 4.8e
+$env:E2E_MODE = "full"           # All phases (4.1-4.7)
+$env:E2E_MODE = "createonly"     # Phase 4.1 only
+$env:E2E_MODE = "designeronly"   # Phase 4.2 only
+$env:E2E_MODE = "newtestsonly"   # Phases 4.3-4.6 only
 node src/test/ui/run-e2e.js
 ```
-
-The four `createplus*` / `independentonly` modes are how `.github/workflows/vscode-e2e.yml` shards the suite across parallel runners. `full` remains the single-runner debug fallback.
 
 ### Mandatory: Lint and Format After Every Edit
 
@@ -220,20 +235,3 @@ Common Biome rules to follow when writing code:
 - Avoid unnecessary `catch` bindings — use `catch {` not `catch (e) {` when `e` is unused
 - Keep imports organized and remove unused imports
 - Always use block statements with braces — `if (x) { break; }` not `if (x) break;`
-
-## CI Iteration Workflow
-
-After pushing E2E test changes, **automatically monitor the GitHub Actions CI run and iterate on failures without waiting for the user to ask**:
-
-1. Push the commit
-2. Wait ~20-25 minutes for the VS Code E2E test job to complete
-3. Use the GitHub MCP tools (`fetch_webpage` on the Actions run URL, or `mcp_io_github_git_pull_request_read` with `get_status`) to check the result
-4. If the CI fails, analyze the failure logs (user will paste them if needed, or download screenshots)
-5. Fix the issues, build, commit, and push
-6. Go back to step 2
-
-Do NOT stop after pushing and tell the user "I'll wait" — proactively check and iterate.
-
-## Graphify
-
-Read `apps/vs-code-designer/src/graphify-out/GRAPH_REPORT.md` for structural context (god nodes, communities, surprising connections).

@@ -34,6 +34,8 @@ export async function run(): Promise<void> {
 
   const testsRoot = path.resolve(__dirname);
   mocha.addFile(path.join(testsRoot, 'integration', 'chatParticipant.test.js'));
+  log('[chat-tests] Extension-host Chat Tests do not capture screenshots; run E2E_MODE=chatonly ExTester for UI screenshots.');
+  log('[chat-tests] Shared ChatScenario fixtures are currently exercised on the ExTester surface only.');
 
   // Hook console.log so test output goes to file
   const origLog = console.log;
@@ -70,6 +72,16 @@ export async function run(): Promise<void> {
     runner.on('fail', (test, err) => {
       log(`    ✗ ${test.title}`);
       log(`      Error: ${err.message}`);
+      if (err.stack) {
+        const stackDetails = err.stack
+          .split('\n')
+          .slice(1)
+          .map((line: string) => `        ${line.trim()}`)
+          .join('\n');
+        if (stackDetails) {
+          log(stackDetails);
+        }
+      }
     });
     runner.on('pending', (test) => {
       log(`    - ${test.title} (skipped)`);

@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { ext } from '../../../extensionVariables';
 import { isCodefulProject } from '../../utils/codeful';
+import { resolveProjectCreationWorkspaceRoot } from '../../utils/projectRoot';
 import { getLogicAppWithoutCustomCode, getWorkspaceRoot } from '../../utils/workspace';
 import { tryGetLogicAppProjectRoot } from '../../utils/verifyIsProject';
 import { cloudToLocal } from '../cloudToLocal/cloudToLocal';
@@ -48,6 +49,10 @@ vi.mock('../../utils/workspace', () => ({
 
 vi.mock('../../utils/codeful', () => ({
   isCodefulProject: vi.fn(),
+}));
+
+vi.mock('../../utils/projectRoot', () => ({
+  resolveProjectCreationWorkspaceRoot: vi.fn(),
 }));
 
 vi.mock('../../utils/verifyIsProject', () => ({
@@ -115,10 +120,12 @@ describe('workspace webview command wrappers', () => {
 
   it('createNewProject opens the project webview when a workspace is present', async () => {
     const workspaceFile = { fsPath: 'D:\\workspace\\MyWorkspace.code-workspace' };
+    const resolvedWorkspaceRoot = 'D:\\workspace';
     const workspaceFileJson = { folders: [{ path: './LogicApp' }] };
     const logicAppsWithoutCustomCode = ['LogicApp'];
     (vscode.workspace as any).workspaceFile = workspaceFile;
     (vscode.workspace.fs.readFile as Mock).mockResolvedValue(Buffer.from(JSON.stringify(workspaceFileJson)));
+    (resolveProjectCreationWorkspaceRoot as Mock).mockResolvedValue(resolvedWorkspaceRoot);
     (getLogicAppWithoutCustomCode as Mock).mockResolvedValue(logicAppsWithoutCustomCode);
 
     await createNewProject(context);
@@ -144,7 +151,7 @@ describe('workspace webview command wrappers', () => {
     const data = { logicAppName: 'Orders' };
     await config.createHandler(context, data);
 
-    expect(createLogicAppProject).toHaveBeenCalledWith(context, data, path.dirname(workspaceFile.fsPath));
+    expect(createLogicAppProject).toHaveBeenCalledWith(context, data, resolvedWorkspaceRoot);
   });
 
   it('createNewProject falls back to convertToWorkspace when no workspace file is open', async () => {

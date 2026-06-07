@@ -10,8 +10,8 @@ import { localize } from '../../../localize';
 import { ext } from '../../../extensionVariables';
 import { createWorkspaceWebviewCommandHandler } from '../shared/workspaceWebviewCommandHandler';
 import * as vscode from 'vscode';
-import path from 'path';
 import { createLogicAppProject } from '../createNewCodeProject/CodeProjectBase/CreateLogicAppProjects';
+import { resolveProjectCreationWorkspaceRoot } from '../../utils/projectRoot';
 import { getLogicAppWithoutCustomCode } from '../../utils/workspace';
 
 export async function createNewProject(context: IActionContext): Promise<void> {
@@ -20,8 +20,7 @@ export async function createNewProject(context: IActionContext): Promise<void> {
   let workspaceRootFolder = '';
 
   if (vscode.workspace.workspaceFile) {
-    // Get the directory containing the .code-workspace file
-    workspaceRootFolder = path.dirname(vscode.workspace.workspaceFile.fsPath);
+    workspaceRootFolder = await resolveProjectCreationWorkspaceRoot(vscode.workspace.workspaceFile.fsPath);
   } else {
     // Fall back to the newly created workspace folder if not in a workspace
     await convertToWorkspace(context);

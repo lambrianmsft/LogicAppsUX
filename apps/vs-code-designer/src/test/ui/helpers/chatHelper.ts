@@ -34,6 +34,45 @@ export const CHAT_POLL_INTERVAL = 1_000;
 /** Time to wait for chat input to be ready after panel opens */
 export const CHAT_INPUT_READY_DELAY = 2_000;
 
+export interface ChatResponseWaitOptions {
+  timeout?: number;
+  initialResponse?: string | null;
+  diagnosticsLabel?: string;
+  completionSignal?: () => Promise<boolean>;
+  completionDescription?: string;
+}
+
+export interface ChatResponseWaitResult {
+  completed: boolean;
+  responseText: string | null;
+  completionSignalSatisfied: boolean;
+}
+
+export interface SendChatPromptAndWaitOptions extends ChatResponseWaitOptions {
+  ensureChatOpen?: boolean;
+  includeParticipant?: boolean;
+}
+
+let chatPromptQueue: Promise<void> = Promise.resolve();
+
+async function runSerializedChatPrompt<T>(operationName: string, operation: () => Promise<T>): Promise<T> {
+  const previousPrompt = chatPromptQueue;
+  let releasePrompt: () => void = () => undefined;
+  chatPromptQueue = new Promise<void>((resolve) => {
+    releasePrompt = resolve;
+  });
+
+  await previousPrompt;
+  console.log(`[chatPromptQueue] Starting ${operationName}`);
+
+  try {
+    return await operation();
+  } finally {
+    console.log(`[chatPromptQueue] Finished ${operationName}`);
+    releasePrompt();
+  }
+}
+
 // ===========================================================================
 // DOM Diagnostics
 // ===========================================================================
@@ -562,26 +601,44 @@ async function findMonacoTextarea(driver: WebDriver): Promise<WebElement | null>
  * 2. Then waits for content to stabilize (no changes for N polls)
  *
  * @param driver - The WebDriver instance
- * @param timeout - Maximum time to wait in ms
- * @returns true if response completed
+ * @param options - Wait options, including an optional completion signal
+ * @returns Response wait result, including the final response text
  */
-export async function waitForChatResponse(driver: WebDriver, timeout: number = CHAT_RESPONSE_TIMEOUT): Promise<boolean> {
+export async function waitForChatResponseResult(driver: WebDriver, options: ChatResponseWaitOptions = {}): Promise<ChatResponseWaitResult> {
+  const {
+    timeout = CHAT_RESPONSE_TIMEOUT,
+    initialResponse = null,
+    diagnosticsLabel = 'waitForChatResponse',
+    completionSignal,
+    completionDescription,
+  } = options;
   const startTime = Date.now();
   let lastResponseLength = 0;
   let stableCount = 0;
   const requiredStableChecks = 3;
   let foundAnyResponse = false;
   let dumpedOnce = false;
+  let latestResponse: string | null = null;
+  let completionSignalSatisfied = !completionSignal;
 
-  console.log('[waitForChatResponse] Waiting for response to complete...');
+  console.log(`[waitForChatResponse] Waiting for response to complete${completionDescription ? ` and ${completionDescription}` : ''}...`);
 
   while (Date.now() - startTime < timeout) {
     try {
       // Get current response text
       const response = await getLastChatResponse(driver);
       const currentLength = response?.length || 0;
+      const hasNewResponse = currentLength > 0 && response !== initialResponse;
 
-      if (currentLength > 0) {
+      if (completionSignal && !completionSignalSatisfied) {
+        completionSignalSatisfied = await completionSignal();
+        if (completionSignalSatisfied) {
+          console.log(`[waitForChatResponse] Completion signal satisfied: ${completionDescription || 'custom signal'}`);
+        }
+      }
+
+      if (hasNewResponse) {
+        latestResponse = response;
         if (!foundAnyResponse) {
           console.log(`[waitForChatResponse] First response detected (${currentLength} chars)`);
           foundAnyResponse = true;
@@ -589,9 +646,9 @@ export async function waitForChatResponse(driver: WebDriver, timeout: number = C
 
         if (currentLength === lastResponseLength) {
           stableCount++;
-          if (stableCount >= requiredStableChecks) {
+          if (stableCount >= requiredStableChecks && completionSignalSatisfied) {
             console.log(`[waitForChatResponse] Response complete (${currentLength} chars)`);
-            return true;
+            return { completed: true, responseText: latestResponse, completionSignalSatisfied };
           }
         } else {
           stableCount = 0;
@@ -602,8 +659,8 @@ export async function waitForChatResponse(driver: WebDriver, timeout: number = C
         const elapsed = Date.now() - startTime;
         if (elapsed > 15_000 && !dumpedOnce) {
           console.log('[waitForChatResponse] No response after 15s, dumping DOM...');
-          await dumpChatDom(driver, 'waitForChatResponse-no-response');
-          await captureScreenshot(driver, 'chat-no-response-15s');
+          await dumpChatDom(driver, `${diagnosticsLabel}-no-response`);
+          await captureScreenshot(driver, `${diagnosticsLabel}-no-response-15s`);
           dumpedOnce = true;
         }
         if (elapsed > 30_000 && !foundAnyResponse) {
@@ -617,10 +674,24 @@ export async function waitForChatResponse(driver: WebDriver, timeout: number = C
     await sleep(CHAT_POLL_INTERVAL);
   }
 
-  console.log('[waitForChatResponse] Timed out waiting for response');
-  await dumpChatDom(driver, 'waitForChatResponse-timeout');
-  await captureScreenshot(driver, 'chat-response-timeout');
-  return false;
+  console.log(
+    `[waitForChatResponse] Timed out waiting for response. Found response: ${foundAnyResponse}; completion signal satisfied: ${completionSignalSatisfied}`
+  );
+  await dumpChatDom(driver, `${diagnosticsLabel}-timeout`);
+  await captureScreenshot(driver, `${diagnosticsLabel}-timeout`);
+  return { completed: false, responseText: latestResponse, completionSignalSatisfied };
+}
+
+/**
+ * Waits for the chat response to complete (stops streaming).
+ *
+ * @param driver - The WebDriver instance
+ * @param timeout - Maximum time to wait in ms
+ * @returns true if response completed
+ */
+export async function waitForChatResponse(driver: WebDriver, timeout: number = CHAT_RESPONSE_TIMEOUT): Promise<boolean> {
+  const result = await waitForChatResponseResult(driver, { timeout });
+  return result.completed;
 }
 
 /**
@@ -835,7 +906,7 @@ export async function askLogicApps(
 ): Promise<string | null> {
   const { ensureChatOpen = true, includeParticipant = true, timeout = CHAT_RESPONSE_TIMEOUT } = options;
 
-  try {
+  return runSerializedChatPrompt('askLogicApps', async () => {
     // Open chat panel if needed (and focus input)
     if (ensureChatOpen) {
       const opened = await openChatPanel(driver);
@@ -845,26 +916,68 @@ export async function askLogicApps(
       }
     }
 
-    // Send the prompt
+    const initialResponse = await getLastChatResponse(driver);
+
     const sent = await sendChatPrompt(driver, prompt, includeParticipant);
     if (!sent) {
       console.log('[askLogicApps] Failed to send prompt');
       return null;
     }
 
-    // Wait for response
-    const completed = await waitForChatResponse(driver, timeout);
-    if (!completed) {
+    const result = await waitForChatResponseResult(driver, {
+      timeout,
+      initialResponse,
+      diagnosticsLabel: 'askLogicApps',
+    });
+    if (!result.completed) {
       console.log('[askLogicApps] Response did not complete in time');
     }
 
-    // Get the response
-    const response = await getLastChatResponse(driver);
-    return response;
-  } catch (error: any) {
+    return result.responseText;
+  }).catch((error: any) => {
     console.log(`[askLogicApps] Error: ${error.message}`);
     return null;
-  }
+  });
+}
+
+/**
+ * Sends one chat prompt at a time, waits for a new stable response, and returns
+ * the response text for semantic assertions.
+ */
+export async function sendChatPromptAndWait(
+  driver: WebDriver,
+  prompt: string,
+  options: SendChatPromptAndWaitOptions = {}
+): Promise<string | null> {
+  const { ensureChatOpen = true, includeParticipant = true, timeout = CHAT_RESPONSE_TIMEOUT, ...waitOptions } = options;
+
+  return runSerializedChatPrompt('sendChatPromptAndWait', async () => {
+    if (ensureChatOpen) {
+      const opened = await openChatPanel(driver);
+      if (!opened) {
+        console.log('[sendChatPromptAndWait] Failed to open chat panel');
+        return null;
+      }
+    }
+
+    const initialResponse = waitOptions.initialResponse ?? (await getLastChatResponse(driver));
+    const sent = await sendChatPrompt(driver, prompt, includeParticipant);
+    if (!sent) {
+      console.log('[sendChatPromptAndWait] Failed to send prompt');
+      return null;
+    }
+
+    const result = await waitForChatResponseResult(driver, {
+      ...waitOptions,
+      timeout,
+      initialResponse,
+      diagnosticsLabel: waitOptions.diagnosticsLabel ?? 'sendChatPromptAndWait',
+    });
+    return result.responseText;
+  }).catch((error: any) => {
+    console.log(`[sendChatPromptAndWait] Error: ${error.message}`);
+    return null;
+  });
 }
 
 /**

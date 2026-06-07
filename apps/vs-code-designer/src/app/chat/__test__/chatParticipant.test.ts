@@ -15,9 +15,101 @@ import {
   extractProjectNamesFromAmbiguityResponse,
   extractTargetProjectFromPrompt,
   resolveSelectedProjectName,
+  writeChatMarkdown,
+  isSuccessfulMutatingWorkflowToolResult,
+  isFullWeatherWorkflowRequest,
+  extractTargetWorkflowNameFromPrompt,
+  buildModifyActionOrchestrationPrompt,
+  buildToolResultContinuationInstruction,
+  getDuplicateActionChoice,
   type ParsedIntent,
 } from '../logicAppsChatParticipant';
 import { WorkflowTypeOption, ProjectTypeOption, TargetFrameworkOption } from '../chatConstants';
+
+describe('isSuccessfulMutatingWorkflowToolResult', () => {
+  it('treats successful mutating tool messages as mutation completion', () => {
+    expect(isSuccessfulMutatingWorkflowToolResult('Successfully added action "Get_Current_Weather" of type "ApiConnection".')).toBe(true);
+    expect(isSuccessfulMutatingWorkflowToolResult('Deleted action "Old_Action".')).toBe(true);
+  });
+
+  it('does not treat missing parameter or error messages as mutation completion', () => {
+    expect(
+      isSuccessfulMutatingWorkflowToolResult(
+        'Missing required parameters for msnweather/CurrentWeather: Location. Ask the user for these values.'
+      )
+    ).toBe(false);
+    expect(isSuccessfulMutatingWorkflowToolResult('Workflow "Stateful1" not found.')).toBe(false);
+    expect(isSuccessfulMutatingWorkflowToolResult('Unable to resolve connector operation metadata.')).toBe(false);
+  });
+});
+
+describe('buildModifyActionOrchestrationPrompt', () => {
+  it('includes shared weather parameter guidance for modifyAction-routed prompts', () => {
+    const prompt = buildModifyActionOrchestrationPrompt(
+      'In Stateful1, build a workflow that receives an HTTP request and replies with the current weather for Seattle, WA.'
+    );
+
+    expect(prompt).toContain('for Seattle, WA" is the Location parameter');
+    expect(prompt).toContain("parameters: { Location: 'Seattle, WA', units: 'Imperial' }");
+    expect(prompt).toContain('PASS PARAMETERS BY NAME');
+    expect(prompt).toContain('Additional modify-action rules');
+    expect(prompt).toContain('complete all three steps before stopping');
+    expect(prompt).toContain("body('Get_Current_Weather')");
+    expect(prompt).toContain('Respect duplicate-action tool results');
+    expect(prompt).toContain('actual weather action name');
+  });
+});
+
+describe('buildToolResultContinuationInstruction', () => {
+  it('forces continued tool orchestration until the full weather workflow has all mutating steps', () => {
+    expect(
+      buildToolResultContinuationInstruction(
+        {
+          minMutationCount: 3,
+          mutationNudge:
+            'The user asked for a complete HTTP request → current weather → Response workflow. Continue by calling logicapps_addAction for any missing step.',
+        },
+        2
+      )
+    ).toContain('Continue by calling logicapps_addAction');
+  });
+
+  it('uses the generic continuation instruction once required mutations are complete', () => {
+    expect(buildToolResultContinuationInstruction({ minMutationCount: 3 }, 3)).toBe('Continue only if more tool actions are required.');
+  });
+});
+
+describe('isFullWeatherWorkflowRequest', () => {
+  it('detects complete HTTP weather response workflow requests', () => {
+    expect(
+      isFullWeatherWorkflowRequest(
+        'In Stateful1, build a workflow that receives an HTTP request and replies with the current weather for Seattle, WA.'
+      )
+    ).toBe(true);
+  });
+
+  it('does not detect single-action weather requests', () => {
+    expect(isFullWeatherWorkflowRequest('Add an action to Stateful1 that gets the current weather for Redmond, WA.')).toBe(false);
+  });
+});
+
+describe('extractTargetWorkflowNameFromPrompt', () => {
+  it('extracts the workflow name from full HTTP weather workflow prompts', () => {
+    expect(
+      extractTargetWorkflowNameFromPrompt(
+        'In WeatherFullWorkflow, build a workflow that receives an HTTP request and replies with the current weather for Seattle, WA.'
+      )
+    ).toBe('WeatherFullWorkflow');
+  });
+
+  it('extracts the workflow name from response-addition prompts', () => {
+    expect(extractTargetWorkflowNameFromPrompt('Add a response to Stateful1')).toBe('Stateful1');
+  });
+
+  it('does not confuse weather locations with workflow names', () => {
+    expect(extractTargetWorkflowNameFromPrompt('what is the weather for Seattle, WA in Imperial units?')).toBeUndefined();
+  });
+});
 
 describe('parseWorkflowRequest', () => {
   describe('workflow type extraction', () => {
@@ -621,6 +713,50 @@ describe('parseIntentFromPrompt', () => {
       expect(result.action).toBe('modifyAction');
       expect(result.confidence).toBe('medium');
     });
+
+    it('should treat adding an action to a named workflow as modification, not workflow creation', () => {
+      const result = parseIntentFromPrompt('Add an action to Stateful1 that gets the current weather for Seattle, WA in Imperial units.');
+      expect(result.action).toBe('modifyAction');
+      expect(result.confidence).toBe('high');
+    });
+
+    it('should treat adding a response to a workflow-like target as modification', () => {
+      const result = parseIntentFromPrompt('Add a response to MyWorkflow');
+      expect(result.action).toBe('modifyAction');
+      expect(result.confidence).toBe('high');
+    });
+
+    it('should not treat adding a response to a non-workflow-like target as modification', () => {
+      const result = parseIntentFromPrompt('Add a response to Seattle');
+      expect(result.action).toBe('unknown');
+      expect(result.confidence).toBe('low');
+    });
+
+    it('should treat "In WorkflowName, build a workflow..." as modification of the named workflow', () => {
+      const result = parseIntentFromPrompt(
+        'In Stateful1, build a workflow that receives an HTTP request and replies with the current weather for Seattle, WA.'
+      );
+      expect(result.action).toBe('modifyAction');
+      expect(result.confidence).toBe('high');
+    });
+
+    it('should treat "In WorkflowName add an action..." without comma as modification of the named workflow', () => {
+      const result = parseIntentFromPrompt('In Stateful1 add an action that gets the current weather for Seattle, WA in Imperial units.');
+      expect(result.action).toBe('modifyAction');
+      expect(result.confidence).toBe('high');
+    });
+
+    it('should not treat weather parameter phrasing as a workflow modification target by itself', () => {
+      const result = parseIntentFromPrompt('what is the weather for Seattle, WA in Imperial units?');
+      expect(result.action).toBe('unknown');
+      expect(result.confidence).toBe('low');
+    });
+
+    it('should not treat leading city context as a workflow target', () => {
+      const result = parseIntentFromPrompt('In Seattle, add an HTTP trigger that handles weather requests');
+      expect(result.action).toBe('unknown');
+      expect(result.confidence).toBe('low');
+    });
   });
 
   describe('help intent', () => {
@@ -1019,7 +1155,7 @@ describe('modify disambiguation helpers', () => {
     expect(input.projectName).toBe('test-workspace');
   });
 
-  it('adds current prompt parameter text to addAction tool inputs without replacing explicit parameterText', () => {
+  it('adds current prompt parameter text to addAction tool inputs', () => {
     const input = withParameterTextOnAddActionToolInput(
       'logicapps_addAction',
       { workflowName: 'Stateful1', actionName: 'Weather' },
@@ -1033,7 +1169,38 @@ describe('modify disambiguation helpers', () => {
       { workflowName: 'Stateful1', parameterText: 'weather for Redmond' },
       'weather for Seattle'
     ) as Record<string, unknown>;
-    expect(explicit.parameterText).toBe('weather for Redmond');
+    expect(explicit.parameterText).toBe('weather for Redmond\n\nUser request: weather for Seattle');
+  });
+
+  it('preserves model-supplied parameter text while appending the full user request for inference', () => {
+    const input = withParameterTextOnAddActionToolInput(
+      'logicapps_addAction',
+      {
+        workflowName: 'Stateful1',
+        actionName: 'Weather',
+        parameterText: 'current weather',
+      },
+      'Add an action to Stateful1 that gets the current weather for Redmond, WA.'
+    ) as Record<string, unknown>;
+
+    expect(input.parameterText).toBe(
+      'current weather\n\nUser request: Add an action to Stateful1 that gets the current weather for Redmond, WA.'
+    );
+  });
+
+  it('does not duplicate the user request when model parameterText already contains it', () => {
+    const prompt = 'Add an action to Stateful1 that gets the current weather for Redmond, WA.';
+    const input = withParameterTextOnAddActionToolInput(
+      'logicapps_addAction',
+      {
+        workflowName: 'Stateful1',
+        actionName: 'Weather',
+        parameterText: prompt,
+      },
+      prompt
+    ) as Record<string, unknown>;
+
+    expect(input.parameterText).toBe(prompt);
   });
 
   it('does not add parameter text to non-addAction tool inputs', () => {
@@ -1044,6 +1211,50 @@ describe('modify disambiguation helpers', () => {
     ) as Record<string, unknown>;
 
     expect(input.parameterText).toBeUndefined();
+  });
+});
+
+describe('getDuplicateActionChoice', () => {
+  it('maps no-style duplicate follow-ups to addNew without changing generic confirmation semantics', () => {
+    expect(isConfirmationResponse('no')).toBe(false);
+    expect(getDuplicateActionChoice('no')).toBe('addNew');
+    expect(getDuplicateActionChoice('@logicapps nope, add it separately')).toBe('addNew');
+  });
+
+  it('maps explicit replace and add-separate duplicate follow-ups', () => {
+    expect(getDuplicateActionChoice('replace the existing action')).toBe('replace');
+    expect(getDuplicateActionChoice('@logicapps add separate')).toBe('addNew');
+  });
+});
+
+describe('writeChatMarkdown', () => {
+  it('delegates to the real stream without wrapping non-configurable stream methods', () => {
+    const calls: string[] = [];
+    const stream = {};
+    Object.defineProperty(stream, 'progress', {
+      value(this: unknown, message: string) {
+        expect(this).toBe(stream);
+        calls.push(`progress:${message}`);
+        return stream;
+      },
+      configurable: false,
+      writable: false,
+    });
+    Object.defineProperty(stream, 'markdown', {
+      value(this: unknown, message: string) {
+        expect(this).toBe(stream);
+        calls.push(`markdown:${message}`);
+        return stream;
+      },
+      configurable: false,
+      writable: false,
+    });
+
+    const chatStream = stream as unknown as import('vscode').ChatResponseStream;
+
+    expect(() => chatStream.progress('Loading')).not.toThrow();
+    expect(() => writeChatMarkdown(chatStream, 'Done')).not.toThrow();
+    expect(calls).toEqual(['progress:Loading', 'markdown:Done']);
   });
 });
 

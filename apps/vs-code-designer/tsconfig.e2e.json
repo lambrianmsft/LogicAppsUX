@@ -12,6 +12,6 @@
     "skipLibCheck": true,
     "types": ["node", "mocha", "vscode"]
   },
-  "include": ["src/test/e2e/**/*.ts", "src/test/ui/helpers/workspaceHelper.ts"],
+  "include": ["src/test/e2e/**/*.ts", "src/test/chatScenarios/**/*.ts", "src/test/ui/helpers/workspaceHelper.ts"],
   "exclude": ["node_modules"]
 }

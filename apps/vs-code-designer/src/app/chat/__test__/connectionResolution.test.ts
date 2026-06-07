@@ -7,15 +7,26 @@ vi.unmock('fs-extra');
 import * as fse from 'fs-extra';
 import {
   addRealManagedApiConnection,
+  type AzureContext,
   getConnectorShortName,
   handleChatOAuthRedirect,
   isMSIAuthEnabled,
   constructManagedApiBasePathFromSettings,
   registerPendingOAuthCallback,
+  tryReuseExistingConnection,
 } from '../tools/workflowTools';
 
 const tempProjectPaths = new Set<string>();
 const tempProjectsRoot = path.join(process.cwd(), '.vitest-temp');
+const workflowToolsTestOverridesKey = '__LOGICAPPS_WORKFLOW_TOOLS_TEST_OVERRIDES__';
+
+function setWorkflowToolsTestOverrides(overrides: Record<string, unknown>): void {
+  (globalThis as unknown as Record<string, unknown>)[workflowToolsTestOverridesKey] = overrides;
+}
+
+function clearWorkflowToolsTestOverrides(): void {
+  delete (globalThis as unknown as Record<string, unknown>)[workflowToolsTestOverridesKey];
+}
 
 async function writeFixture(filePath: string, value: Record<string, unknown> | string): Promise<void> {
   if (typeof value === 'string') {
@@ -52,6 +63,7 @@ async function readProjectJson(projectPath: string, fileName: string): Promise<R
 afterEach(async () => {
   await Promise.all([...tempProjectPaths].map((projectPath) => fse.remove(projectPath)));
   tempProjectPaths.clear();
+  clearWorkflowToolsTestOverrides();
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -420,6 +432,90 @@ describe('addRealManagedApiConnection', () => {
 
     expect((conn.api as Record<string, unknown>).id).toBe(connectorId);
     expect((conn.connection as Record<string, unknown>).id).toBe(connectionId);
+  });
+});
+
+describe('tryReuseExistingConnection', () => {
+  const azureContext: AzureContext = {
+    subscriptionId: 'sub-123',
+    tenantId: 'tenant-123',
+    resourceGroup: 'rg-test',
+    location: 'westus2',
+    managementBaseUrl: 'https://management.azure.com/',
+    authenticationMethod: 'rawKeys',
+  };
+  const connectorId = '/subscriptions/sub-123/providers/Microsoft.Web/locations/westus2/managedApis/azureblob';
+  const firstConnectionId = '/subscriptions/sub-123/resourceGroups/rg-test/providers/Microsoft.Web/connections/blob-one';
+  const secondConnectionId = '/subscriptions/sub-123/resourceGroups/rg-test/providers/Microsoft.Web/connections/blob-two';
+
+  function createResponse(body: unknown, init?: ResponseInit): Response {
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    });
+  }
+
+  it('reports discovered Azure Blob connections and persists the selected one', async () => {
+    const projectPath = await createTempProject({
+      connectionsData: { managedApiConnections: {} },
+      localSettingsData: { IsEncrypted: false, Values: {} },
+    });
+    const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
+      const method = (init?.method ?? 'GET').toUpperCase();
+      if (method === 'GET' && input.includes('/providers/Microsoft.Web/connections?')) {
+        return createResponse({
+          value: [
+            {
+              id: firstConnectionId,
+              name: 'blob-one',
+              properties: { displayName: 'Blob Primary', api: { id: connectorId } },
+            },
+            {
+              id: secondConnectionId,
+              name: 'blob-two',
+              properties: { displayName: 'Blob Secondary', api: { id: connectorId } },
+            },
+          ],
+        });
+      }
+
+      if (method === 'GET' && input.includes(firstConnectionId)) {
+        return createResponse({
+          id: firstConnectionId,
+          properties: {},
+        });
+      }
+
+      if (method === 'POST' && input.includes(`${firstConnectionId}/listConnectionKeys`)) {
+        return createResponse({
+          connectionKey: 'blob-key',
+          runtimeUrls: ['https://runtime.blob.example'],
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${input}`);
+    });
+    setWorkflowToolsTestOverrides({
+      getAuthorizationToken: vi.fn(async () => 'token'),
+      fetch: fetchMock,
+    });
+
+    const result = await tryReuseExistingConnection(projectPath, 'azureblob', connectorId, azureContext);
+
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('Connected using existing connection "Blob Primary"');
+    expect(result.message).toContain('Azure Blob connections were found in Azure: Blob Primary, Blob Secondary.');
+    expect(result.message).toContain('Saved "Blob Primary" to connections.json.');
+
+    const connectionsData = await readProjectJson(projectPath, 'connections.json');
+    const connection = (connectionsData.managedApiConnections as Record<string, any>).azureblob;
+    expect(connection.api.id).toBe(connectorId);
+    expect(connection.connection.id).toBe(firstConnectionId);
+    expect(connection.connectionRuntimeUrl).toBe('https://runtime.blob.example');
+
+    const localSettings = await readProjectJson(projectPath, 'local.settings.json');
+    expect((localSettings.Values as Record<string, string>)['azureblob-connectionKey']).toBe('blob-key');
   });
 });
 

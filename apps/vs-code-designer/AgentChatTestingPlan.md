@@ -247,3 +247,72 @@ After every designer-open test, check these **5 things**:
 | After chat routing changes | 1–4, 10, 14 |
 | After designer integration changes | 13 (all) |
 | Always (non-negotiable) | 15 (regression guards) |
+
+---
+
+## Latest Signed-In Chat Tests Result and Recovery Plan
+
+### Result Summary
+
+Latest authenticated **Chat Tests (Extension Host)** run completed with:
+
+- `80 passing`
+- `4 pending`
+- `3 failing`
+- final marker: `=== DONE: 3 failure(s) ===`
+
+This is a fresh run, but not a passing validation result.
+
+### Test Output Alignment Issue
+
+The run executed compiled E2E output from `apps/vs-code-designer/out/test/e2e/integration/chatParticipant.test.js` that was older than the current TypeScript source in `apps/vs-code-designer/src/test/e2e/integration/chatParticipant.test.ts`.
+
+Before another signed-in run, reconcile source and compiled output:
+
+1. Restore the intended failure scenarios into the TypeScript source if they are still expected coverage.
+2. Recompile with `pnpm run test:e2e-cli:compile`.
+3. Verify compiled `out/test/e2e/integration/chatParticipant.test.js` matches the source expectations.
+
+### Current Failures to Address
+
+1. **Azure Blob ServiceProvider prompt omits blob path**
+   - Expected: ask for missing `dataset` and `id` without mutating files.
+   - Actual: added `Read_Blob`, auto-selected/saved a Blob connection, then asked for container/path afterward.
+   - Required fix: validate required ServiceProvider operation parameters before writing `workflow.json`, `connections.json`, or `local.settings.json`.
+
+2. **HTTP request -> weather -> Response workflow**
+   - Expected: Request trigger, weather action, and Response action chained after the weather action.
+   - Actual failure: only `Get_Current_Weather` was observed at assertion time.
+   - Required fix: make the participant/tool completion contract deterministic for full workflow requests. Do not report completion until the expected Response action is added and verified.
+
+3. **Weather location-only prompt writes optional units**
+   - Expected: omit `inputs.queries.units` when the user only provides a location.
+   - Actual: wrote `inputs.queries.units = "I"`.
+   - Required fix: remove or guard weather fallback/default behavior so optional units are only written when the prompt explicitly includes Imperial/Fahrenheit/Metric/Celsius or equivalent.
+
+### Pending Tests
+
+The 4 pending tests are managed connection reuse scenarios:
+
+- Tool-driven Managed Connection Reuse — Raw Keys
+- Tool-driven Managed Connection Reuse — MSI
+- Chat-driven Managed Connection Reuse — Raw Keys
+- Chat-driven Managed Connection Reuse — MSI
+
+They remain pending until deterministic live reusable connection inputs are available.
+
+### Recovery Steps
+
+1. Reconcile TypeScript source and compiled E2E output.
+2. Add deterministic source-level coverage for:
+   - Azure Blob missing `dataset`/`id` no-mutation behavior;
+   - full weather workflow shape and Response chaining;
+   - weather optional units omission when not requested.
+3. Fix product behavior in `workflowTools.ts` and `logicAppsChatParticipant.ts` where those tests fail.
+4. Validate locally:
+   - `npx biome check --write <changed-files>`
+   - focused chat Vitest coverage
+   - `pnpm run test:chat-preflight`
+   - `pnpm run test:e2e-cli:compile`
+   - `pnpm run build:extension`
+5. Rerun signed-in **Chat Tests (Extension Host)** and require a fresh `chat-test-results.log` ending with `=== DONE: 0 failure(s) ===`.

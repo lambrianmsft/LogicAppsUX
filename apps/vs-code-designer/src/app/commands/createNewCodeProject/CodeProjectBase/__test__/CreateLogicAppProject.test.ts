@@ -11,6 +11,7 @@ import {
   createLocalConfigurationFiles,
   createLogicAppAndWorkflow,
   createRulesFiles,
+  getWorkspaceRelativeFolderPath,
   updateWorkspaceFile,
 } from '../CreateLogicAppWorkspace';
 import { createLogicAppVsCodeContents } from '../CreateLogicAppVSCodeContents';
@@ -97,6 +98,10 @@ describe('createLogicAppProject', () => {
     // Setup default mocks for external dependencies
     (isGitInstalled as Mock).mockResolvedValue(true);
     (isInsideRepo as Mock).mockResolvedValue(false);
+    (getWorkspaceRelativeFolderPath as Mock).mockImplementation((workspacePath: string, targetPath: string) => {
+      const relativePath = path.relative(path.dirname(workspacePath), targetPath).replace(/\\/g, '/');
+      return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+    });
     (updateWorkspaceFile as Mock).mockResolvedValue(undefined);
     (createLogicAppAndWorkflow as Mock).mockResolvedValue(undefined);
     (createLogicAppVsCodeContents as Mock).mockResolvedValue(undefined);
@@ -135,6 +140,33 @@ describe('createLogicAppProject', () => {
     expect(updateWorkspaceFile).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceFilePath,
+        logicAppWorkspaceRelativePath: './TestLogicApp',
+        functionWorkspaceRelativePath: './Functions',
+        shouldCreateLogicAppProject: true,
+      })
+    );
+  });
+
+  it('writes sibling workspace entries when the workspace file is inside an existing project', async () => {
+    const parentWorkspaceRoot = path.join(tempDir, 'ParentWorkspace');
+    const existingProjectRoot = path.join(parentWorkspaceRoot, 'ExistingProject');
+    const siblingProjectRoot = path.join(parentWorkspaceRoot, 'TestLogicApp');
+    const nestedWorkspaceFilePath = path.join(existingProjectRoot, 'ExistingProject.code-workspace');
+    await fse.ensureDir(existingProjectRoot);
+    await fse.writeJson(nestedWorkspaceFilePath, {
+      folders: [{ name: 'ExistingProject', path: '.' }],
+      settings: {},
+    });
+    (vscode.workspace as any).workspaceFile = { fsPath: nestedWorkspaceFilePath };
+
+    await createLogicAppProject(mockContext, mockOptions, parentWorkspaceRoot);
+
+    expect(createLogicAppAndWorkflow).toHaveBeenCalledWith(mockOptions, siblingProjectRoot);
+    expect(updateWorkspaceFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceFilePath: nestedWorkspaceFilePath,
+        logicAppWorkspaceRelativePath: '../TestLogicApp',
+        functionWorkspaceRelativePath: '../Functions',
         shouldCreateLogicAppProject: true,
       })
     );

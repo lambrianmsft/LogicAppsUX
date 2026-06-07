@@ -9,7 +9,7 @@ E2E tests for the Azure Logic Apps VS Code extension using `@vscode/test-cli` + 
   - `unitTests`: all tests, `--disable-extensions`, 60s timeout
   - `integrationTests`: integration folder only, extensions enabled, 120s timeout
 - **TypeScript config**: `apps/vs-code-designer/tsconfig.e2e.json` → `module: commonjs`, `target: ES2022`, `outDir: ./out/test/e2e`, `rootDir: ./src/test/e2e`
-- **Test workspace**: `apps/vs-code-designer/e2e/test-workspace/` (has `package.json`, `.vscode/`, `Workflows/TestWorkflow/workflow.json`)
+- **Test workspace**: `apps/vs-code-designer/e2e/test-workspace/` (has `host.json`, `package.json`, `.vscode/`, `Stateful1/workflow.json`)
 
 ## Commands
 ```bash

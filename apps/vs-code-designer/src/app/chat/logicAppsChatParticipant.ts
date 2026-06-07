@@ -6,15 +6,17 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fse from 'fs-extra';
+import { AsyncLocalStorage } from 'async_hooks';
 import { CHAT_PARTICIPANT_ID, ChatCommand, ToolName, WorkflowTypeOption, ProjectTypeOption, TargetFrameworkOption } from './chatConstants';
 import { registerWorkflowTools, registerProjectTools } from './tools';
+import { createProjectFromToolInput } from './tools/projectTools';
+import { createWorkflowInProject, type AddActionParams } from './tools/workflowTools';
 import { localize } from '../../localize';
 import { ext } from '../../extensionVariables';
 import { extensionCommand, workflowFileName } from '../../constants';
-import { createLogicAppProject } from '../commands/createNewCodeProject/CodeProjectBase/CreateLogicAppProjects';
-import { ProjectType, WorkflowType } from '@microsoft/vscode-extension-logic-apps';
-import { writeFormattedJson } from '../utils/fs';
-import { getCodelessWorkflowTemplate } from '../utils/codeless/templates';
+import { ProjectType } from '@microsoft/vscode-extension-logic-apps';
+import { isLogicAppProject } from '../utils/verifyIsProject';
+import { appendChatTestDiagnostic, clearChatTestDiagnostics, getChatTestDiagnostics } from './chatTestDiagnostics';
 
 /**
  * Chat result metadata for tracking follow-ups
@@ -35,8 +37,19 @@ interface LogicAppsChatResult extends vscode.ChatResult {
     functionNamespace?: string;
     pendingModificationPrompt?: string;
     pendingProjectNames?: string[];
+    pendingDuplicateAddAction?: AddActionParams;
   };
 }
+
+const chatParticipantTestCommands = {
+  clearTranscript: 'azureLogicAppsStandard.chatTests.clearTranscript',
+  getTranscript: 'azureLogicAppsStandard.chatTests.getTranscript',
+  getDiagnostics: 'azureLogicAppsStandard.chatTests.getDiagnostics',
+};
+
+let chatParticipantTestTranscript = '';
+let chatParticipantTestTranscriptGeneration = 0;
+const chatParticipantTestTranscriptContext = new AsyncLocalStorage<number>();
 
 /**
  * Logic App project information
@@ -90,6 +103,7 @@ CARRY USER-PROVIDED VALUES ACROSS TURNS:
 
 CHAIN DEPENDENT ACTIONS WITH runAfter:
 - When a new action consumes the output of a previous action (for example a Response that references body('Get_X'), or any step that depends on the success of another), set configuration.runAfter to { "<PreviousActionName>": ["Succeeded"] } so it runs sequentially.
+- For HTTP request → weather → Response workflows, wait for the weather addAction tool result, use the actual action name it added in the Response body expression (for example body('Get_Current_Weather')), and set Response runAfter to that exact weather action name.
 - If you omit runAfter when adding to a workflow that already has actions, the tool will default to chaining after the most recently added action; pass an explicit runAfter (including {} for parallel execution) only when you intentionally want a different topology.
 
 PASS PARAMETERS BY NAME, NOT BY SLOT:
@@ -133,9 +147,10 @@ export function registerChatParticipant(context: vscode.ExtensionContext): void 
   // Register language model tools
   registerWorkflowTools(context);
   registerProjectTools(context);
+  registerChatParticipantTestCommands(context);
 
   // Create the chat participant
-  const participant = vscode.chat.createChatParticipant(CHAT_PARTICIPANT_ID, handleChatRequest);
+  const participant = vscode.chat.createChatParticipant(CHAT_PARTICIPANT_ID, createChatRequestHandlerForEnvironment());
 
   // Set participant properties
   participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'dark', 'LogicApp.svg');
@@ -174,6 +189,17 @@ export function registerChatParticipant(context: vscode.ExtensionContext): void 
             { prompt: 'Create a Logic App project with custom code support', label: 'With Custom Code' }
           );
         }
+      } else if (result.metadata?.pendingDuplicateAddAction) {
+        followups.push(
+          {
+            prompt: 'Replace the existing action',
+            label: localize('followupReplaceAction', 'Replace existing'),
+          },
+          {
+            prompt: 'Add a separate action',
+            label: localize('followupAddSeparateAction', 'Add separate'),
+          }
+        );
       } else {
         // Default follow-ups
         followups.push({
@@ -189,6 +215,52 @@ export function registerChatParticipant(context: vscode.ExtensionContext): void 
   context.subscriptions.push(participant);
 
   ext.outputChannel.appendLine('Logic Apps chat participant registered successfully');
+}
+
+function registerChatParticipantTestCommands(context: vscode.ExtensionContext): void {
+  if (process.env.LAUX_CHAT_TESTS !== '1') {
+    return;
+  }
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(chatParticipantTestCommands.clearTranscript, () => {
+      chatParticipantTestTranscript = '';
+      clearChatTestDiagnostics();
+      chatParticipantTestTranscriptGeneration += 1;
+    }),
+    vscode.commands.registerCommand(chatParticipantTestCommands.getTranscript, () => chatParticipantTestTranscript),
+    vscode.commands.registerCommand(chatParticipantTestCommands.getDiagnostics, () => getChatTestDiagnostics())
+  );
+  appendChatTestDiagnostic('chat-participant-diagnostics-ready', {
+    distLoaded: true,
+    commandCount: Object.keys(chatParticipantTestCommands).length,
+  });
+}
+
+function createChatRequestHandlerForEnvironment(): typeof handleChatRequest {
+  if (process.env.LAUX_CHAT_TESTS !== '1') {
+    return handleChatRequest;
+  }
+
+  return async (request, context, stream, token) =>
+    chatParticipantTestTranscriptContext.run(
+      chatParticipantTestTranscriptGeneration,
+      async () => await handleChatRequest(request, context, stream, token)
+    );
+}
+
+/**
+ * @internal Exported for testing.
+ */
+export function writeChatMarkdown(
+  stream: vscode.ChatResponseStream,
+  markdown: Parameters<vscode.ChatResponseStream['markdown']>[0]
+): ReturnType<vscode.ChatResponseStream['markdown']> {
+  if (process.env.LAUX_CHAT_TESTS === '1' && chatParticipantTestTranscriptContext.getStore() === chatParticipantTestTranscriptGeneration) {
+    chatParticipantTestTranscript += typeof markdown === 'string' ? markdown : markdown.value;
+  }
+
+  return stream.markdown(markdown);
 }
 
 /**
@@ -223,8 +295,23 @@ async function handleChatRequest(
     return await handleHelpCommand(stream);
   }
 
+  if (isUnderspecifiedWorkflowCompositionRequest(request.prompt)) {
+    return askForWorkflowCompositionDetails(stream);
+  }
+
+  if (isConnectorInformationRequest(request.prompt)) {
+    return handleConnectorInformationRequest(stream);
+  }
+
   // Check if user is responding to a pending question (state machine)
   const lastResult = getLastChatResult(context);
+
+  // Prioritize duplicate add-action follow-ups before intent parsing. Replies such as
+  // "no" or "add separate" are meaningful only in the pending duplicate context and
+  // may otherwise be parsed as unknown/general chat.
+  if (lastResult?.metadata?.command === ChatCommand.modifyAction && lastResult.metadata.pendingDuplicateAddAction) {
+    return await handleModifyActionCommand(request, context, stream, token);
+  }
 
   // Prioritize modify-action continuations to avoid stale create state hijacking follow-up replies
   if (lastResult?.metadata?.needsParameter && lastResult.metadata.command === ChatCommand.modifyAction) {
@@ -277,6 +364,29 @@ export function parseIntentFromPrompt(prompt: string): ParsedIntent {
 
   // Fast path: Explicit pattern matching for common intents
   // This works without LLM and handles most cases
+
+  const leadingExistingWorkflowTargetMatch =
+    /^\s*(?:@\w+\s+)?(?:in|inside|within)\s+([A-Za-z][\w.-]*)(?:\s*,|\s+(?=(?:add|insert|append|create|build|make|set up|setup|configure|have|receives?|listens?|replies?|responds?)\b))/i.exec(
+      prompt
+    );
+  const actionTargetWorkflowMatch = /\b(?:action|trigger|response|reply)\b\s+(?:to|in|inside|within)\s+([A-Za-z][\w.-]*)\b/i.exec(prompt);
+  const hasLeadingExistingWorkflowTarget = Boolean(
+    leadingExistingWorkflowTargetMatch?.[1] && isLikelyWorkflowReference(leadingExistingWorkflowTargetMatch[1])
+  );
+  const hasActionTargetWorkflow = Boolean(actionTargetWorkflowMatch?.[1] && isLikelyWorkflowReference(actionTargetWorkflowMatch[1]));
+  const hasWorkflowMutationIntent =
+    /\b(?:add|insert|append|create|build|make|set up|setup|configure|have)\b.*\b(?:action|trigger|http request|request|response|reply|replies|weather)\b/i.test(
+      prompt
+    ) || /\b(?:receives?|listens? to|replies?|responds?)\b/i.test(prompt);
+  const isExplicitNewWorkflowRequest =
+    /\b(?:new|additional)\s+workflows?\b/i.test(prompt) ||
+    /\b(?:add|create|build|make|set up|setup)\s+(?:a\s+|an\s+|\d+\s+)?(?:stateful\s+|stateless\s+|agentic\s+|agent\s+)?workflows?\b/i.test(
+      prompt
+    );
+
+  if ((hasLeadingExistingWorkflowTarget || (hasActionTargetWorkflow && !isExplicitNewWorkflowRequest)) && hasWorkflowMutationIntent) {
+    return { action: 'modifyAction', confidence: 'high' };
+  }
 
   // Check for workflow creation first - adding workflows to existing project
   // "logic app workflow" is a compound term meaning workflow creation
@@ -335,6 +445,12 @@ export function parseIntentFromPrompt(prompt: string): ParsedIntent {
   return { action: 'unknown', confidence: 'low' };
 }
 
+function isLikelyWorkflowReference(value: string): boolean {
+  return (
+    /\b(?:workflow|stateful|stateless|agentic|agent)\b/i.test(value) || /\d/.test(value) || /[a-z][A-Z]/.test(value) || /[_.-]/.test(value)
+  );
+}
+
 /**
  * Parse user intent - wrapper that uses the pure function
  */
@@ -374,8 +490,8 @@ async function parseRequestWithLLM(request: vscode.ChatRequest, token: vscode.Ca
 Return a JSON object with these fields:
 - "action": One of "createProject", "createWorkflows", "modifyAction", "help", "unknown"
   - "createProject": user wants to create a new Logic App project/app
-  - "createWorkflows": user wants to add workflows to an existing project
-  - "modifyAction": user wants to modify/change/update an existing workflow action
+  - "createWorkflows": user wants to add NEW workflow files/folders to an existing project
+  - "modifyAction": user wants to modify an EXISTING workflow, including adding triggers/actions/responses to a named workflow
   - "help": user asks for help or capabilities
 - "projectName": Name of a NEW project to create (only for createProject action)
 - "targetProject": Name of an EXISTING Logic App project folder for createWorkflows OR modifyAction. Extract only from explicit project/workspace context like "under project TonyProject", "in project MyApp", "within workspace ProjectX", or "in TonyProject, Workflow1". Do not extract locations, units, connector names, enum display names, or action parameters as projects. For example, "in Imperial units" is NOT a project.
@@ -392,6 +508,8 @@ Return a JSON object with these fields:
 - "functionNamespace": Only for customCode/rulesEngine. The C# namespace if specified. Default to project name + ".Functions" if not specified but project is customCode/rulesEngine.
 
 IMPORTANT rules for extracting workflow names:
+- "Add an action to Stateful1 that gets the weather..." → action is "modifyAction"; Stateful1 is an existing workflow target, NOT a workflow to create
+- "In Stateful1, build a workflow that receives an HTTP request and replies..." → action is "modifyAction"; Stateful1 is an existing workflow target, NOT a workflow to create
 - "5 stateful workflows from Stateful1-5" → Stateful1, Stateful2, Stateful3, Stateful4, Stateful5 (all stateful)
 - "5 stateful workflows from Stateful1 to Stateful5" → same as above
 - "Order4-8" → Order4, Order5, Order6, Order7, Order8
@@ -473,6 +591,30 @@ export function isConfirmationResponse(prompt: string): boolean {
   ];
   const lower = prompt.toLowerCase().trim();
   return confirmations.some((c) => lower === c || lower.startsWith(`${c} `) || lower.endsWith(` ${c}`));
+}
+
+export function getDuplicateActionChoice(prompt: string): AddActionParams['duplicateActionBehavior'] | undefined {
+  const normalized = prompt
+    .replace(/^\s*@logicapps\s*/i, '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (/\b(?:separate|another|additional|new|add separate|add another)\b/.test(normalized)) {
+    return 'addNew';
+  }
+
+  if (/^(?:no|nope|nah)\b/.test(normalized)) {
+    return 'addNew';
+  }
+
+  if (isConfirmationResponse(normalized) || /\b(?:replace|update|overwrite|change|modify)\b/.test(normalized)) {
+    return 'replace';
+  }
+
+  return undefined;
 }
 
 function normalizeProjectToken(value: string): string {
@@ -587,7 +729,8 @@ export function isUnderspecifiedWorkflowCompositionRequest(prompt: string): bool
 }
 
 function askForWorkflowCompositionDetails(stream: vscode.ChatResponseStream): LogicAppsChatResult {
-  stream.markdown(
+  writeChatMarkdown(
+    stream,
     localize(
       'workflowCompositionDetailsRequired',
       [
@@ -606,6 +749,28 @@ function askForWorkflowCompositionDetails(stream: vscode.ChatResponseStream): Lo
   return { metadata: { command: ChatCommand.createWorkflow, needsParameter: 'workflowCompositionDetails' } };
 }
 
+function isConnectorInformationRequest(prompt: string): boolean {
+  const normalizedPrompt = prompt.replace(/^\s*@logicapps\s*/i, '').trim();
+  return (
+    /^(?:what\s+(?:is|are)\s+(?:a\s+)?(?:logic apps\s+)?connectors?|explain\s+(?:logic apps\s+)?connectors?)\??$/i.test(normalizedPrompt) ||
+    /^what\s+is\s+a\s+connector\s+in\s+azure\s+logic\s+apps\??$/i.test(normalizedPrompt)
+  );
+}
+
+function handleConnectorInformationRequest(stream: vscode.ChatResponseStream): LogicAppsChatResult {
+  writeChatMarkdown(
+    stream,
+    [
+      'A connector in Azure Logic Apps is a packaged integration point for an app, service, protocol, or system.',
+      '',
+      'Connectors provide triggers and actions that a workflow can use, such as listening for a message, calling an API, reading a file, or writing to a database.',
+      'Some connectors require connection details or authentication before an action can be added to a workflow.',
+    ].join('\n')
+  );
+
+  return { metadata: { command: ChatCommand.help } };
+}
+
 interface InvokableTool {
   name: string;
   description?: string;
@@ -616,7 +781,9 @@ interface ToolOrchestrationResult {
   toolResponseText: string;
   invokedToolNames: string[];
   mutationApplied: boolean;
+  mutationCount: number;
   requestedProjectDisambiguation: boolean;
+  duplicateAddActionInput?: AddActionParams;
 }
 
 const workflowProjectScopedTools = new Set<string>([
@@ -631,6 +798,96 @@ const mutatingWorkflowTools = new Set<string>([ToolName.addAction, ToolName.modi
 const readOnlyWorkflowTools = new Set<string>([ToolName.getWorkflowDefinition, ToolName.listWorkflows]);
 
 const MAX_TOOL_PARAMETER_TEXT_LENGTH = 512;
+
+function logChatDiagnostics(label: string, payload: Record<string, unknown>): void {
+  appendChatTestDiagnostic(label, payload);
+}
+
+function previewDiagnosticValue(value: unknown, key?: string): unknown {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (key && /(key|secret|token|password|connectionstring|authorization|authentication)/i.test(key)) {
+    return '[redacted]';
+  }
+
+  if (typeof value === 'string') {
+    return value.length > 120 ? `${value.slice(0, 117)}...` : value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return `[array:${value.length}]`;
+  }
+
+  if (typeof value === 'object') {
+    return { keys: Object.keys(value as Record<string, unknown>) };
+  }
+
+  return String(value);
+}
+
+function summarizeParameterContainer(value: unknown): { keys: string[]; preview: Record<string, unknown> } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return { keys: [], preview: {} };
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    keys: Object.keys(record),
+    preview: Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, previewDiagnosticValue(entry, key)])),
+  };
+}
+
+function summarizeAddActionToolInput(value: unknown): Record<string, unknown> {
+  const input = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const configuration =
+    typeof input.configuration === 'object' && input.configuration !== null ? (input.configuration as Record<string, unknown>) : {};
+  const inputs =
+    typeof configuration.inputs === 'object' && configuration.inputs !== null ? (configuration.inputs as Record<string, unknown>) : {};
+
+  return {
+    keys: Object.keys(input),
+    workflowName: previewDiagnosticValue(input.workflowName),
+    actionName: previewDiagnosticValue(input.actionName),
+    actionType: previewDiagnosticValue(input.actionType),
+    connectorReference: previewDiagnosticValue(input.connectorReference),
+    connectorId: previewDiagnosticValue(input.connectorId),
+    operationId: previewDiagnosticValue(input.operationId),
+    method: previewDiagnosticValue(input.method),
+    path: previewDiagnosticValue(input.path),
+    parameterTextLength: typeof input.parameterText === 'string' ? input.parameterText.length : 0,
+    parameterTextPreview: previewDiagnosticValue(input.parameterText, 'parameterText'),
+    topLevelParameters: summarizeParameterContainer(input.parameters),
+    configurationKeys: Object.keys(configuration),
+    configurationParameters: summarizeParameterContainer(configuration.parameters),
+    inputKeys: Object.keys(inputs),
+    inputParameters: summarizeParameterContainer(inputs.parameters),
+  };
+}
+
+function logAddActionToolInputDiagnostics(rawInput: unknown, normalizedInput: unknown): void {
+  logChatDiagnostics('addAction-tool-input', {
+    raw: summarizeAddActionToolInput(rawInput),
+    normalized: summarizeAddActionToolInput(normalizedInput),
+  });
+}
+
+function truncateParameterTextPreservingEdges(value: string): string {
+  if (value.length <= MAX_TOOL_PARAMETER_TEXT_LENGTH) {
+    return value;
+  }
+
+  const separator = '\n...\n';
+  const availableLength = MAX_TOOL_PARAMETER_TEXT_LENGTH - separator.length;
+  const headLength = Math.floor(availableLength * 0.4);
+  const tailLength = availableLength - headLength;
+  return `${value.slice(0, headLength)}${separator}${value.slice(-tailLength)}`;
+}
 
 function withForcedProjectNameOnToolInput(toolName: string, input: object, forcedProjectName?: string): object {
   if (!forcedProjectName) {
@@ -648,10 +905,6 @@ function withForcedProjectNameOnToolInput(toolName: string, input: object, force
   const inputRecord = { ...(input as Record<string, unknown>) };
   if (typeof inputRecord.workflowName !== 'string') {
     return input;
-  }
-
-  if (typeof inputRecord.projectName === 'string' && inputRecord.projectName.trim()) {
-    return inputRecord;
   }
 
   inputRecord.projectName = forcedProjectName;
@@ -690,18 +943,37 @@ export function withParameterTextOnAddActionToolInput(toolName: string, input: o
   }
 
   const inputRecord = input as Record<string, unknown>;
-  if (typeof inputRecord.parameterText === 'string' && inputRecord.parameterText.trim()) {
-    return input;
-  }
-
   const trimmedPrompt = prompt.trim();
   if (!trimmedPrompt) {
     return input;
   }
 
+  if (typeof inputRecord.parameterText === 'string' && inputRecord.parameterText.trim()) {
+    const existingParameterText = inputRecord.parameterText.trim();
+    if (existingParameterText.includes(trimmedPrompt)) {
+      return input;
+    }
+
+    const userRequestText = `User request: ${trimmedPrompt}`;
+    if (userRequestText.length >= MAX_TOOL_PARAMETER_TEXT_LENGTH) {
+      return {
+        ...inputRecord,
+        parameterText: truncateParameterTextPreservingEdges(userRequestText),
+      };
+    }
+
+    const maxExistingLength = MAX_TOOL_PARAMETER_TEXT_LENGTH - userRequestText.length - 2;
+    const preservedExistingText = maxExistingLength > 0 ? existingParameterText.slice(0, maxExistingLength).trimEnd() : '';
+
+    return {
+      ...inputRecord,
+      parameterText: preservedExistingText ? `${preservedExistingText}\n\n${userRequestText}` : userRequestText,
+    };
+  }
+
   return {
     ...inputRecord,
-    parameterText: trimmedPrompt.slice(0, MAX_TOOL_PARAMETER_TEXT_LENGTH),
+    parameterText: truncateParameterTextPreservingEdges(trimmedPrompt),
   };
 }
 
@@ -711,6 +983,255 @@ function coerceToolInputToObject(input: unknown): object {
   }
 
   return {};
+}
+
+export function normalizeChatToolInput(
+  toolName: string,
+  input: unknown,
+  prompt: string,
+  options: { forcedProjectName?: string; validProjectNames?: string[] } = {}
+): object {
+  const baseInput = coerceToolInputToObject(input);
+  const forcedToolInput = withForcedProjectNameOnToolInput(toolName, baseInput, options.forcedProjectName);
+  const projectScopedInput =
+    !options.forcedProjectName && options.validProjectNames && workflowProjectScopedTools.has(toolName)
+      ? sanitizeWorkflowProjectNameOnToolInput(toolName, forcedToolInput, options.validProjectNames)
+      : forcedToolInput;
+  return withParameterTextOnAddActionToolInput(toolName, projectScopedInput, prompt);
+}
+
+export function isSuccessfulMutatingWorkflowToolResult(toolText: string): boolean {
+  const normalized = toolText.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (/(?:missing required parameters|not found|could not|unable to|failed|invalid|please specify projectname|error)/i.test(normalized)) {
+    return false;
+  }
+
+  return /\b(?:successfully|deleted)\b/i.test(normalized);
+}
+
+/**
+ * Detect prompts that ask chat to build the complete HTTP → weather → Response workflow.
+ *
+ * @internal Exported for testing.
+ */
+export function isFullWeatherWorkflowRequest(prompt: string): boolean {
+  const normalized = prompt.replace(/^\s*@logicapps\s*/i, '').toLowerCase();
+  return (
+    /\bweather\b/.test(normalized) &&
+    /\b(?:receives?|listens?|trigger(?:ed)?|http request|request)\b/.test(normalized) &&
+    /\b(?:repl(?:y|ies)|responds?|returns?|response)\b/.test(normalized)
+  );
+}
+
+/**
+ * Extract the named workflow target from a modification prompt.
+ *
+ * @internal Exported for testing.
+ */
+export function extractTargetWorkflowNameFromPrompt(prompt: string): string | undefined {
+  const sanitizedPrompt = prompt.replace(/^\s*@logicapps\s*/i, '').trim();
+  const patterns = [
+    /^(?:in|inside|within)\s+([A-Za-z][\w.-]*)(?:\s*,|\s+(?=(?:add|insert|append|create|build|make|set up|setup|configure|have|receives?|listens?|replies?|responds?)\b))/i,
+    /\b(?:action|trigger|response|reply)\b\s+(?:to|in|inside|within)\s+([A-Za-z][\w.-]*)\b/i,
+    /\bworkflow\s+([A-Za-z][\w.-]*)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(sanitizedPrompt);
+    const workflowName = match?.[1]?.trim();
+    if (workflowName && isLikelyWorkflowReference(workflowName)) {
+      return workflowName;
+    }
+  }
+
+  return undefined;
+}
+
+function isWeatherActionEntry(_name: string, action: unknown): boolean {
+  if (typeof action !== 'object' || action === null) {
+    return false;
+  }
+
+  const actionRecord = action as Record<string, unknown>;
+  if (actionRecord.type !== 'ApiConnection') {
+    return false;
+  }
+
+  const inputs =
+    typeof actionRecord.inputs === 'object' && actionRecord.inputs !== null ? (actionRecord.inputs as Record<string, unknown>) : {};
+  const host = typeof inputs.host === 'object' && inputs.host !== null ? (inputs.host as Record<string, unknown>) : {};
+  const connection = typeof host.connection === 'object' && host.connection !== null ? (host.connection as Record<string, unknown>) : {};
+  const referenceName = connection.referenceName;
+  const operationPath = inputs.path;
+
+  return (
+    (typeof referenceName === 'string' && referenceName.toLowerCase().includes('weather')) ||
+    (typeof operationPath === 'string' && operationPath.startsWith('/current/'))
+  );
+}
+
+function responseReferencesWeatherAction(action: unknown, weatherActionName: string): boolean {
+  if (typeof action !== 'object' || action === null) {
+    return false;
+  }
+
+  const actionRecord = action as Record<string, unknown>;
+  if (actionRecord.type !== 'Response') {
+    return false;
+  }
+
+  const runAfter = typeof actionRecord.runAfter === 'object' && actionRecord.runAfter !== null ? actionRecord.runAfter : undefined;
+  if (!runAfter || !Object.prototype.hasOwnProperty.call(runAfter, weatherActionName)) {
+    return false;
+  }
+
+  const inputs = typeof actionRecord.inputs === 'object' && actionRecord.inputs !== null ? actionRecord.inputs : {};
+  const bodyText = JSON.stringify((inputs as Record<string, unknown>).body ?? inputs);
+  return bodyText.includes(`body('${weatherActionName}')`) || bodyText.includes(`body(&#39;${weatherActionName}&#39;)`);
+}
+
+function findFullWeatherWorkflowState(workflowDefinition: unknown): {
+  weatherActionName?: string;
+  responseActionName?: string;
+  hasChainedResponse: boolean;
+} {
+  const definition =
+    typeof workflowDefinition === 'object' && workflowDefinition !== null
+      ? (workflowDefinition as Record<string, unknown>).definition
+      : undefined;
+  const actions =
+    typeof definition === 'object' && definition !== null && typeof (definition as Record<string, unknown>).actions === 'object'
+      ? ((definition as Record<string, unknown>).actions as Record<string, unknown>)
+      : {};
+  const weatherEntry = Object.entries(actions).find(([name, action]) => isWeatherActionEntry(name, action));
+  const weatherActionName = weatherEntry?.[0];
+  const responseEntry = Object.entries(actions).find(([, action]) => {
+    return typeof action === 'object' && action !== null && (action as Record<string, unknown>).type === 'Response';
+  });
+  const responseActionName = responseEntry?.[0];
+
+  return {
+    weatherActionName,
+    responseActionName,
+    hasChainedResponse: Boolean(weatherActionName && responseEntry && responseReferencesWeatherAction(responseEntry[1], weatherActionName)),
+  };
+}
+
+async function readWorkflowDefinitionFromWorkspace(
+  workflowName: string,
+  projectName?: string
+): Promise<{ workflowPath: string; definition: unknown } | undefined> {
+  const projects = await findLogicAppProjects();
+  const matchingProjects = projectName ? projects.filter((project) => project.name.toLowerCase() === projectName.toLowerCase()) : projects;
+
+  for (const project of matchingProjects) {
+    const workflowPath = path.join(project.path, workflowName, workflowFileName);
+    if (await fse.pathExists(workflowPath)) {
+      return {
+        workflowPath,
+        definition: await fse.readJson(workflowPath),
+      };
+    }
+  }
+
+  return undefined;
+}
+
+async function ensureFullWeatherWorkflowResponse(
+  request: vscode.ChatRequest,
+  stream: vscode.ChatResponseStream,
+  token: vscode.CancellationToken,
+  prompt: string,
+  projectName?: string
+): Promise<boolean> {
+  const workflowName = extractTargetWorkflowNameFromPrompt(prompt);
+  if (!workflowName) {
+    return false;
+  }
+
+  const workflow = await readWorkflowDefinitionFromWorkspace(workflowName, projectName);
+  if (!workflow) {
+    return false;
+  }
+
+  const state = findFullWeatherWorkflowState(workflow.definition);
+  if (!state.weatherActionName || state.hasChainedResponse) {
+    return false;
+  }
+
+  const actionName = state.responseActionName ?? 'Response';
+  const addResponseInput: AddActionParams = {
+    workflowName,
+    projectName,
+    actionType: 'Response',
+    actionName,
+    configuration: {
+      inputs: {
+        statusCode: 200,
+        body: `@body('${state.weatherActionName}')`,
+      },
+      runAfter: {
+        [state.weatherActionName]: ['Succeeded'],
+      },
+    },
+    duplicateActionBehavior: state.responseActionName ? 'replace' : undefined,
+  };
+
+  stream.progress(localize('executingTool', 'Executing...'));
+  const result = await vscode.lm.invokeTool(
+    ToolName.addAction,
+    { input: addResponseInput, toolInvocationToken: request.toolInvocationToken },
+    token
+  );
+
+  for (const content of result.content) {
+    if (content instanceof vscode.LanguageModelTextPart) {
+      writeChatMarkdown(stream, content.value);
+    }
+  }
+
+  logChatDiagnostics('weather-workflow-response-continuation', {
+    workflowName,
+    projectName,
+    weatherActionName: state.weatherActionName,
+    responseActionName: actionName,
+  });
+
+  return true;
+}
+
+export function buildModifyActionOrchestrationPrompt(effectivePrompt: string): string {
+  return `${SYSTEM_PROMPT}
+${RESPONSE_GUARDRAILS}
+
+Modify the workflow action as requested: ${effectivePrompt}
+
+Additional modify-action rules:
+- If adding "When a HTTP request is received", create it as a trigger in definition.triggers using type "Request", not an action in definition.actions.
+- For managed connectors (for example SQL, Service Bus, Office 365, Weather), prefer ApiConnection actions over raw Http calls and include connectorReference plus operation method/path when available from connector metadata.
+- If a built-in connector needs connection details, ask for them in chat and retry with serviceProviderConnection fields instead of asking the user to use a wizard.
+- If the user asks for a workflow that receives an HTTP request and replies/responds with weather, complete all three steps before stopping: add a Request trigger, add the msnweather current-weather ApiConnection action with the user-provided Location, then add a Response action whose body references the actual weather action output and whose runAfter chains after that actual weather action name.
+- After the weather addAction tool succeeds, use the returned action name for the Response body and runAfter. For example, if the tool added "Get_Current_Weather", the Response body should reference body('Get_Current_Weather') and runAfter should be { "Get_Current_Weather": ["Succeeded"] }.
+- Respect duplicate-action tool results. If addAction says the requested trigger or action name already exists, ask whether to replace it or add a separate action; do not assume replace.
+- Do not fabricate local file paths or clickable markdown links. Mention plain filenames unless a tool returns an exact path.`;
+}
+
+export function buildToolResultContinuationInstruction(
+  options: { minMutationCount?: number; mutationNudge?: string } | undefined,
+  projectedMutationCount: number
+): string {
+  if (options?.minMutationCount && projectedMutationCount < options.minMutationCount) {
+    return (
+      options.mutationNudge ??
+      'More workflow changes are still required. Continue applying the requested workflow changes by calling the remaining mutating workflow tools.'
+    );
+  }
+
+  return 'Continue only if more tool actions are required.';
 }
 
 function getToolCallSignature(toolName: string, input: unknown): string {
@@ -732,6 +1253,7 @@ async function runToolOrchestration(
     maxIterations?: number;
     requireMutation?: boolean;
     mutationNudge?: string;
+    minMutationCount?: number;
   }
 ): Promise<ToolOrchestrationResult> {
   if (!request.model) {
@@ -739,6 +1261,7 @@ async function runToolOrchestration(
       toolResponseText: '',
       invokedToolNames: [],
       mutationApplied: false,
+      mutationCount: 0,
       requestedProjectDisambiguation: false,
     };
   }
@@ -750,8 +1273,10 @@ async function runToolOrchestration(
   const invokedToolNames: string[] = [];
   let toolResponseText = '';
   let mutationApplied = false;
+  let mutationCount = 0;
   let readToolUsed = false;
   let requestedProjectDisambiguation = false;
+  let duplicateAddActionInput: AddActionParams | undefined;
   let mutationNudgeSent = false;
   let validProjectNames: string[] | undefined;
 
@@ -773,19 +1298,50 @@ async function runToolOrchestration(
 
     for await (const part of response.stream) {
       if (part instanceof vscode.LanguageModelTextPart) {
-        stream.markdown(part.value);
+        writeChatMarkdown(stream, part.value);
         assistantText += part.value;
       } else if (part instanceof vscode.LanguageModelToolCallPart) {
         toolCalls.push({ name: part.name, input: part.input });
       }
     }
 
+    logChatDiagnostics('tool-orchestration-turn', {
+      iteration,
+      assistantTextLength: assistantText.length,
+      toolCallNames: toolCalls.map((toolCall) => toolCall.name),
+      readToolUsed,
+      mutationApplied,
+      mutationCount,
+    });
+
     if (assistantText.trim()) {
       messages.push(vscode.LanguageModelChatMessage.Assistant(assistantText));
     }
 
     if (toolCalls.length === 0) {
+      if (options?.minMutationCount && mutationCount < options.minMutationCount && !mutationNudgeSent) {
+        logChatDiagnostics('tool-orchestration-nudge', {
+          iteration,
+          reason: 'minimum-mutation-count',
+          mutationCount,
+          minMutationCount: options.minMutationCount,
+          assistantTextLength: assistantText.length,
+        });
+        messages.push(
+          vscode.LanguageModelChatMessage.User(
+            options.mutationNudge ?? 'Continue applying the requested workflow changes by calling the remaining mutating workflow tools.'
+          )
+        );
+        mutationNudgeSent = true;
+        continue;
+      }
+
       if (options?.requireMutation && readToolUsed && !mutationApplied && !mutationNudgeSent) {
+        logChatDiagnostics('tool-orchestration-nudge', {
+          iteration,
+          reason: 'read-tool-without-mutation',
+          assistantTextLength: assistantText.length,
+        });
         messages.push(
           vscode.LanguageModelChatMessage.User(
             options.mutationNudge ?? 'You have inspected the workflow. Apply the requested change now by calling a mutating workflow tool.'
@@ -795,6 +1351,15 @@ async function runToolOrchestration(
         continue;
       }
 
+      logChatDiagnostics('tool-orchestration-no-tools', {
+        iteration,
+        requireMutation: options?.requireMutation === true,
+        readToolUsed,
+        mutationApplied,
+        mutationCount,
+        mutationNudgeSent,
+        assistantTextLength: assistantText.length,
+      });
       break;
     }
 
@@ -803,27 +1368,29 @@ async function runToolOrchestration(
     for (const toolCall of toolCalls) {
       stream.progress(localize('executingTool', 'Executing...'));
 
-      const baseInput = coerceToolInputToObject(toolCall.input);
-      const forcedToolInput = withForcedProjectNameOnToolInput(toolCall.name, baseInput, options?.forcedProjectName);
-      let toolInput = forcedToolInput;
       if (!options?.forcedProjectName && workflowProjectScopedTools.has(toolCall.name)) {
         validProjectNames ??= (await findLogicAppProjects()).map((project) => project.name);
-        toolInput = sanitizeWorkflowProjectNameOnToolInput(toolCall.name, forcedToolInput, validProjectNames);
       }
-      toolInput = withParameterTextOnAddActionToolInput(toolCall.name, toolInput, request.prompt);
+      const toolInput = normalizeChatToolInput(toolCall.name, toolCall.input, request.prompt, {
+        forcedProjectName: options?.forcedProjectName,
+        validProjectNames,
+      });
+      if (toolCall.name === ToolName.addAction) {
+        logAddActionToolInputDiagnostics(toolCall.input, toolInput);
+      }
 
       const signature = getToolCallSignature(toolCall.name, toolInput);
       if (calledSignatures.has(signature)) {
+        logChatDiagnostics('tool-orchestration-duplicate-tool-call', {
+          toolName: toolCall.name,
+          signature,
+        });
         continue;
       }
 
       calledSignatures.add(signature);
       executedAnyTool = true;
       invokedToolNames.push(toolCall.name);
-
-      if (mutatingWorkflowTools.has(toolCall.name)) {
-        mutationApplied = true;
-      }
 
       if (readOnlyWorkflowTools.has(toolCall.name)) {
         readToolUsed = true;
@@ -838,18 +1405,37 @@ async function runToolOrchestration(
       let toolText = '';
       for (const content of result.content) {
         if (content instanceof vscode.LanguageModelTextPart) {
-          stream.markdown(content.value);
+          writeChatMarkdown(stream, content.value);
           toolText += `\n${content.value}`;
         }
       }
 
       if (toolText.trim()) {
+        logChatDiagnostics('tool-orchestration-tool-result', {
+          toolName: toolCall.name,
+          textLength: toolText.length,
+          successClassifiedAsMutation: mutatingWorkflowTools.has(toolCall.name) && isSuccessfulMutatingWorkflowToolResult(toolText),
+          textPreview: previewDiagnosticValue(toolText, 'toolText'),
+        });
+        const successfulMutation = mutatingWorkflowTools.has(toolCall.name) && isSuccessfulMutatingWorkflowToolResult(toolText);
+        const projectedMutationCount = mutationCount + (successfulMutation ? 1 : 0);
+
         toolResponseText += toolText;
         messages.push(
           vscode.LanguageModelChatMessage.User(
-            `Tool ${toolCall.name} result:\n${toolText}\nContinue only if more tool actions are required.`
+            `Tool ${toolCall.name} result:\n${toolText}\n${buildToolResultContinuationInstruction(options, projectedMutationCount)}`
           )
         );
+      }
+
+      if (toolCall.name === ToolName.addAction && /already exists in workflow/i.test(toolText)) {
+        duplicateAddActionInput = toolInput as AddActionParams;
+      }
+
+      if (mutatingWorkflowTools.has(toolCall.name) && isSuccessfulMutatingWorkflowToolResult(toolText)) {
+        mutationApplied = true;
+        mutationCount += 1;
+        mutationNudgeSent = false;
       }
 
       if (/please specify projectname/i.test(toolText)) {
@@ -866,7 +1452,9 @@ async function runToolOrchestration(
     toolResponseText,
     invokedToolNames,
     mutationApplied,
+    mutationCount,
     requestedProjectDisambiguation,
+    duplicateAddActionInput,
   };
 }
 
@@ -1059,7 +1647,8 @@ async function handleCreateWorkflowCommand(
   }
 
   if (workflows.length === 0 && !workflowName) {
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'workflowNameRequired',
         'I need a name for the workflow. What would you like to call it?\n\nFor example: `@logicapps /createWorkflow OrderProcessing`'
@@ -1074,7 +1663,8 @@ async function handleCreateWorkflowCommand(
   const projects = await findLogicAppProjects();
 
   if (projects.length === 0) {
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'noLogicAppProjects',
         'No Logic App projects found in this workspace.\n\n' +
@@ -1095,7 +1685,8 @@ async function handleCreateWorkflowCommand(
   // If no match and multiple projects, ask which one
   if (!targetProject && projects.length > 1) {
     const projectList = projects.map((p) => `- **${p.name}**`).join('\n');
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize('selectProject', `Multiple Logic App projects found. Which project should I add the workflow(s) to?\n\n${projectList}`)
     );
     return {
@@ -1114,7 +1705,8 @@ async function handleCreateWorkflowCommand(
   const needsType = workflows.some((w) => w.type === undefined);
   if (needsType) {
     const workflowDesc = workflows.length === 1 ? workflowName || workflows[0]?.name : `${workflows[0]?.name}...`;
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'workflowTypeQuestion',
         `What type of workflow would you like to create for **${workflowDesc}**?\n\n- **Stateful**: Maintains state and run history (recommended for most scenarios)\n- **Stateless**: High-throughput, low-latency, no run history\n- **Agentic**: Autonomous AI agent workflow\n- **Agent**: Conversational AI agent workflow`
@@ -1180,7 +1772,8 @@ async function handleProjectSelectionResponse(
 
   if (!targetProject) {
     const projectNames = projects.map((p) => p.name);
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'projectNotFound',
         `I couldn't find a project matching "${request.prompt}". Please specify one of these project names:\n\n${projectNames.map((n) => `- **${n}**`).join('\n')}`
@@ -1202,7 +1795,8 @@ async function handleProjectSelectionResponse(
   if (needsType) {
     const baseName = workflows[0]?.name?.replace(/\d+$/, '') || 'workflows';
     const workflowDesc = workflows.length === 1 ? workflows[0].name : `${baseName}...`;
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'workflowTypeQuestion',
         `What type of workflow would you like to create for **${workflowDesc}**?\n\n- **Stateful**: Maintains state and run history (recommended for most scenarios)\n- **Stateless**: High-throughput, low-latency, no run history\n- **Agentic**: Autonomous AI agent workflow\n- **Agent**: Conversational AI agent workflow`
@@ -1273,7 +1867,8 @@ async function handleWorkflowTypeResponse(
   const projects = await findLogicAppProjects();
 
   if (projects.length === 0) {
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'noLogicAppProjects',
         'No Logic App projects found in this workspace.\n\n' + 'Please create a Logic App project first using `@logicapps /createProject`.'
@@ -1290,7 +1885,8 @@ async function handleWorkflowTypeResponse(
 
   // Multiple projects - ask which one
   const projectList = projects.map((p) => `- **${p.name}**`).join('\n');
-  stream.markdown(
+  writeChatMarkdown(
+    stream,
     localize('selectProject', `Multiple Logic App projects found. Which project should I add the workflow(s) to?\n\n${projectList}`)
   );
   return {
@@ -1317,20 +1913,23 @@ async function createWorkflowsInProject(
       workflowCount > 1 ? `I'll create all ${workflowCount} workflows concurrently since they're independent of each other.` : '';
 
     if (parallelMsg) {
-      stream.markdown(`${parallelMsg}\n\n`);
+      writeChatMarkdown(stream, `${parallelMsg}\n\n`);
     }
 
     stream.progress(localize('creatingWorkflows', `Preparing to create ${workflowCount} workflow(s) in "${project.name}"...`));
 
-    // Determine project type by checking for custom code indicators
-    const libPath = path.join(project.path, 'lib');
-    const hasCustomCode = await fse.pathExists(libPath);
-    const projectType = hasCustomCode ? ProjectType.customCode : ProjectType.logicApp;
-
     // Check for existing workflow conflicts before creating
     const conflicting: string[] = [];
     const toCreate: WorkflowSpec[] = [];
+    const requestedWorkflowNames = new Set<string>();
     for (const workflow of workflows) {
+      const normalizedWorkflowName = workflow.name.toLowerCase();
+      if (requestedWorkflowNames.has(normalizedWorkflowName)) {
+        conflicting.push(workflow.name);
+        continue;
+      }
+      requestedWorkflowNames.add(normalizedWorkflowName);
+
       const workflowDir = path.join(project.path, workflow.name);
       if (await fse.pathExists(workflowDir)) {
         conflicting.push(workflow.name);
@@ -1342,7 +1941,8 @@ async function createWorkflowsInProject(
     if (conflicting.length > 0 && toCreate.length === 0) {
       // All workflows already exist
       const conflictList = conflicting.map((n) => `- **${n}**`).join('\n');
-      stream.markdown(
+      writeChatMarkdown(
+        stream,
         localize(
           'allWorkflowsExist',
           `All specified workflows already exist in **"${project.name}"**:\n${conflictList}\n\nPlease choose different names.`
@@ -1353,7 +1953,10 @@ async function createWorkflowsInProject(
 
     if (conflicting.length > 0) {
       const conflictList = conflicting.map((n) => `**${n}**`).join(', ');
-      stream.markdown(localize('someWorkflowsExist', `Skipping ${conflictList} (already exist). Creating the remaining workflows...\n\n`));
+      writeChatMarkdown(
+        stream,
+        localize('someWorkflowsExist', `Skipping ${conflictList} (already exist). Creating the remaining workflows...\n\n`)
+      );
     }
 
     stream.progress(localize('creatingWorkflows', `Creating ${toCreate.length} workflow(s) in "${project.name}"...`));
@@ -1387,7 +1990,12 @@ async function createWorkflowsInProject(
 
         try {
           stream.progress(localize('creatingSingleWorkflow', `Creating workflow "${workflow.name}"...`));
-          await createAdditionalWorkflow(project.path, workflow.name, workflow.type!, projectType);
+          const result = await createAdditionalWorkflow(project.path, workflow.name, workflow.type!);
+          if (!result.success) {
+            failedWorkflows.push(`- **${workflow.name}**: ${sanitizeWorkflowErrorMessage(result.error ?? result.message)}`);
+            stream.progress(localize('failedSingleWorkflow', `Failed to create workflow "${workflow.name}".`));
+            continue;
+          }
           createdWorkflows.push(`- **${workflow.name}** (${workflow.type})`);
           stream.progress(localize('createdSingleWorkflow', `Created workflow "${workflow.name}".`));
         } catch (error) {
@@ -1426,7 +2034,7 @@ async function createWorkflowsInProject(
       message += 'You can now open any workflow in the designer or run and debug your Logic App locally.';
     }
 
-    stream.markdown(message);
+    writeChatMarkdown(stream, message);
 
     return {
       metadata: {
@@ -1438,7 +2046,7 @@ async function createWorkflowsInProject(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    stream.markdown(localize('workflowCreationError', `Failed to create workflows: ${errorMessage}`));
+    writeChatMarkdown(stream, localize('workflowCreationError', `Failed to create workflows: ${errorMessage}`));
     return { metadata: { command: ChatCommand.createWorkflow } };
   }
 }
@@ -1546,7 +2154,8 @@ async function handleCreateProjectCommand(
   }
 
   if (!projectName) {
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'projectNameRequired',
         'I need a name for the project. What would you like to call it?\n\nFor example: `@logicapps /createProject MyLogicApp`'
@@ -1597,7 +2206,8 @@ async function handleCreateProjectCommand(
 
   // If no workflows specified, ask the user what workflows they want
   if (!finalWorkflows || finalWorkflows.length === 0) {
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'workflowsQuestion',
         `What workflows would you like to create for **${projectName}**?\n\nYou can specify:\n- A single workflow: "a stateful workflow called OrderProcessing"\n- Multiple workflows: "5 stateful workflows from Workflow1 to Workflow5"\n- Named list: "stateful workflows: OrderProcessing, PaymentHandler, NotificationService"\n- Mixed types: "3 stateful workflows called Order and 2 agentic workflows called Agent"\n\nOr just say "default" to create a single stateful workflow.`
@@ -1612,7 +2222,8 @@ async function handleCreateProjectCommand(
   const workflowsMissingType = finalWorkflows.some((w) => !w.type);
   if (workflowsMissingType) {
     const workflowNames = finalWorkflows.map((w) => `**${w.name}**`).join(', ');
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'workflowTypeQuestion',
         `What type should the workflow(s) ${workflowNames} be?\n\n- **Stateful** – Persists run history, supports retries and long-running operations\n- **Stateless** – Lightweight, high-throughput, no run history persistence\n- **Agentic** – AI-powered with agent capabilities\n`
@@ -1646,7 +2257,8 @@ async function handleCreateProjectCommand(
           targetFramework = TargetFrameworkOption.net8; // Default to .NET 8
         }
       } else {
-        stream.markdown(
+        writeChatMarkdown(
+          stream,
           localize(
             'targetFrameworkQuestion',
             `Which .NET version would you like for the custom code project **${projectName}**?\n\n- **.NET 8** (recommended) – Latest cross-platform runtime\n- **.NET Framework (net472)** – Windows-only, legacy support\n\nOr just say "default" for .NET 8.`
@@ -1688,7 +2300,8 @@ async function handleCreateProjectCommand(
     // Check if we're in a workspace - required for project creation
     if (!vscode.workspace.workspaceFile) {
       // Not in a workspace, need to create one first
-      stream.markdown(
+      writeChatMarkdown(
+        stream,
         localize(
           'needsWorkspace',
           `To create a Logic App project, you need to be in a Logic Apps workspace first.\n\nI'll open the workspace creation wizard for you. After creating the workspace, ask me again to create the "${projectName}" project.`
@@ -1697,28 +2310,6 @@ async function handleCreateProjectCommand(
       await vscode.commands.executeCommand(extensionCommand.createWorkspace);
       return {
         metadata: { command: ChatCommand.createProject, projectName, workflows: finalWorkflows },
-      };
-    }
-
-    // Get the workspace root folder
-    const workspaceRootFolder = path.dirname(vscode.workspace.workspaceFile.fsPath);
-    const logicAppFolderPath = path.join(workspaceRootFolder, projectName);
-
-    // Check if project already exists — redirect to adding workflows if workflows were specified
-    if (await fse.pathExists(logicAppFolderPath)) {
-      if (finalWorkflows && finalWorkflows.length > 0) {
-        // Project exists and workflows specified — add them to the existing project
-        stream.markdown(
-          localize('projectExistsAddingWorkflows', `Project **"${projectName}"** already exists. Adding workflow(s) to it...`)
-        );
-        const existingProject: LogicAppProject = { name: projectName, path: logicAppFolderPath };
-        return await createWorkflowsInProject(existingProject, finalWorkflows, stream, token);
-      }
-      stream.markdown(
-        localize('projectExists', `A project named "${projectName}" already exists in this workspace. Please choose a different name.`)
-      );
-      return {
-        metadata: { command: ChatCommand.createProject, projectName },
       };
     }
 
@@ -1736,30 +2327,38 @@ async function handleCreateProjectCommand(
     // Build the function folder name for custom code / rules engine
     const functionFolderName = isCustomCodeOrRules ? functionName : undefined;
 
-    // Create the project context with the first workflow
-    const projectContext: any = {
-      logicAppName: projectName,
-      logicAppType: finalProjectType,
+    const createProjectResult = await createProjectFromToolInput({
+      projectName,
+      projectType,
       workflowName: firstWorkflow.name,
-      workflowType: mapWorkflowTypeToProjectType(firstWorkflow.type ?? WorkflowTypeOption.stateful),
-      workspaceFilePath: vscode.workspace.workspaceFile.fsPath,
-      shouldCreateLogicAppProject: true,
-      targetFramework: targetFramework,
-      // Custom code / rules engine params
-      functionFolderName: functionFolderName,
-      functionName: functionName,
-      functionNamespace: functionNamespace,
-    };
+      workflowType: firstWorkflow.type ?? WorkflowTypeOption.stateful,
+      includeCustomCode: finalProjectType === ProjectType.customCode,
+      targetFramework,
+      functionName: functionFolderName,
+      functionNamespace,
+    });
 
-    // Create a minimal action context
-    const actionContext: any = {
-      telemetry: { properties: {}, measurements: {} },
-      errorHandling: { issueProperties: {} },
-      valuesToMask: [],
-    };
+    if (!createProjectResult.success) {
+      if (createProjectResult.code === 'projectExists' && createProjectResult.projectPath) {
+        writeChatMarkdown(
+          stream,
+          localize('projectExistsAddingWorkflows', `Project **"${projectName}"** already exists. Adding workflow(s) to it...`)
+        );
+        const existingProject: LogicAppProject = { name: projectName, path: createProjectResult.projectPath };
+        return await createWorkflowsInProject(existingProject, finalWorkflows, stream, token);
+      }
 
-    // Create the project with the first workflow
-    await createLogicAppProject(actionContext, projectContext, workspaceRootFolder);
+      writeChatMarkdown(stream, createProjectResult.message);
+      return {
+        metadata: { command: ChatCommand.createProject, projectName },
+      };
+    }
+
+    if (!createProjectResult.projectPath) {
+      throw new Error('Project creation completed without returning the project path.');
+    }
+
+    const logicAppFolderPath = createProjectResult.projectPath;
 
     // Create additional workflows if specified
     if (finalWorkflows.length > 1) {
@@ -1767,7 +2366,10 @@ async function handleCreateProjectCommand(
 
       for (let i = 1; i < finalWorkflows.length; i++) {
         const workflow = finalWorkflows[i];
-        await createAdditionalWorkflow(logicAppFolderPath, workflow.name, workflow.type ?? WorkflowTypeOption.stateful, finalProjectType);
+        const result = await createAdditionalWorkflow(logicAppFolderPath, workflow.name, workflow.type ?? WorkflowTypeOption.stateful);
+        if (!result.success) {
+          throw new Error(result.message);
+        }
       }
     }
 
@@ -1786,7 +2388,8 @@ async function handleCreateProjectCommand(
       projectIncludes += `- Rules engine function project (**${functionName}**)\n- Sample rule set and schema files\n- Namespace: **${functionNamespace}**\n`;
     }
 
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'projectCreatedWithWorkflows',
         `Successfully created Logic App project **"${projectName}"** with ${finalWorkflows.length} workflow(s)!\n\n**Workflows created:**\n${workflowListItems}\n\n${projectIncludes}\nYou can now:\n- Open any workflow in the designer\n- Create additional workflows with \`@logicapps /createWorkflow\`\n- Run and debug your Logic App locally`
@@ -1798,49 +2401,21 @@ async function handleCreateProjectCommand(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    stream.markdown(localize('projectCreationError', `Failed to create project: ${errorMessage}`));
+    writeChatMarkdown(stream, localize('projectCreationError', `Failed to create project: ${errorMessage}`));
     return { metadata: { command: ChatCommand.createProject } };
   }
 }
 
 /**
- * Create an additional workflow in an existing Logic App project.
- * Note: Additional workflows always use the standard (logicApp) template, even in
- * customCode/rulesEngine projects. The InvokeFunction template is only used for
- * the initial workflow created alongside the function code.
+ * Create an additional workflow in an existing Logic App project using the same
+ * product scaffolding path as the VS Code Create Workflow command.
  */
 async function createAdditionalWorkflow(
   logicAppFolderPath: string,
   workflowName: string,
-  workflowType: WorkflowTypeOption,
-  _projectType: ProjectType
-): Promise<void> {
-  const workflowFolderPath = path.join(logicAppFolderPath, workflowName);
-  await fse.ensureDir(workflowFolderPath);
-
-  // Always use logicApp template for additional workflows - the customCode/rulesEngine
-  // templates require a functionName and are only for the initial workflow
-  const codelessDefinition = getCodelessWorkflowTemplate(ProjectType.logicApp, mapWorkflowTypeToProjectType(workflowType));
-
-  const workflowJsonPath = path.join(workflowFolderPath, workflowFileName);
-  await writeFormattedJson(workflowJsonPath, codelessDefinition);
-}
-
-/**
- * Map WorkflowTypeOption to the project WorkflowType constant
- */
-function mapWorkflowTypeToProjectType(workflowType: WorkflowTypeOption): WorkflowType {
-  switch (workflowType) {
-    case WorkflowTypeOption.stateless:
-      return WorkflowType.stateless;
-    case WorkflowTypeOption.agentic:
-      return WorkflowType.agentic;
-    case WorkflowTypeOption.agent:
-      return WorkflowType.agent;
-    case WorkflowTypeOption.stateful:
-    default:
-      return WorkflowType.stateful;
-  }
+  workflowType: WorkflowTypeOption
+): ReturnType<typeof createWorkflowInProject> {
+  return createWorkflowInProject(logicAppFolderPath, workflowName, workflowType);
 }
 
 /**
@@ -1856,6 +2431,41 @@ async function handleModifyActionCommand(
   stream.progress(localize('analyzingModification', 'Analyzing your modification request...'));
 
   const lastResult = getLastChatResult(context);
+  if (lastResult?.metadata?.command === ChatCommand.modifyAction && lastResult.metadata.pendingDuplicateAddAction) {
+    const duplicateChoice = getDuplicateActionChoice(request.prompt);
+    if (!duplicateChoice) {
+      writeChatMarkdown(
+        stream,
+        localize(
+          'duplicateActionChoiceRequired',
+          `An action or trigger named "${lastResult.metadata.pendingDuplicateAddAction.actionName}" already exists. Reply with "replace" to update it, or "add separate" to create a separate action with a unique name.`
+        )
+      );
+      return {
+        metadata: {
+          command: ChatCommand.modifyAction,
+          pendingDuplicateAddAction: lastResult.metadata.pendingDuplicateAddAction,
+        },
+      };
+    }
+
+    const addActionInput: AddActionParams = {
+      ...lastResult.metadata.pendingDuplicateAddAction,
+      duplicateActionBehavior: duplicateChoice,
+    };
+    const result = await vscode.lm.invokeTool(
+      ToolName.addAction,
+      { input: addActionInput, toolInvocationToken: request.toolInvocationToken },
+      token
+    );
+    for (const content of result.content) {
+      if (content instanceof vscode.LanguageModelTextPart) {
+        writeChatMarkdown(stream, content.value);
+      }
+    }
+    return { metadata: { command: ChatCommand.modifyAction } };
+  }
+
   const pendingModificationPrompt =
     lastResult?.metadata?.pendingModificationPrompt && lastResult.metadata.command === ChatCommand.modifyAction
       ? lastResult.metadata.pendingModificationPrompt
@@ -1870,7 +2480,8 @@ async function handleModifyActionCommand(
 
     if (pendingProjectNames.length > 0 && !selectedProjectName) {
       const projectOptions = pendingProjectNames.map((name) => `- ${name}`).join('\n');
-      stream.markdown(
+      writeChatMarkdown(
+        stream,
         localize(
           'projectSelectionRequiredForModify',
           `I couldn't match "${request.prompt}" to a project. Please choose one of these projects:\n${projectOptions}`
@@ -1910,7 +2521,7 @@ async function handleModifyActionCommand(
   }
 
   if (!request.model) {
-    stream.markdown(localize('modelUnavailableForModify', 'A language model is required to modify workflow actions from chat.'));
+    writeChatMarkdown(stream, localize('modelUnavailableForModify', 'A language model is required to modify workflow actions from chat.'));
     return { metadata: { command: ChatCommand.modifyAction } };
   }
 
@@ -1920,27 +2531,32 @@ async function handleModifyActionCommand(
     );
 
     const messages: vscode.LanguageModelChatMessage[] = [
-      vscode.LanguageModelChatMessage.User(
-        `Modify the workflow action as requested: ${effectivePrompt}
-
-Follow these rules:
-- If adding "When a HTTP request is received", create it as a trigger in definition.triggers using type "Request", not an action in definition.actions.
-- For managed connectors (for example SQL, Service Bus, Office 365, Weather), prefer ApiConnection actions over raw Http calls and include connectorReference plus operation method/path when available from connector metadata.
-- If a built-in connector needs connection details, ask for them in chat and retry with serviceProviderConnection fields instead of asking the user to use a wizard.
-- Do not fabricate local file paths or clickable markdown links. Mention plain filenames unless a tool returns an exact path.`
-      ),
+      vscode.LanguageModelChatMessage.User(buildModifyActionOrchestrationPrompt(effectivePrompt)),
     ];
 
+    const requiresCompleteWeatherWorkflow = isFullWeatherWorkflowRequest(effectivePrompt);
     const orchestrationResult = await runToolOrchestration(request, stream, token, tools, messages, {
       forcedProjectName,
       requireMutation: true,
-      mutationNudge:
-        'You have inspected the workflow. Now apply the requested modification by calling logicapps_modifyAction or logicapps_addAction with concrete parameters.',
+      maxIterations: requiresCompleteWeatherWorkflow ? 6 : undefined,
+      minMutationCount: requiresCompleteWeatherWorkflow ? 3 : undefined,
+      mutationNudge: requiresCompleteWeatherWorkflow
+        ? 'The user asked for a complete HTTP request → current weather → Response workflow. Continue by calling logicapps_addAction for any missing step: a Request trigger, the msnweather current-weather action with the user-provided Location, and a Response action whose body references the weather action output and whose runAfter chains after that weather action.'
+        : 'You have inspected the workflow. Now apply the requested modification by calling logicapps_modifyAction or logicapps_addAction with concrete parameters.',
     });
 
     let projectNames = extractProjectNamesFromAmbiguityResponse(orchestrationResult.toolResponseText);
     const needsProjectDisambiguation =
       orchestrationResult.requestedProjectDisambiguation || /please specify projectname/i.test(orchestrationResult.toolResponseText);
+
+    if (orchestrationResult.duplicateAddActionInput) {
+      return {
+        metadata: {
+          command: ChatCommand.modifyAction,
+          pendingDuplicateAddAction: orchestrationResult.duplicateAddActionInput,
+        },
+      };
+    }
 
     if (needsProjectDisambiguation && projectNames.length === 0) {
       const projects = await findLogicAppProjects();
@@ -1958,12 +2574,16 @@ Follow these rules:
       };
     }
 
+    if (requiresCompleteWeatherWorkflow) {
+      await ensureFullWeatherWorkflowResponse(request, stream, token, effectivePrompt, forcedProjectName);
+    }
+
     return {
       metadata: { command: ChatCommand.modifyAction },
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    stream.markdown(localize('modificationError', `Failed to modify action: ${errorMessage}`));
+    writeChatMarkdown(stream, localize('modificationError', `Failed to modify action: ${errorMessage}`));
     return { metadata: { command: ChatCommand.modifyAction } };
   }
 }
@@ -1972,7 +2592,9 @@ Follow these rules:
  * Handle /help command
  */
 async function handleHelpCommand(stream: vscode.ChatResponseStream): Promise<LogicAppsChatResult> {
-  stream.markdown(`# Azure Logic Apps Assistant
+  writeChatMarkdown(
+    stream,
+    `# Azure Logic Apps Assistant
 
 I can help you create and manage Logic Apps workflows and projects. Here's what I can do:
 
@@ -2003,7 +2625,8 @@ I can help you create and manage Logic Apps workflows and projects. Here's what 
 - I can understand natural language, so feel free to describe what you want to create
 - If I need more information, I'll ask you follow-up questions
 - You can always open workflows in the designer for visual editing
-`);
+`
+  );
 
   return { metadata: { command: ChatCommand.help } };
 }
@@ -2019,7 +2642,8 @@ async function handleGeneralRequest(
 ): Promise<LogicAppsChatResult> {
   // Check if a language model is available
   if (!request.model) {
-    stream.markdown(
+    writeChatMarkdown(
+      stream,
       localize(
         'modelUnavailable',
         'I can help you with Logic Apps! Here are some things you can do:\n\n' +
@@ -2068,17 +2692,18 @@ async function handleGeneralRequest(
   } catch (error) {
     if (error instanceof vscode.LanguageModelError) {
       if (error.code === vscode.LanguageModelError.NotFound.name) {
-        stream.markdown(
+        writeChatMarkdown(
+          stream,
           localize('modelNotFound', 'The language model is not available. Please ensure you have GitHub Copilot installed and activated.')
         );
       } else if (error.code === vscode.LanguageModelError.Blocked.name) {
-        stream.markdown(localize('requestBlocked', 'The request was blocked. Please try rephrasing your question.'));
+        writeChatMarkdown(stream, localize('requestBlocked', 'The request was blocked. Please try rephrasing your question.'));
       } else {
-        stream.markdown(localize('languageModelError', `Language model error: ${error.message}`));
+        writeChatMarkdown(stream, localize('languageModelError', `Language model error: ${error.message}`));
       }
     } else {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      stream.markdown(localize('generalError', `An error occurred: ${errorMessage}`));
+      writeChatMarkdown(stream, localize('generalError', `An error occurred: ${errorMessage}`));
     }
 
     return { metadata: {} };
@@ -2448,7 +3073,7 @@ export function mapParsedTargetFramework(framework: string | undefined): TargetF
 
 /**
  * Find all Logic App projects in the workspace
- * A Logic App project is identified by having a host.json file with the Workflows extension bundle
+ * A Logic App project is identified by the same project predicate as product commands.
  * Excludes workflow-designtime folders (build artifacts) and deduplicates results
  */
 async function findLogicAppProjects(): Promise<LogicAppProject[]> {
@@ -2477,15 +3102,9 @@ async function findLogicAppProjects(): Promise<LogicAppProject[]> {
       continue;
     }
 
-    // Verify it's a Logic App by checking for extensionBundle in host.json
-    try {
-      const hostJsonContent = await fse.readJson(hostJsonPath);
-      if (hostJsonContent.extensionBundle?.id?.includes('Microsoft.Azure.Functions.ExtensionBundle.Workflows')) {
-        seenPaths.add(projectPath);
-        projects.push({ name: projectName, path: projectPath });
-      }
-    } catch {
-      // Skip files that can't be parsed
+    if (await isLogicAppProject(projectPath)) {
+      seenPaths.add(projectPath);
+      projects.push({ name: projectName, path: projectPath });
     }
   }
 

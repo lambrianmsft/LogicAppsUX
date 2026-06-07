@@ -3,45 +3,32 @@
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
     "contentVersion": "1.0.0.0",
     "actions": {
-      "": {
+      "Send_Weather_Response": {
+        "statusCode": 200,
+        "body": "@body('Get_Current_Weather')",
         "runAfter": {
-          "TestHttpAction": [
+          "Get_Current_Weather": [
             "Succeeded"
           ]
         },
-        "type": "Compose",
+        "type": "Response",
         "inputs": {}
       },
-      "Response": {
-        "runAfter": {
-          "Get_Current_Weather": [
-            "Succeeded"
-          ]
-        },
+      "Read_Blob": {
+        "type": "ServiceProvider",
         "inputs": {
-          "statusCode": 200,
-          "body": "@body('Get_Current_Weather')"
-        },
-        "parameterText": "In Stateful1, build a workflow that receives an HTTP request and replies with the current weather for Seattle, WA.",
-        "type": "Response"
-      },
-      "Get_Current_Weather": {
-        "type": "ApiConnection",
-        "inputs": {
-          "host": {
-            "connection": {
-              "referenceName": "msnweather"
-            }
-          },
-          "method": "get",
-          "path": "/current/{Location}"
+          "parameters": {},
+          "serviceProviderConfiguration": {
+            "connectionName": "AzureBlob",
+            "operationId": "readBlob",
+            "serviceProviderId": "/serviceProviders/AzureBlob"
+          }
         },
         "runAfter": {
-          "Get_Current_Weather": [
+          "Send_Weather_Response": [
             "Succeeded"
           ]
-        },
-        "operationId": "GetCurrentWeather"
+        }
       }
     },
     "outputs": {},

@@ -63,6 +63,114 @@ export interface FileTextSnapshot {
   parentDirContents: string[];
 }
 
+export interface WorkspaceTopologyEntry {
+  absolutePath: string;
+  relativePath: string;
+  kind: 'file' | 'dir';
+}
+
+export interface WorkflowTopologySnapshot {
+  workflowDir: string;
+  relativePath: string;
+  workflowJsonPath: string;
+  workflowJsonExists: boolean;
+  workflow: WorkflowJson | null;
+  kind: string | null;
+  actionCount: number;
+  triggerCount: number;
+  actionNames: string[];
+  triggerNames: string[];
+}
+
+export interface LogicAppProjectTopologySnapshot {
+  projectDir: string;
+  relativePath: string;
+  hostJsonPath: string;
+  localSettingsJsonPath: string;
+  connectionsJsonPath: string;
+  isWorkspaceRoot: boolean;
+  isNestedProject: boolean;
+  workflows: WorkflowTopologySnapshot[];
+}
+
+export interface WorkspaceTopologySnapshot {
+  workspaceRoot: string;
+  workspaceFilePath?: string;
+  entries: WorkspaceTopologyEntry[];
+  projects: LogicAppProjectTopologySnapshot[];
+  protectedFiles: FileTextSnapshot[];
+  timestamp: number;
+}
+
+export interface WorkspaceTopologySnapshotOptions {
+  workspaceFilePath?: string;
+  protectedFilePaths?: string[];
+  includeDefaultProtectedFiles?: boolean;
+  maxDepth?: number;
+  ignoredDirectoryNames?: string[];
+}
+
+export interface ProtectedWorkspaceFileOptions {
+  workspaceFilePath?: string;
+  additionalFilePaths?: string[];
+  includeWorkflowJson?: boolean;
+  includeProjectSettings?: boolean;
+}
+
+export interface WorkspaceTopologyAssertionOptions {
+  expectedProjectCount?: number;
+  minProjectCount?: number;
+  expectedWorkspaceFileRelativePath?: string;
+  expectedProjectRelativePaths?: string[];
+  forbiddenProjectRelativePaths?: string[];
+  expectedWorkflowRelativePaths?: string[];
+  forbiddenWorkflowRelativePaths?: string[];
+  expectedWorkflowKind?: string;
+  requireWorkflowKind?: boolean;
+  requireTrigger?: boolean;
+  requireAction?: boolean;
+  requireConnectionsJson?: boolean;
+  denyNestedProjects?: boolean;
+}
+
+export interface WorkspaceTopologyMutationPolicy {
+  allowedAddedPaths?: string[];
+  allowedRemovedPaths?: string[];
+  allowedChangedFilePaths?: string[];
+  deniedAddedPaths?: string[];
+  deniedRemovedPaths?: string[];
+  deniedChangedFilePaths?: string[];
+  allowProjectCreation?: boolean;
+  allowProjectRemoval?: boolean;
+  allowWorkflowCreation?: boolean;
+  allowWorkflowRemoval?: boolean;
+  allowProtectedFileMutation?: boolean;
+}
+
+export interface WorkspaceTopologyMutationDiff {
+  addedPaths: string[];
+  removedPaths: string[];
+  addedProjects: string[];
+  removedProjects: string[];
+  addedWorkflows: string[];
+  removedWorkflows: string[];
+  changedProtectedFiles: string[];
+  violations: string[];
+}
+
+export const READ_ONLY_WORKSPACE_TOPOLOGY_POLICY: WorkspaceTopologyMutationPolicy = {};
+
+export const ALLOW_WORKFLOW_CREATION_TOPOLOGY_POLICY: WorkspaceTopologyMutationPolicy = {
+  allowWorkflowCreation: true,
+  allowedChangedFilePaths: ['.code-workspace'],
+};
+
+export const ALLOW_PROJECT_CREATION_TOPOLOGY_POLICY: WorkspaceTopologyMutationPolicy = {
+  allowProjectCreation: true,
+  allowWorkflowCreation: true,
+  allowedChangedFilePaths: ['.code-workspace'],
+};
+
 export interface LogicAppProjectStructureOptions {
   workflowName?: string;
   expectedWorkflowKind?: string;
@@ -76,6 +184,8 @@ export interface WorkflowOperationExpectation {
   name?: string;
   type?: string;
   kind?: string;
+  inputs?: Record<string, unknown>;
+  runAfter?: Record<string, string[]>;
   description?: string;
 }
 
@@ -743,6 +853,215 @@ export function assertNoMissingPlaceholders(value: unknown, label = 'Value shoul
   throw new Error(`${label}\n${details}`);
 }
 
+/**
+ * Recursively finds Logic App projects below a workspace root.
+ * A project is identified by a host.json file in the project directory.
+ */
+export function findLogicAppProjectsDeep(
+  workspaceRoot: string,
+  options: Pick<WorkspaceTopologySnapshotOptions, 'maxDepth' | 'ignoredDirectoryNames'> = {}
+): string[] {
+  const ignoredDirectoryNames = new Set(options.ignoredDirectoryNames ?? ['.git', 'node_modules', 'workflow-designtime', 'bin', 'obj']);
+  const maxDepth = options.maxDepth ?? 4;
+  const projects: string[] = [];
+
+  function visit(currentDir: string, depth: number): void {
+    if (depth > maxDepth || !directoryExists(currentDir)) {
+      return;
+    }
+
+    if (fs.existsSync(path.join(currentDir, 'host.json'))) {
+      projects.push(currentDir);
+    }
+
+    for (const entry of readDirectoryEntries(currentDir)) {
+      if (entry.isDirectory() && !ignoredDirectoryNames.has(entry.name)) {
+        visit(path.join(currentDir, entry.name), depth + 1);
+      }
+    }
+  }
+
+  visit(workspaceRoot, 0);
+  return [...new Set(projects)].sort((left, right) => normalizePath(left).localeCompare(normalizePath(right)));
+}
+
+/**
+ * Returns default files whose mutations are usually meaningful in chat tests:
+ * workflow.json files, project settings, connections, and the .code-workspace file.
+ */
+export function getProtectedWorkspaceFilePaths(workspaceRoot: string, options: ProtectedWorkspaceFileOptions = {}): string[] {
+  const includeWorkflowJson = options.includeWorkflowJson ?? true;
+  const includeProjectSettings = options.includeProjectSettings ?? true;
+  const filePaths = new Set<string>();
+
+  if (options.workspaceFilePath) {
+    filePaths.add(options.workspaceFilePath);
+  }
+
+  for (const projectDir of findLogicAppProjectsDeep(workspaceRoot)) {
+    if (includeProjectSettings) {
+      filePaths.add(path.join(projectDir, 'host.json'));
+      filePaths.add(path.join(projectDir, 'local.settings.json'));
+      filePaths.add(path.join(projectDir, 'connections.json'));
+    }
+
+    if (includeWorkflowJson) {
+      for (const workflowDir of findWorkflowDirs(projectDir)) {
+        filePaths.add(path.join(workflowDir, 'workflow.json'));
+      }
+    }
+  }
+
+  for (const filePath of options.additionalFilePaths ?? []) {
+    filePaths.add(filePath);
+  }
+
+  return [...filePaths].sort((left, right) => normalizePath(left).localeCompare(normalizePath(right)));
+}
+
+/**
+ * Captures a reusable before/after snapshot of the workspace's Logic App topology.
+ */
+export function takeWorkspaceTopologySnapshot(
+  workspaceRoot: string,
+  options: WorkspaceTopologySnapshotOptions = {}
+): WorkspaceTopologySnapshot {
+  const protectedFilePaths =
+    options.protectedFilePaths ??
+    (options.includeDefaultProtectedFiles === false
+      ? []
+      : getProtectedWorkspaceFilePaths(workspaceRoot, { workspaceFilePath: options.workspaceFilePath }));
+
+  return {
+    workspaceRoot,
+    workspaceFilePath: options.workspaceFilePath,
+    entries: takeWorkspaceEntrySnapshot(workspaceRoot, options),
+    projects: findLogicAppProjectsDeep(workspaceRoot, options).map((projectDir) =>
+      takeLogicAppProjectTopologySnapshot(workspaceRoot, projectDir)
+    ),
+    protectedFiles: takeFileTextSnapshots(protectedFilePaths),
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * Asserts the captured topology has the expected project/workflow shape.
+ */
+export function assertWorkspaceTopologySnapshot(
+  snapshot: WorkspaceTopologySnapshot,
+  options: WorkspaceTopologyAssertionOptions = {}
+): void {
+  if (!directoryExists(snapshot.workspaceRoot)) {
+    throw new Error(`Workspace root is missing: ${snapshot.workspaceRoot}`);
+  }
+
+  if (options.expectedProjectCount !== undefined && snapshot.projects.length !== options.expectedProjectCount) {
+    throw new Error(
+      `Expected ${options.expectedProjectCount} Logic App project(s), found ${snapshot.projects.length}: ${formatProjects(snapshot)}`
+    );
+  }
+
+  if (options.minProjectCount !== undefined && snapshot.projects.length < options.minProjectCount) {
+    throw new Error(
+      `Expected at least ${options.minProjectCount} Logic App project(s), found ${snapshot.projects.length}: ${formatProjects(snapshot)}`
+    );
+  }
+
+  if (options.denyNestedProjects) {
+    const nestedProjects = snapshot.projects.filter((project) => project.isNestedProject);
+    if (nestedProjects.length > 0) {
+      throw new Error(
+        `Expected no nested Logic App projects. Nested projects: ${nestedProjects.map((project) => project.relativePath).join(', ')}`
+      );
+    }
+  }
+
+  if (options.expectedWorkspaceFileRelativePath) {
+    const actualWorkspaceFileRelativePath = snapshot.workspaceFilePath
+      ? normalizeRelativePath(snapshot.workspaceRoot, snapshot.workspaceFilePath)
+      : undefined;
+    const expectedWorkspaceFileRelativePath = normalizePath(options.expectedWorkspaceFileRelativePath);
+    if (actualWorkspaceFileRelativePath !== expectedWorkspaceFileRelativePath) {
+      throw new Error(`Expected workspace file ${expectedWorkspaceFileRelativePath}, got ${actualWorkspaceFileRelativePath ?? '<none>'}`);
+    }
+  }
+
+  const projectRelativePaths = snapshot.projects.map((project) => project.relativePath);
+  const workflowRelativePaths = snapshot.projects.flatMap((project) => project.workflows.map((workflow) => workflow.relativePath));
+  assertContainsRelativePaths(projectRelativePaths, options.expectedProjectRelativePaths, 'Expected Logic App project');
+  assertExcludesRelativePaths(projectRelativePaths, options.forbiddenProjectRelativePaths, 'Forbidden Logic App project');
+  assertContainsRelativePaths(workflowRelativePaths, options.expectedWorkflowRelativePaths, 'Expected workflow');
+  assertExcludesRelativePaths(workflowRelativePaths, options.forbiddenWorkflowRelativePaths, 'Forbidden workflow');
+
+  for (const project of snapshot.projects) {
+    assertLogicAppProjectStructure(project.projectDir, {
+      expectedWorkflowKind: options.expectedWorkflowKind,
+      requireKind: options.requireWorkflowKind,
+      requireTrigger: options.requireTrigger,
+      requireAction: options.requireAction,
+      requireConnectionsJson: options.requireConnectionsJson,
+    });
+  }
+}
+
+/**
+ * Compares before/after topology snapshots and applies an allow/deny mutation policy.
+ */
+export function compareWorkspaceTopologySnapshots(
+  before: WorkspaceTopologySnapshot,
+  after: WorkspaceTopologySnapshot,
+  policy: WorkspaceTopologyMutationPolicy = {}
+): WorkspaceTopologyMutationDiff {
+  const beforePaths = before.entries.map((entry) => entry.relativePath);
+  const afterPaths = after.entries.map((entry) => entry.relativePath);
+  const addedPaths = afterPaths.filter((relativePath) => !beforePaths.includes(relativePath));
+  const removedPaths = beforePaths.filter((relativePath) => !afterPaths.includes(relativePath));
+  const addedProjects = after.projects
+    .map((project) => project.relativePath)
+    .filter((relativePath) => !before.projects.some((project) => project.relativePath === relativePath));
+  const removedProjects = before.projects
+    .map((project) => project.relativePath)
+    .filter((relativePath) => !after.projects.some((project) => project.relativePath === relativePath));
+  const addedWorkflows = flattenWorkflowRelativePaths(after).filter(
+    (relativePath) => !flattenWorkflowRelativePaths(before).includes(relativePath)
+  );
+  const removedWorkflows = flattenWorkflowRelativePaths(before).filter(
+    (relativePath) => !flattenWorkflowRelativePaths(after).includes(relativePath)
+  );
+  const changedProtectedFiles = compareFileTextSnapshots(before.protectedFiles, after.protectedFiles);
+  const violations = collectMutationViolations(
+    { addedPaths, removedPaths, addedProjects, removedProjects, addedWorkflows, removedWorkflows, changedProtectedFiles, violations: [] },
+    policy
+  );
+
+  return {
+    addedPaths,
+    removedPaths,
+    addedProjects,
+    removedProjects,
+    addedWorkflows,
+    removedWorkflows,
+    changedProtectedFiles,
+    violations,
+  };
+}
+
+/**
+ * Asserts that the after snapshot satisfies the expected topology mutation policy.
+ */
+export function assertWorkspaceTopologyMutation(
+  before: WorkspaceTopologySnapshot,
+  after: WorkspaceTopologySnapshot,
+  policy: WorkspaceTopologyMutationPolicy = {},
+  label = 'Workspace topology mutation did not match expected policy'
+): WorkspaceTopologyMutationDiff {
+  const diff = compareWorkspaceTopologySnapshots(before, after, policy);
+  if (diff.violations.length > 0) {
+    throw new Error(`${label}\n${diff.violations.join('\n')}`);
+  }
+  return diff;
+}
+
 function assertDirectoryExists(dirPath: string, message: string): void {
   if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
     const parentDir = path.dirname(dirPath);
@@ -799,6 +1118,261 @@ function formatDirectoryContents(entries: string[]): string {
   return entries.length > 0 ? entries.join(', ') : '<empty>';
 }
 
+function directoryExists(dirPath: string): boolean {
+  return fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory();
+}
+
+function readDirectoryEntries(dirPath: string): fs.Dirent[] {
+  try {
+    return fs.readdirSync(dirPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
+function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+function normalizeRelativePath(rootDir: string, targetPath: string): string {
+  const relativePath = path.relative(rootDir, targetPath);
+  return relativePath ? normalizePath(relativePath) : '.';
+}
+
+function assertContainsRelativePaths(actualPaths: string[], expectedPaths: string[] | undefined, label: string): void {
+  for (const expectedPath of expectedPaths ?? []) {
+    const normalizedExpectedPath = normalizePath(expectedPath);
+    if (!actualPaths.some((actualPath) => normalizePath(actualPath) === normalizedExpectedPath)) {
+      throw new Error(`${label} missing: ${normalizedExpectedPath}. Actual: ${actualPaths.join(', ') || '<none>'}`);
+    }
+  }
+}
+
+function assertExcludesRelativePaths(actualPaths: string[], forbiddenPaths: string[] | undefined, label: string): void {
+  for (const forbiddenPath of forbiddenPaths ?? []) {
+    const normalizedForbiddenPath = normalizePath(forbiddenPath);
+    if (actualPaths.some((actualPath) => normalizePath(actualPath) === normalizedForbiddenPath)) {
+      throw new Error(`${label} was present: ${normalizedForbiddenPath}. Actual: ${actualPaths.join(', ') || '<none>'}`);
+    }
+  }
+}
+
+function takeWorkspaceEntrySnapshot(
+  workspaceRoot: string,
+  options: Pick<WorkspaceTopologySnapshotOptions, 'maxDepth' | 'ignoredDirectoryNames'> = {}
+): WorkspaceTopologyEntry[] {
+  const ignoredDirectoryNames = new Set(options.ignoredDirectoryNames ?? ['.git', 'node_modules', 'workflow-designtime', 'bin', 'obj']);
+  const maxDepth = options.maxDepth ?? 6;
+  const entries: WorkspaceTopologyEntry[] = [];
+
+  function visit(currentDir: string, depth: number): void {
+    if (depth > maxDepth || !directoryExists(currentDir)) {
+      return;
+    }
+
+    for (const entry of readDirectoryEntries(currentDir)) {
+      if (entry.isDirectory() && ignoredDirectoryNames.has(entry.name)) {
+        continue;
+      }
+
+      const absolutePath = path.join(currentDir, entry.name);
+      entries.push({
+        absolutePath,
+        relativePath: normalizeRelativePath(workspaceRoot, absolutePath),
+        kind: entry.isDirectory() ? 'dir' : 'file',
+      });
+
+      if (entry.isDirectory()) {
+        visit(absolutePath, depth + 1);
+      }
+    }
+  }
+
+  visit(workspaceRoot, 0);
+  return entries.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+
+function takeLogicAppProjectTopologySnapshot(workspaceRoot: string, projectDir: string): LogicAppProjectTopologySnapshot {
+  const relativePath = normalizeRelativePath(workspaceRoot, projectDir);
+
+  return {
+    projectDir,
+    relativePath,
+    hostJsonPath: path.join(projectDir, 'host.json'),
+    localSettingsJsonPath: path.join(projectDir, 'local.settings.json'),
+    connectionsJsonPath: path.join(projectDir, 'connections.json'),
+    isWorkspaceRoot: relativePath === '.',
+    isNestedProject: hasAncestorLogicAppProject(workspaceRoot, projectDir),
+    workflows: findWorkflowDirs(projectDir).map((workflowDir) => takeWorkflowTopologySnapshot(workspaceRoot, workflowDir)),
+  };
+}
+
+function takeWorkflowTopologySnapshot(workspaceRoot: string, workflowDir: string): WorkflowTopologySnapshot {
+  const workflow = readWorkflowJson(workflowDir);
+  const workflowJsonPath = path.join(workflowDir, 'workflow.json');
+
+  return {
+    workflowDir,
+    relativePath: normalizeRelativePath(workspaceRoot, workflowDir),
+    workflowJsonPath,
+    workflowJsonExists: fs.existsSync(workflowJsonPath),
+    workflow,
+    kind: getWorkflowKind(workflow),
+    actionCount: countActions(workflow),
+    triggerCount: countTriggers(workflow),
+    actionNames: getActionNames(workflow),
+    triggerNames: getTriggerNames(workflow),
+  };
+}
+
+function hasAncestorLogicAppProject(workspaceRoot: string, projectDir: string): boolean {
+  let currentDir = path.dirname(projectDir);
+  const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
+
+  while (path.resolve(currentDir).startsWith(resolvedWorkspaceRoot)) {
+    if (fs.existsSync(path.join(currentDir, 'host.json'))) {
+      return true;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
+    currentDir = parentDir;
+  }
+
+  return false;
+}
+
+function flattenWorkflowRelativePaths(snapshot: WorkspaceTopologySnapshot): string[] {
+  return snapshot.projects.flatMap((project) => project.workflows.map((workflow) => workflow.relativePath));
+}
+
+function compareFileTextSnapshots(beforeSnapshots: FileTextSnapshot[], afterSnapshots: FileTextSnapshot[]): string[] {
+  const changedFiles: string[] = [];
+  const afterByPath = new Map(afterSnapshots.map((snapshot) => [snapshot.filePath, snapshot]));
+
+  for (const snapshot of beforeSnapshots) {
+    const afterSnapshot = afterByPath.get(snapshot.filePath);
+    const currentlyExists = afterSnapshot?.exists ?? fs.existsSync(snapshot.filePath);
+    if (currentlyExists !== snapshot.exists) {
+      changedFiles.push(snapshot.filePath);
+      continue;
+    }
+
+    const currentContent = afterSnapshot?.content ?? (currentlyExists ? fs.readFileSync(snapshot.filePath, 'utf-8') : undefined);
+    if (currentlyExists && currentContent !== snapshot.content) {
+      changedFiles.push(snapshot.filePath);
+    }
+  }
+
+  return changedFiles;
+}
+
+function collectMutationViolations(diff: WorkspaceTopologyMutationDiff, policy: WorkspaceTopologyMutationPolicy): string[] {
+  const violations: string[] = [];
+
+  addDeniedPathViolations(violations, diff.addedPaths, policy.deniedAddedPaths, 'Added denied path');
+  addDeniedPathViolations(violations, diff.removedPaths, policy.deniedRemovedPaths, 'Removed denied path');
+  addDeniedPathViolations(violations, diff.changedProtectedFiles, policy.deniedChangedFilePaths, 'Changed denied protected file');
+
+  for (const addedPath of diff.addedPaths) {
+    if (!isAddedPathAllowed(addedPath, diff, policy)) {
+      violations.push(`Unexpected added path: ${addedPath}`);
+    }
+  }
+
+  for (const removedPath of diff.removedPaths) {
+    if (!isRemovedPathAllowed(removedPath, diff, policy)) {
+      violations.push(`Unexpected removed path: ${removedPath}`);
+    }
+  }
+
+  for (const changedFile of diff.changedProtectedFiles) {
+    if (!isPathMatched(changedFile, policy.allowedChangedFilePaths) && !policy.allowProtectedFileMutation) {
+      violations.push(`Unexpected protected file mutation: ${changedFile}`);
+    }
+  }
+
+  if (!policy.allowProjectCreation) {
+    for (const project of diff.addedProjects) {
+      if (!isPathMatched(project, policy.allowedAddedPaths)) {
+        violations.push(`Unexpected Logic App project creation: ${project}`);
+      }
+    }
+  }
+
+  if (!policy.allowProjectRemoval) {
+    for (const project of diff.removedProjects) {
+      if (!isPathMatched(project, policy.allowedRemovedPaths)) {
+        violations.push(`Unexpected Logic App project removal: ${project}`);
+      }
+    }
+  }
+
+  if (!policy.allowWorkflowCreation) {
+    for (const workflow of diff.addedWorkflows) {
+      if (!isPathMatched(workflow, policy.allowedAddedPaths)) {
+        violations.push(`Unexpected workflow creation: ${workflow}`);
+      }
+    }
+  }
+
+  if (!policy.allowWorkflowRemoval) {
+    for (const workflow of diff.removedWorkflows) {
+      if (!isPathMatched(workflow, policy.allowedRemovedPaths)) {
+        violations.push(`Unexpected workflow removal: ${workflow}`);
+      }
+    }
+  }
+
+  return violations;
+}
+
+function addDeniedPathViolations(violations: string[], pathsToCheck: string[], deniedPaths: string[] | undefined, message: string): void {
+  for (const filePath of pathsToCheck) {
+    if (isPathMatched(filePath, deniedPaths)) {
+      violations.push(`${message}: ${filePath}`);
+    }
+  }
+}
+
+function isAddedPathAllowed(relativePath: string, diff: WorkspaceTopologyMutationDiff, policy: WorkspaceTopologyMutationPolicy): boolean {
+  return (
+    isPathMatched(relativePath, policy.allowedAddedPaths) ||
+    (policy.allowProjectCreation === true && isPathWithinAny(relativePath, diff.addedProjects)) ||
+    (policy.allowWorkflowCreation === true && isPathWithinAny(relativePath, diff.addedWorkflows))
+  );
+}
+
+function isRemovedPathAllowed(relativePath: string, diff: WorkspaceTopologyMutationDiff, policy: WorkspaceTopologyMutationPolicy): boolean {
+  return (
+    isPathMatched(relativePath, policy.allowedRemovedPaths) ||
+    (policy.allowProjectRemoval === true && isPathWithinAny(relativePath, diff.removedProjects)) ||
+    (policy.allowWorkflowRemoval === true && isPathWithinAny(relativePath, diff.removedWorkflows))
+  );
+}
+
+function isPathWithinAny(relativePath: string, parentPaths: string[]): boolean {
+  return parentPaths.some((parentPath) => relativePath === parentPath || relativePath.startsWith(`${parentPath}/`));
+}
+
+function isPathMatched(filePath: string, expectedPaths: string[] | undefined): boolean {
+  if (!expectedPaths || expectedPaths.length === 0) {
+    return false;
+  }
+
+  const normalizedFilePath = normalizePath(filePath);
+  return expectedPaths.some((expectedPath) => {
+    const normalizedExpectedPath = normalizePath(expectedPath);
+    return normalizedFilePath === normalizedExpectedPath || normalizedFilePath.endsWith(`/${normalizedExpectedPath}`);
+  });
+}
+
+function formatProjects(snapshot: WorkspaceTopologySnapshot): string {
+  return snapshot.projects.length > 0 ? snapshot.projects.map((project) => project.relativePath).join(', ') : '<none>';
+}
+
 function toOperationExpectation(expectation: string | WorkflowOperationExpectation, expectedType?: string): WorkflowOperationExpectation {
   return typeof expectation === 'string' ? { name: expectation, type: expectedType } : expectation;
 }
@@ -825,7 +1399,34 @@ function operationMatches(operation: WorkflowAction | WorkflowTrigger | undefine
   if (expectation.kind && operation.kind?.toLowerCase() !== expectation.kind.toLowerCase()) {
     return false;
   }
+  if (expectation.inputs !== undefined && !jsonValuesEqual(operation.inputs, expectation.inputs)) {
+    return false;
+  }
+  if ('runAfter' in expectation && !jsonValuesEqual((operation as WorkflowAction).runAfter, expectation.runAfter)) {
+    return false;
+  }
   return true;
+}
+
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(sortJsonValue(left)) === JSON.stringify(sortJsonValue(right));
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sortJsonValue(entry));
+  }
+
+  if (isRecord(value)) {
+    return Object.keys(value)
+      .sort()
+      .reduce<Record<string, unknown>>((result, key) => {
+        result[key] = sortJsonValue(value[key]);
+        return result;
+      }, {});
+  }
+
+  return value;
 }
 
 function formatOperationExpectation(expectation: string | WorkflowOperationExpectation): string {

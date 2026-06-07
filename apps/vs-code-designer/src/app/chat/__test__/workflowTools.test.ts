@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as vscode from 'vscode';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+
+vi.unmock('fs-extra');
+
 import {
+  AddActionTool,
   isValidWorkflowName,
   createWorkflowDefinition,
   resolveProjectPathCandidates,
@@ -21,8 +28,84 @@ import {
   inferParametersFromNaturalText,
   routeParametersToApiConnectionInputs,
   shouldSkipLogicAppProjectDirectory,
+  shouldSkipBuiltInServiceProviderResolution,
+  constructManagedApiConnectorId,
+  getWeatherManagedApiOverrideHints,
+  getNextAvailableActionName,
+  inferDuplicateActionBehavior,
+  normalizeManagedApiConnectorName,
+  resolveGenericApiConnectionAction,
+  supplementApiConnectionParameters,
+  type ProjectConnectionsInfo,
 } from '../tools/workflowTools';
 import { WorkflowTypeOption } from '../chatConstants';
+
+const tempProjectPaths = new Set<string>();
+const tempProjectsRoot = path.join(process.cwd(), '.vitest-temp');
+const workflowToolsTestOverridesKey = '__LOGICAPPS_WORKFLOW_TOOLS_TEST_OVERRIDES__';
+
+function setWorkflowToolsTestOverrides(overrides: Record<string, unknown>): void {
+  (globalThis as unknown as Record<string, unknown>)[workflowToolsTestOverridesKey] = overrides;
+}
+
+function clearWorkflowToolsTestOverrides(): void {
+  delete (globalThis as unknown as Record<string, unknown>)[workflowToolsTestOverridesKey];
+}
+
+async function createDuplicateActionProject(): Promise<string> {
+  await fs.mkdir(tempProjectsRoot, { recursive: true });
+  const projectPath = await fs.mkdtemp(path.join(tempProjectsRoot, 'logicapps-duplicate-action-'));
+  tempProjectPaths.add(projectPath);
+  await fs.writeFile(
+    path.join(projectPath, 'host.json'),
+    JSON.stringify({ version: '2.0', extensionBundle: { id: 'Microsoft.Azure.Functions.ExtensionBundle.Workflows' } }),
+    'utf8'
+  );
+  await fs.mkdir(path.join(projectPath, 'Stateful1'), { recursive: true });
+  await fs.writeFile(
+    path.join(projectPath, 'Stateful1', 'workflow.json'),
+    JSON.stringify(
+      {
+        definition: {
+          $schema: 'https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#',
+          contentVersion: '1.0.0.0',
+          triggers: {},
+          actions: {
+            Existing_Action: {
+              type: 'Compose',
+              inputs: 'old',
+              runAfter: {},
+            },
+          },
+          outputs: {},
+        },
+        kind: 'Stateful',
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  (vscode.workspace as unknown as { workspaceFolders: Array<{ uri: { fsPath: string } }> }).workspaceFolders = [
+    { uri: { fsPath: projectPath } },
+  ];
+  return projectPath;
+}
+
+async function readDuplicateWorkflow(projectPath: string): Promise<Record<string, any>> {
+  return JSON.parse(await fs.readFile(path.join(projectPath, 'Stateful1', 'workflow.json'), 'utf8')) as Record<string, any>;
+}
+
+function getToolResultText(result: vscode.LanguageModelToolResult): string {
+  return result.content.map((part) => (part as { value?: string }).value ?? '').join('\n');
+}
+
+afterEach(async () => {
+  await Promise.all([...tempProjectPaths].map((projectPath) => fs.rm(projectPath, { recursive: true, force: true })));
+  tempProjectPaths.clear();
+  clearWorkflowToolsTestOverrides();
+  (vscode.workspace as unknown as { workspaceFolders: unknown[] }).workspaceFolders = [];
+});
 
 describe('resolveProjectPathCandidates', () => {
   const projectPaths = ['/workspace/OrderManagement', '/workspace/TonyProject'];
@@ -58,6 +141,213 @@ describe('shouldSkipLogicAppProjectDirectory', () => {
   it('does not skip normal Logic App project names', () => {
     expect(shouldSkipLogicAppProjectDirectory('test-workspace')).toBe(false);
     expect(shouldSkipLogicAppProjectDirectory('OrderManagement')).toBe(false);
+  });
+});
+
+describe('managed API connector hint normalization', () => {
+  it.each([
+    ['/managedapis/weather', 'weather'],
+    ['managedApis/msnweather', 'msnweather'],
+    ['/subscriptions/sub-123/providers/Microsoft.Web/locations/westus/managedApis/office365', 'office365'],
+    ['office365', 'office365'],
+    ['/managedApis/', ''],
+    ['managedApis', ''],
+  ])('normalizes "%s" to "%s"', (input, expected) => {
+    expect(normalizeManagedApiConnectorName(input)).toBe(expected);
+  });
+
+  it('does not duplicate managedApis when constructing a connector id from a relative hint', () => {
+    const result = constructManagedApiConnectorId(
+      '/subscriptions/80d4fe69-c95b-4dd2-a938-9250f1c8ab03/providers/Microsoft.Web/locations/eastus2euap/managedApis/',
+      '/managedapis/weather'
+    );
+
+    expect(result).toBe(
+      '/subscriptions/80d4fe69-c95b-4dd2-a938-9250f1c8ab03/providers/Microsoft.Web/locations/eastus2euap/managedApis/weather'
+    );
+    expect(result).not.toContain('managedApis//managedapis');
+  });
+
+  it('uses canonical msnweather hints for weather fallback instead of caller malformed hints', () => {
+    expect(getWeatherManagedApiOverrideHints(undefined, undefined, undefined, undefined)).toEqual({
+      connectorReference: 'msnweather',
+      connectorId: 'msnweather',
+      operationId: 'CurrentWeather',
+      method: 'get',
+      path: undefined,
+    });
+  });
+});
+
+describe('duplicate action naming', () => {
+  it('returns the base name when it is available', () => {
+    expect(getNextAvailableActionName('Compose', ['Other'])).toBe('Compose');
+  });
+
+  it('returns the next numeric suffix when base exists', () => {
+    expect(getNextAvailableActionName('Get_Current_Weather', ['Get_Current_Weather'])).toBe('Get_Current_Weather_1');
+  });
+
+  it('skips existing numeric suffixes case-insensitively', () => {
+    expect(getNextAvailableActionName('Compose', ['compose', 'Compose_1', 'compose_2'])).toBe('Compose_3');
+  });
+
+  it('infers replace behavior from update-style prompts', () => {
+    expect(inferDuplicateActionBehavior('Update the existing action to use Redmond, WA')).toBe('replace');
+    expect(inferDuplicateActionBehavior('Replace this action with the new configuration')).toBe('replace');
+  });
+
+  it('infers addNew behavior from separate-action prompts', () => {
+    expect(inferDuplicateActionBehavior('Add another weather action for Redmond, WA')).toBe('addNew');
+    expect(inferDuplicateActionBehavior('Create a separate action for Redmond, WA')).toBe('addNew');
+  });
+
+  it('does not infer duplicate behavior for ambiguous add prompts', () => {
+    expect(inferDuplicateActionBehavior('Add weather for Redmond, WA')).toBeUndefined();
+  });
+
+  it('asks for duplicate action intent and does not mutate when behavior is unclear', async () => {
+    const projectPath = await createDuplicateActionProject();
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'Compose',
+          actionName: 'Existing_Action',
+          configuration: { inputs: 'new' },
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    expect(getToolResultText(result)).toContain('already exists');
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Existing_Action.inputs).toBe('old');
+    expect(workflow.definition.actions.Existing_Action_1).toBeUndefined();
+  });
+
+  it('replaces duplicate action when requested', async () => {
+    const projectPath = await createDuplicateActionProject();
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'Compose',
+          actionName: 'Existing_Action',
+          configuration: { inputs: 'new' },
+          duplicateActionBehavior: 'replace',
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    expect(getToolResultText(result)).toContain('Successfully replaced action "Existing_Action"');
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Existing_Action.inputs).toBe('new');
+    expect(workflow.definition.actions.Existing_Action_1).toBeUndefined();
+  });
+
+  it('adds a suffixed duplicate action when requested', async () => {
+    const projectPath = await createDuplicateActionProject();
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'Compose',
+          actionName: 'Existing_Action',
+          configuration: { inputs: 'new' },
+          duplicateActionBehavior: 'addNew',
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    expect(getToolResultText(result)).toContain('Successfully added action "Existing_Action_1"');
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Existing_Action.inputs).toBe('old');
+    expect(workflow.definition.actions.Existing_Action_1.inputs).toBe('new');
+  });
+});
+
+describe('resolveGenericApiConnectionAction', () => {
+  it('supplements incomplete live weather metadata with path placeholders and offline parameters', () => {
+    const supplemented = supplementApiConnectionParameters(
+      '/current/{Location}',
+      [{ name: 'connectionId', in: 'path', required: true, type: 'string' }],
+      [
+        { name: 'Location', in: 'path', required: true, type: 'string' },
+        {
+          name: 'units',
+          in: 'query',
+          required: false,
+          type: 'string',
+          enum: ['I', 'C'],
+          xMsEnum: {
+            values: [
+              { value: 'I', displayName: 'Imperial' },
+              { value: 'C', displayName: 'Metric' },
+            ],
+          },
+        },
+      ]
+    );
+
+    expect(supplemented?.map((parameter) => `${parameter.in}:${parameter.name}`)).toEqual([
+      'path:connectionId',
+      'path:Location',
+      'query:units',
+    ]);
+  });
+
+  it('synthesizes missing non-runtime path placeholders generically', () => {
+    const supplemented = supplementApiConnectionParameters('/items/{itemId}/{connectionId}', undefined, undefined);
+
+    expect(supplemented).toEqual([{ name: 'itemId', in: 'path', required: true, type: 'string' }]);
+  });
+
+  it('routes captured weather addAction parameters into msnweather action inputs', async () => {
+    const projectConnections: ProjectConnectionsInfo = {
+      managedApiReferences: ['msnweather'],
+      managedApiReferencesWithApiId: ['msnweather'],
+      managedApiIdByReference: {
+        msnweather: '/subscriptions/sub-123/providers/Microsoft.Web/locations/westus2/managedApis/msnweather',
+      },
+      serviceProviderReferences: [],
+      serviceProviderIdByReference: {},
+      weatherManagedReference: 'msnweather',
+    };
+
+    const result = await resolveGenericApiConnectionAction(
+      'ApiConnection',
+      'Get_Current_Weather',
+      {
+        parameters: { Location: 'Seattle, WA', units: 'Imperial' },
+        parameterText: 'Add an action to Stateful1 that gets the current weather for Seattle, WA in Imperial units.',
+      },
+      projectConnections,
+      {
+        connectorId: 'msnweather',
+        operationId: 'CurrentWeather',
+      },
+      true
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.action).toEqual({
+      type: 'ApiConnection',
+      inputs: {
+        host: {
+          connection: {
+            referenceName: 'msnweather',
+          },
+        },
+        method: 'get',
+        path: "/current/@{encodeURIComponent('Seattle, WA')}",
+        queries: { units: 'I' },
+      },
+      operationId: 'CurrentWeather',
+      runAfter: {},
+    });
   });
 });
 
@@ -289,6 +579,47 @@ describe('trigger/action definitions', () => {
     });
   });
 
+  it('does not persist internal parameterText metadata into action definitions', () => {
+    const action = buildActionDefinition('Response', {
+      statusCode: 200,
+      body: "@body('Get_Current_Weather')",
+      parameterText: 'current weather for Seattle, WA',
+      inputs: {
+        headers: { 'Content-Type': 'application/json' },
+        parameterText: 'nested current weather for Seattle, WA',
+      },
+    });
+
+    expect(action).toEqual({
+      type: 'Response',
+      statusCode: 200,
+      body: "@body('Get_Current_Weather')",
+      inputs: {
+        headers: { 'Content-Type': 'application/json' },
+      },
+      runAfter: {},
+    });
+    expect(action).not.toHaveProperty('parameterText');
+  });
+
+  it('does not persist internal parameterText metadata into trigger definitions', () => {
+    const trigger = buildTriggerDefinition('Request', {
+      parameterText: 'current weather for Seattle, WA',
+      inputs: {
+        schema: {},
+        parameterText: 'nested current weather for Seattle, WA',
+      },
+    });
+
+    expect(trigger).toEqual({
+      type: 'Request',
+      kind: 'Http',
+      inputs: {
+        schema: {},
+      },
+    });
+  });
+
   it('detects weather managed connection reference from connections data', () => {
     const reference = detectWeatherManagedApiReference({
       managedApiConnections: {
@@ -346,6 +677,11 @@ describe('trigger/action definitions', () => {
 
   it('detects weather intent for ApiConnection actions too', () => {
     expect(shouldAutoUseWeatherConnector('ApiConnection', 'Get_Seattle_Weather', {})).toBe(true);
+  });
+
+  it('does not detect weather intent from Seattle alone', () => {
+    expect(shouldAutoUseWeatherConnector('ApiConnection', 'Seattle_Action', { path: '/v2/something' })).toBe(false);
+    expect(shouldAutoUseWeatherConnector('Http', 'In_Seattle_Add_HTTP_Trigger', {})).toBe(false);
   });
 
   it('does not detect weather intent for unrelated ApiConnection actions', () => {
@@ -816,6 +1152,255 @@ describe('trigger/action definitions', () => {
   });
 });
 
+describe('ServiceProvider versus managed ApiConnection routing', () => {
+  const serviceBusManagedApiId = '/subscriptions/sub/providers/Microsoft.Web/locations/westus/managedApis/servicebus';
+
+  it('skips built-in ServiceProvider matching for explicit ApiConnection actions', () => {
+    expect(shouldSkipBuiltInServiceProviderResolution('ApiConnection', 'servicebus', undefined)).toBe(true);
+  });
+
+  it('skips built-in ServiceProvider matching for full managedApis ARM connector IDs', () => {
+    expect(shouldSkipBuiltInServiceProviderResolution('Http', undefined, serviceBusManagedApiId)).toBe(true);
+    expect(shouldSkipBuiltInServiceProviderResolution('Http', serviceBusManagedApiId, undefined)).toBe(true);
+  });
+
+  it('keeps short ServiceProvider servicebus hints on the built-in path', () => {
+    expect(shouldSkipBuiltInServiceProviderResolution('ServiceProvider', 'servicebus', undefined)).toBe(false);
+  });
+
+  it('reuses an existing Azure Blob ServiceProvider connection with a noncanonical reference name', async () => {
+    const projectPath = await createDuplicateActionProject();
+    await fs.writeFile(
+      path.join(projectPath, 'connections.json'),
+      JSON.stringify(
+        {
+          serviceProviderConnections: {
+            ExistingBlobConnection: {
+              serviceProvider: {
+                id: '/serviceProviders/AzureBlob',
+              },
+              parameterValues: {
+                connectionString: "@appsetting('ExistingBlobConnection_connectionString')",
+              },
+            },
+          },
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+    setWorkflowToolsTestOverrides({
+      builtInConnectors: [{ name: 'AzureBlob', id: '/serviceProviders/AzureBlob', displayName: 'Azure Blob' }],
+    });
+
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'ServiceProvider',
+          actionName: 'Read_Blob_From_Existing_Connection',
+          connectorReference: 'Azure Blob',
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    const resultText = getToolResultText(result);
+    expect(resultText).toContain('Successfully added action "Read_Blob_From_Existing_Connection" of type "ServiceProvider"');
+    expect(resultText).not.toContain('I need connection details before I can add the Azure Blob action');
+
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Read_Blob_From_Existing_Connection).toMatchObject({
+      type: 'ServiceProvider',
+      inputs: {
+        serviceProviderConfiguration: {
+          connectionName: 'ExistingBlobConnection',
+          operationId: 'readBlob',
+          serviceProviderId: '/serviceProviders/AzureBlob',
+        },
+      },
+    });
+  });
+
+  it('asks for Azure Blob connection details without mutating workflow when no reusable details exist', async () => {
+    const projectPath = await createDuplicateActionProject();
+    setWorkflowToolsTestOverrides({
+      builtInConnectors: [{ name: 'AzureBlob', id: '/serviceProviders/AzureBlob', displayName: 'Azure Blob' }],
+    });
+
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'ServiceProvider',
+          actionName: 'Read_Blob_Needs_Details',
+          connectorReference: 'Azure Blob',
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    const resultText = getToolResultText(result);
+    expect(resultText).toContain('I need connection details before I can add the Azure Blob action');
+    expect(resultText).toContain('serviceProviderConnection.connectionString');
+
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Read_Blob_Needs_Details).toBeUndefined();
+    await expect(fs.access(path.join(projectPath, 'connections.json'))).rejects.toThrow();
+  });
+
+  it('auto-selects a discovered Azure Blob storage account and writes the ServiceProvider action', async () => {
+    const projectPath = await createDuplicateActionProject();
+    await fs.writeFile(
+      path.join(projectPath, 'local.settings.json'),
+      JSON.stringify(
+        {
+          IsEncrypted: false,
+          Values: {
+            WORKFLOWS_SUBSCRIPTION_ID: 'sub-123',
+            WORKFLOWS_TENANT_ID: 'tenant-123',
+            WORKFLOWS_RESOURCE_GROUP_NAME: 'rg-123',
+            WORKFLOWS_LOCATION_NAME: 'westus',
+            WORKFLOWS_MANAGEMENT_BASE_URI: 'https://management.azure.com',
+          },
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+    setWorkflowToolsTestOverrides({
+      builtInConnectors: [{ name: 'AzureBlob', id: '/serviceProviders/AzureBlob', displayName: 'Azure Blob' }],
+      getAuthorizationToken: vi.fn(async () => 'Bearer fake-token'),
+      fetch: vi.fn(async (url: string) => {
+        if (url.includes('/providers/Microsoft.Storage/storageAccounts?')) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: '/subscriptions/sub-123/resourceGroups/rg-123/providers/Microsoft.Storage/storageAccounts/storageone',
+                  name: 'storageone',
+                  location: 'westus',
+                  type: 'Microsoft.Storage/storageAccounts',
+                },
+                {
+                  id: '/subscriptions/sub-123/resourceGroups/rg-123/providers/Microsoft.Storage/storageAccounts/storagetwo',
+                  name: 'storagetwo',
+                  location: 'westus',
+                  type: 'Microsoft.Storage/storageAccounts',
+                },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (url.includes('/storageAccounts/storageone/listKeys?')) {
+          return new Response(JSON.stringify({ keys: [{ value: 'storage-key' }] }), { status: 200 });
+        }
+
+        return new Response('{}', { status: 404 });
+      }),
+    });
+
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'ServiceProvider',
+          actionName: 'Read_Blob_From_Discovered_Storage',
+          connectorReference: 'Azure Blob',
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    const resultText = getToolResultText(result);
+    expect(resultText).toContain('Successfully added action "Read_Blob_From_Discovered_Storage" of type "ServiceProvider"');
+    expect(resultText).toContain('Azure Blob connections were found in Azure: storageone, storagetwo');
+    expect(resultText).not.toContain('I need connection details before I can add the Azure Blob action');
+
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Read_Blob_From_Discovered_Storage).toMatchObject({
+      type: 'ServiceProvider',
+      inputs: {
+        serviceProviderConfiguration: {
+          connectionName: 'AzureBlob',
+          operationId: 'readBlob',
+          serviceProviderId: '/serviceProviders/AzureBlob',
+        },
+      },
+    });
+
+    const connections = JSON.parse(await fs.readFile(path.join(projectPath, 'connections.json'), 'utf8')) as Record<string, any>;
+    expect(connections.serviceProviderConnections.AzureBlob.parameterValues.connectionString).toBe(
+      "@appsetting('AzureBlob_connectionString')"
+    );
+
+    const localSettings = JSON.parse(await fs.readFile(path.join(projectPath, 'local.settings.json'), 'utf8')) as Record<string, any>;
+    expect(localSettings.Values.AzureBlob_connectionString).toBe(
+      'DefaultEndpointsProtocol=https;AccountName=storageone;AccountKey=storage-key;EndpointSuffix=core.windows.net'
+    );
+  });
+
+  it('routes full servicebus managedApis IDs through managed ApiConnection creation instead of built-in ServiceProvider prompts', async () => {
+    const projectPath = await createDuplicateActionProject();
+    setWorkflowToolsTestOverrides({
+      builtInConnectors: [{ name: 'serviceBus', id: '/serviceProviders/serviceBus', displayName: 'Service Bus' }],
+    });
+
+    const result = await new AddActionTool().invoke(
+      {
+        input: {
+          workflowName: 'Stateful1',
+          actionType: 'Http',
+          actionName: 'Send_Service_Bus_Message',
+          connectorId: serviceBusManagedApiId,
+          operationId: 'SendMessage',
+          method: 'POST',
+          path: '/messages',
+          configuration: {
+            inputs: {
+              body: {
+                ContentData: 'hello',
+              },
+            },
+          },
+        },
+      } as vscode.LanguageModelToolInvocationOptions<any>,
+      {} as vscode.CancellationToken
+    );
+
+    const resultText = getToolResultText(result);
+    expect(resultText).toContain('Successfully added action "Send_Service_Bus_Message" of type "ApiConnection"');
+    expect(resultText).toContain('Added placeholder connection for "servicebus"');
+    expect(resultText).not.toContain('I need connection details before I can add the Service Bus action');
+
+    const workflow = await readDuplicateWorkflow(projectPath);
+    expect(workflow.definition.actions.Send_Service_Bus_Message).toMatchObject({
+      type: 'ApiConnection',
+      inputs: {
+        host: {
+          connection: {
+            referenceName: 'servicebus',
+          },
+        },
+        method: 'post',
+        path: '/messages',
+        body: {
+          ContentData: 'hello',
+        },
+      },
+      operationId: 'SendMessage',
+    });
+
+    const connections = JSON.parse(await fs.readFile(path.join(projectPath, 'connections.json'), 'utf8')) as Record<string, any>;
+    expect(connections.managedApiConnections.servicebus.api.id).toBe(serviceBusManagedApiId.toLowerCase());
+    expect(connections.serviceProviderConnections).toBeUndefined();
+  });
+});
+
 describe('inferDefaultRunAfter', () => {
   it('returns {} when there are no existing actions', () => {
     expect(inferDefaultRunAfter(undefined, undefined)).toEqual({});
@@ -1112,6 +1697,41 @@ describe('routeParametersToApiConnectionInputs', () => {
 
     expect(result.missing).toEqual([]);
     expect(result.queries).toBeUndefined();
+  });
+
+  it('does not report missing path parameters when the caller supplied a resolved explicit path', () => {
+    const result = routeParametersToApiConnectionInputs(undefined, undefined, '/current/Seattle, WA', msnweatherParams);
+
+    expect(result.missing).toEqual([]);
+    expect(result.path).toBe('/current/Seattle, WA');
+  });
+
+  it('does not treat workflow expression braces in explicit paths as unresolved swagger placeholders', () => {
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      undefined,
+      "/datasets/@{encodeURIComponent(encodeURIComponent('default'))}/tables/@{encodeURIComponent(encodeURIComponent('dbo.Orders'))}/items",
+      [
+        { name: 'dataset', in: 'path' as const, required: true, type: 'string' },
+        { name: 'table', in: 'path' as const, required: true, type: 'string' },
+      ]
+    );
+
+    expect(result.missing).toEqual([]);
+  });
+
+  it('does not treat braces inside workflow expression string literals as unresolved swagger placeholders', () => {
+    const result = routeParametersToApiConnectionInputs(
+      undefined,
+      undefined,
+      "/datasets/@{variables('table{with}braces')}/items/@{variables('item{id}')}/fields",
+      [
+        { name: 'dataset', in: 'path' as const, required: true, type: 'string' },
+        { name: 'item', in: 'path' as const, required: true, type: 'string' },
+      ]
+    );
+
+    expect(result.missing).toEqual([]);
   });
 
   it('reports missing required parameters', () => {

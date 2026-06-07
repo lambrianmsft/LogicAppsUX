@@ -94,6 +94,15 @@ Curated durable learnings for authenticated Copilot Chat extension-host tests an
 - Applies to: `vscode-test-specialist`, `test`, `vscode`, `senior-swe-reviewer`.
 - Status: verified.
 
+### Do not Proxy VS Code ChatResponseStream for transcript capture
+
+- Learning: `vscode.ChatResponseStream` can expose read-only, non-configurable members such as `progress`. A `Proxy` `get` trap that returns a bound function or any value other than the exact target property violates JavaScript Proxy invariants and makes `@logicapps` fail before the response can stream.
+- Fix pattern: Keep passing the real stream to the chat participant and route participant markdown writes through a helper such as `writeChatMarkdown(stream, markdown)`. The helper may append transcript text when `LAUX_CHAT_TESTS=1`, then must delegate directly to `stream.markdown(markdown)`. Leave `progress`, buttons, anchors, and other stream members untouched.
+- Why it matters: Authenticated Chat Tests need transcript capture, but the capture hook must not wrap native VS Code API objects or alter production stream behavior.
+- Source: `apps/vs-code-designer/src/app/chat/logicAppsChatParticipant.ts`, `apps/vs-code-designer/src/app/chat/__test__/chatParticipant.test.ts`.
+- Applies to: `vscode-test-specialist`, `test`, `vscode`, `senior-swe-reviewer`.
+- Status: verified.
+
 ### Chat regression prompts should stay natural
 
 - Learning: Chat-agent E2E prompts should resemble real user requests. Avoid telling the model the exact connector reference, operation name, action names, missing-parameter diagnosis, or optional-parameter rules unless that detail is itself part of the user scenario. Prefer workflow diffs and generated `workflow.json` shape assertions over hardcoded action names.

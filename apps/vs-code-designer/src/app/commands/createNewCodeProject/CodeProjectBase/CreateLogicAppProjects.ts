@@ -16,6 +16,7 @@ import {
   createLocalConfigurationFiles,
   createLogicAppAndWorkflow,
   createRulesFiles,
+  getWorkspaceRelativeFolderPath,
   updateWorkspaceFile,
 } from './CreateLogicAppWorkspace';
 import { devContainerFolderName, devContainerFileName } from '../../../../constants';
@@ -42,12 +43,19 @@ export async function createLogicAppProject(context: IActionContext, options: an
     // Get the directory containing the .code-workspace file
     const workspaceFilePath = vscode.workspace.workspaceFile.fsPath;
     webviewProjectContext.workspaceFilePath = workspaceFilePath;
+    webviewProjectContext.logicAppWorkspaceRelativePath = getWorkspaceRelativeFolderPath(workspaceFilePath, logicAppFolderPath);
+    if (webviewProjectContext.functionFolderName) {
+      webviewProjectContext.functionWorkspaceRelativePath = getWorkspaceRelativeFolderPath(
+        workspaceFilePath,
+        path.join(workspaceFolder, webviewProjectContext.functionFolderName)
+      );
+    }
     webviewProjectContext.shouldCreateLogicAppProject = !doesLogicAppExist;
 
     // Detect if this is a devcontainer project by checking:
     // 1. If .devcontainer folder exists in workspace file
     // 2. If devcontainer.json exists in that folder
-    webviewProjectContext.isDevContainerProject = await isDevContainerWorkspace(workspaceFilePath, workspaceFolder);
+    webviewProjectContext.isDevContainerProject = await isDevContainerWorkspace(workspaceFilePath, path.dirname(workspaceFilePath));
 
     // need to get logic app in projects
     await updateWorkspaceFile(webviewProjectContext);

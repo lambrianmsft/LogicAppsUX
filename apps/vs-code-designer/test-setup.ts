@@ -169,6 +169,18 @@ vi.mock('vscode', () => ({
     asExternalUri: vi.fn((uri: any) => Promise.resolve(uri)),
     openExternal: vi.fn(),
   },
+  LanguageModelTextPart: class LanguageModelTextPart {
+    value: string;
+    constructor(value: string) {
+      this.value = value;
+    }
+  },
+  LanguageModelToolResult: class LanguageModelToolResult {
+    content: unknown[];
+    constructor(content: unknown[]) {
+      this.content = content;
+    }
+  },
   version: '1.85.0',
 }));
 

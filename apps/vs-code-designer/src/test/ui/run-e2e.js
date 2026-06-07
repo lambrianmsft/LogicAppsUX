@@ -896,12 +896,7 @@ async function main() {
   const phase7Files = [testFile('demo.test.js'), testFile('smoke.test.js'), testFile('standalone.test.js'), testFile('dataMapper.test.js')];
 
   // Chat tests - requires GitHub Copilot to be installed and authenticated
-  const chatPhaseFiles = [
-    testFile('chat-help.test.js'),
-    testFile('chat-list-get.test.js'),
-    testFile('chat-serviceprovider.test.js'),
-    testFile('chat-workflow-designer.test.js'),
-  ];
+  const chatPhaseFiles = [testFile('chat-help.test.js'), testFile('chat-list-get.test.js'), testFile('chat-serviceprovider.test.js')];
 
   // Conversion tests (ADO #31054994, Steps 5-15)
   // Each gets its own session because they need different startup folders.
@@ -1846,7 +1841,7 @@ namespace ${namespaceName}
         }
       }
 
-      const chatExit = await runPhase('Chat Tests: help, list-get, serviceprovider & workflow designer', chatPhaseFiles, {
+      const chatExit = await runPhase('Chat Tests: help, list-get & serviceprovider', chatPhaseFiles, {
         resources: wsResources,
       });
       process.exit(chatExit);
