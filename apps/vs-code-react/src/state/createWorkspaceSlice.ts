@@ -80,9 +80,19 @@ export const createWorkspaceSlice = createSlice<CreateWorkspaceState, SliceCaseR
   initialState,
   reducers: {
     initializeProject: (state, action: PayloadAction<any>) => {
-      const { workspaceFileJson, logicAppsWithoutCustomCode } = action.payload;
+      const { workspaceFileJson, logicAppsWithoutCustomCode, platform, separator } = action.payload;
       state.workspaceFileJson = workspaceFileJson;
       state.logicAppsWithoutCustomCode = logicAppsWithoutCustomCode;
+      // platform and separator are host-environment values sent by the extension host in the
+      // initialize_frame payload. The createProject (createLogicApp) webview flow only dispatches
+      // initializeProject, so they must be captured here for platform-gated options (e.g. the
+      // Windows-only .NET Framework target framework) to appear.
+      if (platform !== undefined) {
+        state.platform = platform;
+      }
+      if (separator !== undefined) {
+        state.separator = separator;
+      }
     },
     initializeWorkspace: (state, action: PayloadAction<any>) => {
       const { separator, platform, logicAppType, logicAppName } = action.payload;
@@ -194,19 +204,18 @@ export const createWorkspaceSlice = createSlice<CreateWorkspaceState, SliceCaseR
     },
     resetState: (state, action: PayloadAction<{ preserveLogicAppData?: boolean } | undefined>) => {
       const preserveLogicAppData = action.payload?.preserveLogicAppData;
-      const preservedLogicAppType = preserveLogicAppData ? state.logicAppType : '';
-      const preservedLogicAppName = preserveLogicAppData ? state.logicAppName : '';
-      const preservedSeparator = preserveLogicAppData ? state.separator : '/';
-      const preservedPlatform = preserveLogicAppData ? state.platform : null;
+      // Object.assign(state, initialState) overwrites every field with the initial defaults, so any
+      // value we want to keep must be captured here (before the reset) and merged back in the same
+      // call. platform and separator are host-environment values (from initialize_frame), not user
+      // form input, so they must always survive a form reset — otherwise the flow wrappers' mount-time
+      // resetState(undefined) wipes platform to null, hiding the Windows-only .NET Framework option.
+      const preserved: Partial<CreateWorkspaceState> = {
+        platform: state.platform,
+        separator: state.separator,
+        ...(preserveLogicAppData ? { logicAppType: state.logicAppType, logicAppName: state.logicAppName } : {}),
+      };
 
-      Object.assign(state, initialState);
-
-      if (preserveLogicAppData) {
-        state.logicAppType = preservedLogicAppType;
-        state.logicAppName = preservedLogicAppName;
-        state.separator = preservedSeparator;
-        state.platform = preservedPlatform;
-      }
+      Object.assign(state, initialState, preserved);
     },
     nextStep: (state) => {
       if (state.currentStep < 7) {
