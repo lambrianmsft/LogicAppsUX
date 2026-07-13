@@ -17,6 +17,8 @@ import type { ActionDefinition } from '@microsoft/logic-apps-shared/src/utils/sr
 import { initializeDynamicDataInNodes, initializeOperationMetadata } from './operationdeserializer';
 import type { NodesMetadata } from '../../state/workflow/workflowInterfaces';
 import { updateAllUpstreamNodes } from './initialize';
+import { getUpstreamNodeIds } from '../../utils/graph';
+import type { WorkflowNode } from '../../parsers/models/workflowNode';
 import type { NodeTokens } from '../../state/tokens/tokensSlice';
 import { addDynamicTokens } from '../../state/tokens/tokensSlice';
 import { getConnectionReferenceForNodeId } from '../../state/connection/connectionSelector';
@@ -169,6 +171,7 @@ export const pasteOperation = createAsyncThunk('pasteOperation', async (payload:
     dispatch(setNodeDescription({ nodeId, description: comment }));
   }
 
+  updateAllUpstreamNodes(getState() as RootState, dispatch);
   dispatch(setIsPanelLoading(false));
 });
 
@@ -245,7 +248,10 @@ export const pasteScopeOperation = createAsyncThunk(
     for (const id of Object.keys(operations)) {
       nodeMap[id] = id;
     }
-    const upstreamOutputTokens = replaceIdsOfExistingNodes(filterRecordByArray(state.tokens.outputTokens, upstreamNodeIds), idReplacements);
+    const upstreamOutputTokens = replaceIdsOfExistingNodes(
+      filterRecordByArray(state.tokens.outputTokens, extendUpstreamNodeIdsForScopePaste(upstreamNodeIds, parentId, state, nodeMap)),
+      idReplacements
+    );
     const triggerId = getTriggerNodeId(state.workflow);
 
     await Promise.all([
@@ -316,4 +322,38 @@ const filterRecordByArray = (record: Record<string, NodeTokens>, upstreamNodeIds
     }
   }
   return filteredRecord;
+};
+
+/**
+ * Extends the upstream node id set used to seed a pasted scope's existing output tokens.
+ *
+ * When we paste a scope (e.g. a Condition) inside another scope, the `upstreamNodeIds`
+ * we receive from the caller only covers upstream nodes of the paste-site child/parent
+ * edge. It does not include the enclosing scope container itself or its ancestor chain,
+ * so nodes declared alongside (or outside) that container — such as an `InitializeVariable`
+ * at the workflow root — are absent from the fragment's initial upstream token slice.
+ *
+ * This helper folds in the enclosing scope container and its full upstream context
+ * (walking parent scopes and their sources) so the pasted fragment sees the same tokens
+ * a freshly added node at the same paste site would.
+ */
+export const extendUpstreamNodeIdsForScopePaste = (
+  upstreamNodeIds: string[],
+  parentId: string | undefined,
+  state: RootState,
+  operationMap: Record<string, string>
+): string[] => {
+  if (!parentId) {
+    return upstreamNodeIds;
+  }
+  const extended = new Set(upstreamNodeIds);
+  extended.add(parentId);
+  const rootGraph = state.workflow.graph as WorkflowNode | null;
+  if (!rootGraph) {
+    return Array.from(extended);
+  }
+  for (const id of getUpstreamNodeIds(parentId, rootGraph, state.workflow.nodesMetadata, operationMap)) {
+    extended.add(id);
+  }
+  return Array.from(extended);
 };
