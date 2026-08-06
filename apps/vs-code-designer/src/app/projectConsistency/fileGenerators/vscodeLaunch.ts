@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 import type { LaunchJsonContent, VSCodeProjectConfig } from './types';
 import { extensionCommand, launchVersion } from '../../../constants';
-import { FuncVersion, ProjectType } from '@microsoft/vscode-extension-logic-apps';
+import { FuncVersion, ProjectPackageType, ProjectType } from '@microsoft/vscode-extension-logic-apps';
 import { getDotnetRuntimeFromFramework, getDotnetRuntimeFromFunc } from '../../utils/dotnet/dotnet';
 import type { DebugConfiguration } from 'vscode';
 
@@ -23,16 +23,16 @@ export function generateLaunchJson(config: VSCodeProjectConfig): LaunchJsonConte
  * Generates a single debug configuration based on the project type.
  */
 function generateDebugConfiguration(config: VSCodeProjectConfig, logicAppName: string): DebugConfiguration {
-  const { projectType, customCodeTargetFramework, funcVersion } = config;
+  const { projectType, projectPackageType, customCodeTargetFramework, funcVersion } = config;
   const version = funcVersion ?? FuncVersion.v4;
 
-  if (projectType === ProjectType.codeful) {
+  if (projectType === ProjectType.codeful || (projectType === ProjectType.logicApp && projectPackageType === ProjectPackageType.Nuget)) {
     return {
       name: `Run/Debug logic app ${logicAppName}`,
       type: 'logicapp',
       request: 'launch',
       funcRuntime: getDotnetRuntimeFromFunc(version),
-      isCodeless: false,
+      isCodeless: projectType === ProjectType.logicApp,
     };
   }
 

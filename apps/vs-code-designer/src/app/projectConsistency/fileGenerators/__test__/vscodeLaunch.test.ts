@@ -9,7 +9,7 @@ import { FuncVersion, ProjectType, ProjectPackageType, TargetFramework } from '@
 
 describe('generateLaunchJson', () => {
   describe('codeless project', () => {
-    it('should generate attach configuration for codeless projects', () => {
+    it('should generate attach configuration for bundle codeless projects', () => {
       const config: VSCodeProjectConfig = {
         projectType: ProjectType.logicApp,
         projectPackageType: ProjectPackageType.Bundle,
@@ -24,6 +24,28 @@ describe('generateLaunchJson', () => {
       expect(result.configurations[0].type).toBe('coreclr');
       expect(result.configurations[0].request).toBe('attach');
       expect(result.configurations[0].name).toContain('MyApp');
+    });
+
+    it('should generate logicapp launch configuration for NuGet codeless projects', () => {
+      const config: VSCodeProjectConfig = {
+        projectType: ProjectType.logicApp,
+        projectPackageType: ProjectPackageType.Nuget,
+        hasFuncBinaries: true,
+        logicAppName: 'NugetApp',
+        funcVersion: FuncVersion.v4,
+      };
+      const result = generateLaunchJson(config);
+
+      expect(result.version).toBe('0.2.0');
+      expect(result.configurations).toHaveLength(1);
+      expect(result.configurations[0]).toMatchObject({
+        name: expect.stringContaining('NugetApp'),
+        type: 'logicapp',
+        request: 'launch',
+        funcRuntime: 'coreclr',
+        isCodeless: true,
+      });
+      expect(result.configurations[0]).not.toHaveProperty('processId');
     });
   });
 

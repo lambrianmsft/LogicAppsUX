@@ -776,7 +776,7 @@ function useBinariesDependenciesFromSettings(): boolean {
   }
 
   const binariesInstallation = getGlobalSetting(autoRuntimeDependenciesValidationAndInstallationSetting);
-  return !!binariesInstallation;
+  return !!binariesInstallation || !!getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey);
 }
 
 function getExpectedBinaryPath(dependencyName: string): string | undefined {
@@ -804,7 +804,7 @@ function binariesExistFromSettings(dependencyName: string, updateMissingExeSetti
   const expectedBinaryPath = binariesExist ? getExpectedBinaryPath(dependencyName) : undefined;
 
   ext.outputChannel.appendLog(`${dependencyName} Binaries: ${binariesPath}`);
-  if (expectedBinaryPath && !fs.existsSync(expectedBinaryPath)) {
+  if (expectedBinaryPath && /[\\/]/.test(expectedBinaryPath) && !fs.existsSync(expectedBinaryPath)) {
     const repairedBinaryPath = getRepairableWindowsBinaryPath(dependencyName, binariesPath, expectedBinaryPath);
     if (repairedBinaryPath) {
       if (updateMissingExeSetting) {
