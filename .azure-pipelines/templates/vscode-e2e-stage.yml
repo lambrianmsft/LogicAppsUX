@@ -11,12 +11,30 @@ parameters:
   - name: pool
     type: object
     default:
-      name: AzurePipelines-EO
-      image: 1ESPT-Ubuntu22.04
+      name: OneESHostedPool
+      image: Azure-Linux-3
       os: linux
   - name: runVscodeTestCliSmoke
     type: boolean
     default: true
+  - name: testCliRuns
+    type: object
+    default:
+      - jobName: VscodeE2ECliSmoke
+        displayName: vscode-test CLI smoke (unitTests)
+        label: unitTests
+      - jobName: VscodeE2ECliCreateWorkspaceBehavior
+        displayName: vscode-test CLI create workspace behavior
+        label: createWorkspaceBehavior
+      - jobName: VscodeE2ECliCreateWorkspaceCoreMatrix
+        displayName: vscode-test CLI create workspace core matrix
+        label: createWorkspaceCoreMatrix
+      - jobName: VscodeE2ECliCreateWorkspacePreviewMatrix
+        displayName: vscode-test CLI create workspace preview matrix
+        label: createWorkspacePreviewMatrix
+      - jobName: VscodeE2ECliCreateWorkspaceCodeful
+        displayName: vscode-test CLI create workspace codeful
+        label: createWorkspaceCodeful
   - name: scenarioShards
     type: object
     default: []
@@ -42,6 +60,20 @@ stages:
               checkoutRef: ${{ parameters.checkoutRef }}
 
       - ${{ if eq(parameters.runVscodeTestCliSmoke, true) }}:
+          - ${{ each cliRun in parameters.testCliRuns }}:
+              - template: vscode-e2e-run-cli.yml
+                parameters:
+                  jobName: ${{ cliRun.jobName }}
+                  displayName: ${{ cliRun.displayName }}
+                  label: ${{ cliRun.label }}
+                  feedBaseUrl: ${{ parameters.feedBaseUrl }}
+                  pool: ${{ parameters.pool }}
+                  dependsOn:
+                    - BuildVscodeE2EArtifacts
+                  checkoutRef: ${{ parameters.checkoutRef }}
+                  testARMServiceConnection: ${{ parameters.testARMServiceConnection }}
+
+      - ${{ if and(eq(parameters.runVscodeTestCliSmoke, true), eq(length(parameters.testCliRuns), 0)) }}:
           - template: vscode-e2e-run-cli.yml
             parameters:
               jobName: VscodeE2ECliSmoke
@@ -86,6 +118,9 @@ stages:
           displayName: vscode-e2e-summary
           dependsOn:
             - ${{ if eq(parameters.runVscodeTestCliSmoke, true) }}:
+                - ${{ each cliRun in parameters.testCliRuns }}:
+                    - ${{ cliRun.jobName }}
+            - ${{ if and(eq(parameters.runVscodeTestCliSmoke, true), eq(length(parameters.testCliRuns), 0)) }}:
                 - VscodeE2ECliSmoke
             - ${{ if gt(length(parameters.scenarioShards), 0) }}:
                 - SetupVscodeE2EFixtures

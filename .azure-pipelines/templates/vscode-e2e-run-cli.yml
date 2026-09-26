@@ -14,6 +14,9 @@ parameters:
   - name: dotnetVersion
     type: string
     default: '8.0.x'
+  - name: timeoutInMinutes
+    type: number
+    default: 35
   - name: pool
     type: object
   - name: dependsOn
@@ -30,10 +33,22 @@ jobs:
   - job: ${{ parameters.jobName }}
     displayName: ${{ parameters.displayName }}
     dependsOn: ${{ parameters.dependsOn }}
-    timeoutInMinutes: 20
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     pool: ${{ parameters.pool }}
     templateContext:
       outputs:
+        - output: pipelineArtifact
+          targetPath: $(Build.ArtifactStagingDirectory)/vscode-e2e-cli/${{ parameters.label }}/results
+          artifactName: vscode-e2e-cli-test-results-${{ parameters.label }}
+          condition: always()
+        - output: pipelineArtifact
+          targetPath: $(Build.ArtifactStagingDirectory)/vscode-e2e-cli/${{ parameters.label }}/log
+          artifactName: vscode-e2e-cli-log-${{ parameters.label }}
+          condition: always()
+        - output: pipelineArtifact
+          targetPath: $(Build.ArtifactStagingDirectory)/vscode-e2e-cli/${{ parameters.label }}/screenshots
+          artifactName: vscode-e2e-cli-screenshots-${{ parameters.label }}
+          condition: always()
         - output: pipelineArtifact
           targetPath: $(Build.ArtifactStagingDirectory)/diagnostics
           artifactName: vscode-test-diagnostics-${{ parameters.jobName }}
@@ -94,7 +109,21 @@ jobs:
           /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
           export PATH="$(Build.SourcesDirectory)/apps/vs-code-designer/node_modules/.bin:$(Build.SourcesDirectory)/node_modules/.bin:$PATH"
           cd "$(Build.SourcesDirectory)/apps/vs-code-designer"
-          node scripts/run-e2e-cli.js --label ${{ parameters.label }}
+          mkdir -p .vscode-test/results
+          set +e
+          node scripts/run-e2e-cli.js --label ${{ parameters.label }} 2>&1 | tee ".vscode-test/results/${{ parameters.label }}.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          outcome='success'
+          if [ "$status" -ne 0 ]; then
+            outcome='failure'
+          fi
+          node scripts/summarize-e2e-cli-results.js \
+            --label "${{ parameters.label }}" \
+            --log ".vscode-test/results/${{ parameters.label }}.log" \
+            --out-dir ".vscode-test/results" \
+            --outcome "$outcome"
+          exit "$status"
         displayName: Run vscode-test CLI (${{ parameters.label }})
         env:
           DISPLAY: :99
@@ -112,6 +141,49 @@ jobs:
             AzCode_ServiceConnectionID: $(FC_SERVICE_CONNECTION_ID)
             AzCode_ServiceConnectionDomain: $(FC_SERVICE_CONNECTION_TENANT_ID)
             AzCode_ServiceConnectionClientID: $(FC_SERVICE_CONNECTION_CLIENT_ID)
+
+      - task: PublishTestResults@2
+        displayName: Publish JUnit result (${{ parameters.label }})
+        condition: always()
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: apps/vs-code-designer/.vscode-test/results/${{ parameters.label }}.junit.xml
+          testRunTitle: '@vscode/test-cli ${{ parameters.label }}'
+          failTaskOnFailedTests: false
+
+      - pwsh: |
+          $diagnosticsRoot = "$(Build.ArtifactStagingDirectory)/vscode-e2e-cli/${{ parameters.label }}"
+          $resultDestination = Join-Path $diagnosticsRoot 'results'
+          $logDestination = Join-Path $diagnosticsRoot 'log'
+          $screenshotDestination = Join-Path $diagnosticsRoot 'screenshots'
+          New-Item -ItemType Directory -Force -Path $resultDestination, $logDestination, $screenshotDestination | Out-Null
+
+          $resultRoot = Join-Path '$(Build.SourcesDirectory)' 'apps/vs-code-designer/.vscode-test/results'
+          $screenshotsRoot = Join-Path '$(Build.SourcesDirectory)' 'apps/vs-code-designer/.vscode-test/screenshots/cli'
+
+          foreach ($extension in @('json', 'junit.xml', 'summary.md')) {
+            $source = Join-Path $resultRoot "${{ parameters.label }}.$extension"
+            if (Test-Path $source) {
+              Copy-Item $source -Destination $resultDestination -Force
+            }
+          }
+
+          $log = Join-Path $resultRoot '${{ parameters.label }}.log'
+          if (Test-Path $log) {
+            Copy-Item $log -Destination $logDestination -Force
+          }
+
+          if (Test-Path $screenshotsRoot) {
+            Copy-Item (Join-Path $screenshotsRoot '*') -Destination $screenshotDestination -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
+          foreach ($directory in @($resultDestination, $logDestination, $screenshotDestination)) {
+            if (-not (Get-ChildItem -Path $directory -Force -ErrorAction SilentlyContinue)) {
+              Set-Content -Path (Join-Path $directory '.empty') -Value 'No files were produced for this artifact.'
+            }
+          }
+        displayName: Stage vscode-test CLI results (${{ parameters.label }})
+        condition: always()
 
       - pwsh: |
           New-Item -ItemType Directory -Force -Path "$(Build.ArtifactStagingDirectory)/diagnostics" | Out-Null

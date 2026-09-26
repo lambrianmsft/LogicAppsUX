@@ -126,7 +126,7 @@ function buildAggregate(results) {
 
 function buildSingleSummary(result) {
   const lines = [
-    `### @vscode/test-cli Create Workspace: \`${result.label}\``,
+    `### @vscode/test-cli: \`${result.label}\``,
     '',
     '| Label | Outcome | Passing | Failing | Pending | Pass rate | JUnit | Logs | Screenshots |',
     '|---|---:|---:|---:|---:|---:|---|---|---|',
