@@ -93,16 +93,15 @@ async function runCreateWorkspaceFull(visibleDelayMs) {
 }
 
 async function runCreateWorkspaceMatrixCases(args, visibleDelayMs) {
-  const label = getLabelArg(args);
   const caseLabels = getCreateWorkspaceMatrixCaseLabels(args);
   const startedAt = Date.now();
 
-  for (const caseLabel of caseLabels) {
+  for (const [index, caseLabel] of caseLabels.entries()) {
     await runVscodeTest(args, {
       visibleDelayMs,
       extraEnv: {
         LA_E2E_CLI_CREATE_WORKSPACE_CASE: caseLabel,
-        LA_E2E_CLI_USER_DATA_SUFFIX: `${sanitizeEnvSegment(label)}-${sanitizeEnvSegment(caseLabel)}-${Date.now()}`,
+        LA_E2E_CLI_USER_DATA_SUFFIX: `cw-${index + 1}-${Date.now().toString(36)}`,
       },
     });
   }

@@ -22,7 +22,7 @@ function writeSingleResult({ label, log, outDir, outcome }) {
   requireOption(log, '--log');
   requireOption(outDir, '--out-dir');
 
-  const logText = fs.existsSync(log) ? fs.readFileSync(log, 'utf-8') : '';
+  const logText = stripAnsi(fs.existsSync(log) ? fs.readFileSync(log, 'utf-8') : '');
   const result = parseMochaLog(label, outcome ?? 'unknown', logText);
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -279,7 +279,35 @@ function uniqueMatches(text, pattern) {
 }
 
 function escapeXml(value) {
-  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  return removeInvalidXmlChars(stripAnsi(value))
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function stripAnsi(value) {
+  const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
+  return String(value).replace(ansiPattern, '');
+}
+
+function removeInvalidXmlChars(value) {
+  let result = '';
+  for (const character of String(value)) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint === 0x09 ||
+      codePoint === 0x0a ||
+      codePoint === 0x0d ||
+      (codePoint >= 0x20 && codePoint <= 0xd7ff) ||
+      (codePoint >= 0xe000 && codePoint <= 0xfffd)
+    ) {
+      result += character;
+    }
+  }
+
+  return result;
 }
 
 function requireOption(value, name) {
