@@ -6,6 +6,9 @@ parameters:
   - name: label
     type: string
     default: unitTests
+  - name: cliArguments
+    type: string
+    default: ''
   - name: feedBaseUrl
     type: string
   - name: nodeVersion
@@ -25,12 +28,33 @@ parameters:
   - name: testARMServiceConnection
     type: string
     default: ''
+  - name: requiresAzureAccessToken
+    type: boolean
+    default: false
+  - name: azureTenantId
+    type: string
+    default: ''
+  - name: azureSubscriptionId
+    type: string
+    default: ''
+  - name: azureResourceGroupName
+    type: string
+    default: ''
+  - name: azureLocationName
+    type: string
+    default: ''
+  - name: azureManagementBaseUrl
+    type: string
+    default: 'https://management.azure.com'
+  - name: timeoutInMinutes
+    type: number
+    default: 20
 
 jobs:
   - job: ${{ parameters.jobName }}
     displayName: ${{ parameters.displayName }}
     dependsOn: ${{ parameters.dependsOn }}
-    timeoutInMinutes: 20
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     pool: ${{ parameters.pool }}
     templateContext:
       outputs:
@@ -62,6 +86,12 @@ jobs:
           tar -xzf "$(Pipeline.Workspace)/vscode-e2e-build/extension-build.tar.gz" -C "$(Build.SourcesDirectory)"
         displayName: Extract VS Code E2E build artifact
 
+      - ${{ if and(eq(parameters.requiresAzureAccessToken, true), eq(parameters.testARMServiceConnection, '')) }}:
+          - bash: |
+              echo 'testARMServiceConnection is required when requiresAzureAccessToken is true.'
+              exit 1
+            displayName: Validate live Azure service connection parameter
+
       - ${{ if ne(parameters.testARMServiceConnection, '') }}:
           - task: AzureCLI@2
             displayName: Verify test service connection
@@ -76,14 +106,35 @@ jobs:
                 Write-Host "##vso[task.setvariable variable=FC_SERVICE_CONNECTION_ID]$env:AZURESUBSCRIPTION_SERVICE_CONNECTION_ID"
                 Write-Host "##vso[task.setvariable variable=FC_SERVICE_CONNECTION_CLIENT_ID]$env:servicePrincipalId"
                 Write-Host "##vso[task.setvariable variable=FC_SERVICE_CONNECTION_TENANT_ID]$env:tenantId"
+                if ('${{ parameters.requiresAzureAccessToken }}' -eq 'True') {
+                  if (-not '${{ parameters.azureSubscriptionId }}' -or -not '${{ parameters.azureResourceGroupName }}') {
+                    throw 'azureSubscriptionId and azureResourceGroupName are required for live Azure E2E.'
+                  }
+                  $token = az account get-access-token --resource https://management.core.windows.net/ --query accessToken -o tsv
+                  if (-not $token) {
+                    throw 'Azure CLI did not return an ARM token.'
+                  }
+                  Write-Host "##vso[task.setvariable variable=LA_E2E_CLI_AZURE_ACCESS_TOKEN;issecret=true]$token"
+                }
 
       - bash: |
           set -euo pipefail
+          cli_arguments='${{ parameters.cliArguments }}'
+          if [ -z "$cli_arguments" ]; then
+            cli_arguments='--label ${{ parameters.label }}'
+          fi
           /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          pnpm --dir apps/vs-code-designer run test:e2e-cli -- --label ${{ parameters.label }}
+          pnpm --dir apps/vs-code-designer run test:e2e-cli -- $cli_arguments
         displayName: Run vscode-test CLI (${{ parameters.label }})
         env:
           DISPLAY: :99
+          ${{ if eq(parameters.requiresAzureAccessToken, true) }}:
+            LA_E2E_CLI_AZURE_ACCESS_TOKEN: $(LA_E2E_CLI_AZURE_ACCESS_TOKEN)
+            LA_E2E_CLI_AZURE_TENANT_ID: ${{ parameters.azureTenantId }}
+            LA_E2E_CLI_AZURE_SUBSCRIPTION_ID: ${{ parameters.azureSubscriptionId }}
+            LA_E2E_CLI_AZURE_RESOURCE_GROUP_NAME: ${{ parameters.azureResourceGroupName }}
+            LA_E2E_CLI_AZURE_LOCATION_NAME: ${{ parameters.azureLocationName }}
+            LA_E2E_CLI_AZURE_MANAGEMENT_BASE_URL: ${{ parameters.azureManagementBaseUrl }}
           ${{ if ne(parameters.testARMServiceConnection, '') }}:
             SYSTEM_ACCESSTOKEN: $(System.AccessToken)
             FC_SERVICE_CONNECTION_NAME: ${{ parameters.testARMServiceConnection }}

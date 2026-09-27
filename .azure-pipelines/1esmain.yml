@@ -70,6 +70,31 @@ parameters:
     type: boolean
     default: true
 
+  - name: runVscodeMsnWeatherLifecycle
+    displayName: Run live MSN Weather workflow lifecycle
+    type: boolean
+    default: true
+
+  - name: vscodeE2EAzureTenantId
+    displayName: Live E2E tenant ID
+    type: string
+    default: c9db855a-7930-48d8-8e3c-a409a38faab3
+
+  - name: vscodeE2EAzureSubscriptionId
+    displayName: Live E2E subscription ID
+    type: string
+    default: f11e76f5-6d71-4e8b-9571-9c5f147628ed
+
+  - name: vscodeE2EAzureResourceGroupName
+    displayName: Live E2E resource group name
+    type: string
+    default: LogicAppsVSCode-E2E-Fixtures
+
+  - name: vscodeE2EAzureLocationName
+    displayName: Live E2E managed API location
+    type: string
+    default: westus
+
   - name: vscodeE2ECheckoutRef
     displayName: Optional ref for VS Code E2E jobs
     type: string
@@ -178,6 +203,26 @@ extends:
                       checkoutRef: ${{ parameters.vscodeE2ECheckoutRef }}
                       testARMServiceConnection: ${{ parameters.testARMServiceConnection }}
 
+              - ${{ if eq(parameters.runVscodeMsnWeatherLifecycle, true) }}:
+                  - template: .azure-pipelines/templates/vscode-e2e-run-cli.yml@LogicAppsUX
+                    parameters:
+                      jobName: VscodeE2EMsnWeatherLifecycle
+                      displayName: vscode-test CLI MSN Weather lifecycle
+                      label: msnWeatherLifecycle
+                      cliArguments: --msn-weather-lifecycle
+                      feedBaseUrl: ${{ variables.feedBaseUrl }}
+                      pool: ${{ parameters.vscodeE2ELinuxPool }}
+                      dependsOn:
+                        - BuildVscodeE2EArtifacts
+                      checkoutRef: ${{ parameters.vscodeE2ECheckoutRef }}
+                      testARMServiceConnection: ${{ parameters.testARMServiceConnection }}
+                      requiresAzureAccessToken: true
+                      azureTenantId: ${{ parameters.vscodeE2EAzureTenantId }}
+                      azureSubscriptionId: ${{ parameters.vscodeE2EAzureSubscriptionId }}
+                      azureResourceGroupName: ${{ parameters.vscodeE2EAzureResourceGroupName }}
+                      azureLocationName: ${{ parameters.vscodeE2EAzureLocationName }}
+                      timeoutInMinutes: 35
+
               - template: .azure-pipelines/templates/vscode-e2e-setup-fixtures.yml@LogicAppsUX
                 parameters:
                   jobName: SetupVscodeE2EFixtures
@@ -210,6 +255,8 @@ extends:
                   dependsOn:
                     - ${{ if eq(parameters.runVscodeTestCliSmoke, true) }}:
                         - VscodeE2ECliSmoke
+                    - ${{ if eq(parameters.runVscodeMsnWeatherLifecycle, true) }}:
+                        - VscodeE2EMsnWeatherLifecycle
                     - SetupVscodeE2EFixtures
                     - ${{ each shard in parameters.vscodeE2EScenarioShards }}:
                         - ${{ shard.jobName }}
