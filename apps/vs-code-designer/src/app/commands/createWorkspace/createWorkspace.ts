@@ -18,6 +18,7 @@ export async function createWorkspace(_context: IActionContext): Promise<void> {
     createHandler: async (data: any) => {
       // NOTE(aeldridge): In order to avoid collision in telemetry with registered command events, createHandler scopes use the createCommand as callbackId.
       await callWithTelemetryAndErrorHandling(ExtensionCommand.createWorkspace, async (actionContext: IActionContext) => {
+        actionContext.errorHandling.rethrow = true;
         await createLogicAppWorkspace(actionContext, data, false);
       });
     },

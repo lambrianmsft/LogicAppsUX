@@ -345,8 +345,23 @@ export interface UpdateWorkspacePackageMessage {
 export interface ValidateWorkspacePathMessage {
   command: typeof ExtensionCommand.validatePath;
   data: {
+    project?: string;
     path: any;
     isValid: boolean;
+    error?: string;
+  };
+}
+
+export interface CreateWorkspaceFailureMessage {
+  command:
+    | typeof ExtensionCommand.createWorkspace
+    | typeof ExtensionCommand.createWorkspaceFromPackage
+    | typeof ExtensionCommand.createWorkspaceStructure
+    | typeof ExtensionCommand.createLogicApp
+    | typeof ExtensionCommand.createWorkflow;
+  data: {
+    project: string;
+    error: string;
   };
 }
 

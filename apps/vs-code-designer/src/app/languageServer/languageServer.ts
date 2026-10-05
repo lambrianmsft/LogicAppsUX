@@ -172,9 +172,22 @@ export default class LogicAppsLanguageServer {
     ext.context?.subscriptions.push(ext.languageClient);
 
     await ext.languageClient.start();
+    if (process.env.LOGICAPPS_LOCAL_CANDIDATE_MANIFEST) {
+      const { recordLocalCandidateLspSdk } = await import('../utils/localCandidateRuntime');
+      recordLocalCandidateLspSdk(this.sdkNupkgPath);
+    }
   }
 
   private async getSDKPaths() {
+    const { ensureLocalCandidateInstalled } = await import('../utils/localCandidate');
+    const candidate = await ensureLocalCandidateInstalled();
+    if (candidate) {
+      const lspServerPath = path.join(candidate.dependenciesPath, 'LSPServer', 'SdkLspServer.dll');
+      if (!(await fse.pathExists(lspServerPath))) {
+        throw new Error(`Local candidate language server is missing: ${lspServerPath}`);
+      }
+      return { lspServerPath, sdkNupkgPath: candidate.sdkPath };
+    }
     const dependenciesPath = getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey);
     if (!dependenciesPath) {
       return { lspServerPath: undefined, sdkNupkgPath: undefined };

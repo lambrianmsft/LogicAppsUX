@@ -20,6 +20,7 @@ export async function cloudToLocal(_context: IActionContext): Promise<void> {
     createCommand: ExtensionCommand.createWorkspaceFromPackage,
     createHandler: async (data: any) => {
       await callWithTelemetryAndErrorHandling(ExtensionCommand.createWorkspaceFromPackage, async (actionContext: IActionContext) => {
+        actionContext.errorHandling.rethrow = true;
         await createLogicAppWorkspace(actionContext, data, true);
       });
     },

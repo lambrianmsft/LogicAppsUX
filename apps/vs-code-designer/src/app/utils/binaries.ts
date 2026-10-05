@@ -775,6 +775,9 @@ export async function binariesExist(dependencyName: string): Promise<boolean> {
 }
 
 export async function useBinariesDependencies(): Promise<boolean> {
+  if (getActiveLocalCandidate()) {
+    return true;
+  }
   const isDevContainer = await isDevContainerWorkspace();
   if (isDevContainer) {
     return false;
@@ -792,6 +795,9 @@ export function binariesExistSync(dependencyName: string): boolean {
 }
 
 export function useBinariesDependenciesSync(): boolean {
+  if (getActiveLocalCandidate()) {
+    return true;
+  }
   if (isDevContainerWorkspaceSync()) {
     return false;
   }
@@ -817,6 +823,10 @@ function getExpectedBinaryPath(dependencyName: string): string | undefined {
 async function binariesExistFromSettings(dependencyName: string, updateMissingExeSetting: true): Promise<boolean>;
 function binariesExistFromSettings(dependencyName: string, updateMissingExeSetting: false): boolean;
 function binariesExistFromSettings(dependencyName: string, updateMissingExeSetting: boolean): boolean | Promise<boolean> {
+  if (getActiveLocalCandidate()) {
+    const executable = getExpectedBinaryPath(dependencyName);
+    return !!executable && path.isAbsolute(executable) && fs.existsSync(executable);
+  }
   const binariesLocation = getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey);
   if (!binariesLocation) {
     return false;
@@ -1489,6 +1499,11 @@ function extractContainerFolder(targetFolder: string) {
  * @returns {Promise<string>} The path to the runtime dependencies folder.
  */
 export async function ensureRuntimeDependenciesDir(): Promise<string> {
+  const { ensureLocalCandidateInstalled } = await import('./localCandidate');
+  const candidate = await ensureLocalCandidateInstalled();
+  if (candidate) {
+    return candidate.dependenciesPath;
+  }
   const configuredPath = getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey);
   const dependenciesPath = configuredPath || defaultDependencyPathValue;
 
@@ -1520,3 +1535,4 @@ export function getDependencyTimeout(): number {
 
   return timeoutInSeconds;
 }
+import { getActiveLocalCandidate } from './localCandidateRuntime';

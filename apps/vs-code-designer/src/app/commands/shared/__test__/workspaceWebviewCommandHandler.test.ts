@@ -4,6 +4,11 @@ import * as vscode from 'vscode';
 import { cacheWebviewPanel, removeWebviewPanelFromCache, tryGetWebviewPanel } from '../../../utils/codeless/common';
 import { getWebViewHTML } from '../../../utils/codeless/getWebViewHTML';
 import { createWorkspaceWebviewCommandHandler } from '../workspaceWebviewCommandHandler';
+import { assertLocalCandidateProject } from '../../../utils/localCandidateRuntime';
+
+vi.mock('../../../utils/localCandidateRuntime', () => ({
+  assertLocalCandidateProject: vi.fn(),
+}));
 
 vi.mock('vscode', () => ({
   ViewColumn: { Active: 1 },
@@ -159,11 +164,13 @@ describe('createWorkspaceWebviewCommandHandler', () => {
     const onResolve = vi.fn();
     const { sendMessage } = await createHandlerHarness(createHandler, onResolve);
 
-    // First call fails — error propagates from the handler since there is no
-    // callWithTelemetryAndErrorHandling wrapper in the test mock.
-    await expect(sendMessage({ command: ExtensionCommand.createWorkspaceStructure, data: { workspaceName: 'one' } })).rejects.toThrow(
-      'create failed'
-    );
+    await sendMessage({ command: ExtensionCommand.createWorkspaceStructure, data: { workspaceName: 'one' } });
+    expect(panel.webview.postMessage).toHaveBeenCalledWith({
+      command: ExtensionCommand.createWorkspaceStructure,
+      data: { project: 'LogicApp', error: 'create failed' },
+    });
+    expect(panel.dispose).not.toHaveBeenCalled();
+    expect(onResolve).not.toHaveBeenCalled();
     await sendMessage({ command: ExtensionCommand.createWorkspaceStructure, data: { workspaceName: 'one' } });
 
     expect(createHandler).toHaveBeenCalledTimes(2);
@@ -282,5 +289,23 @@ describe('createWorkspaceWebviewCommandHandler', () => {
         isValid: false,
       },
     });
+  });
+
+  it('rejects an outside candidate parent during path validation without filesystem checks or creation', async () => {
+    const fs = await import('fs');
+    const { sendMessage, createHandler } = await createHandlerHarness();
+    const error = 'Choose a folder inside C:\\private\\candidate and try again.';
+    vi.mocked(assertLocalCandidateProject).mockImplementationOnce(() => {
+      throw new Error(error);
+    });
+
+    await sendMessage({ command: ExtensionCommand.validatePath, data: { path: 'D:\\outside' } });
+
+    expect(panel.webview.postMessage).toHaveBeenCalledWith({
+      command: ExtensionCommand.validatePath,
+      data: { project: 'LogicApp', path: 'D:\\outside', isValid: false, error },
+    });
+    expect(fs.existsSync).not.toHaveBeenCalled();
+    expect(createHandler).not.toHaveBeenCalled();
   });
 });

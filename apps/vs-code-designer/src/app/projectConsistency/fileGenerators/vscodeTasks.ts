@@ -7,6 +7,7 @@ import { getFuncHostTaskEnv } from '../../utils/codeless/funcHostTaskEnv';
 import { dotnetPublishTaskLabel, extensionCommand, func, funcWatchProblemMatcher, hostStartCommand } from '../../../constants';
 import { ProjectType, ProjectPackageType } from '@microsoft/vscode-extension-logic-apps';
 import * as path from 'path';
+import { getActiveLocalCandidate } from '../../utils/localCandidateRuntime';
 
 const TASKS_VERSION = '2.0.0';
 const FUNC_BINARY_PATH = '${config:azureLogicAppsStandard.funcCoreToolsBinaryPath}';
@@ -117,7 +118,7 @@ function getFuncHostStartTask(config: VSCodeProjectConfig, options?: { dependsOn
     label: 'func: host start',
     type: hasFuncBinaries ? 'shell' : func,
     command: hasFuncBinaries ? FUNC_BINARY_PATH : hostStartCommand,
-    args: hasFuncBinaries ? ['host', 'start'] : undefined,
+    args: hasFuncBinaries ? ['host', 'start', ...(getActiveLocalCandidate() ? ['--address', '127.0.0.1'] : [])] : undefined,
     ...(envOptions ?? {}),
     problemMatcher: funcWatchProblemMatcher,
     isBackground: true,
@@ -125,6 +126,10 @@ function getFuncHostStartTask(config: VSCodeProjectConfig, options?: { dependsOn
 
   if (options?.dependsOn) {
     task.dependsOn = options.dependsOn;
+  }
+  if (getActiveLocalCandidate() && projectType === ProjectType.codeful && hasFuncBinaries) {
+    task.command = 'node';
+    task.args = [path.join(__dirname, 'localCandidateHost.js'), FUNC_BINARY_PATH, ...(task.args as string[])];
   }
 
   if (!isDotnet) {

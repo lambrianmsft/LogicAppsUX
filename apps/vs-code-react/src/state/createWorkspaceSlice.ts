@@ -38,6 +38,7 @@ export interface CreateWorkspaceState {
   existingFolders: string[];
   flowType: 'createWorkspace' | 'createWorkspaceFromPackage' | 'createLogicApp' | 'ensureWorkspace' | 'createWorkflow';
   pathValidationResults: Record<string, boolean>;
+  pathValidationErrors?: Record<string, string>;
   packageValidationResults: Record<string, boolean>;
   workspaceExistenceResults: Record<string, boolean>;
   isValidatingWorkspace: boolean;
@@ -79,6 +80,7 @@ const initialState: CreateWorkspaceState = {
   existingFolders: [],
   flowType: 'createWorkspace',
   pathValidationResults: {},
+  pathValidationErrors: {},
   packageValidationResults: {},
   workspaceExistenceResults: {},
   isValidatingWorkspace: false,
@@ -211,9 +213,15 @@ export const createWorkspaceSlice = createSlice<CreateWorkspaceState, SliceCaseR
     ) => {
       state.flowType = action.payload;
     },
-    setPathValidationResult: (state, action: PayloadAction<{ path: string; isValid: boolean }>) => {
-      const { path, isValid } = action.payload;
+    setPathValidationResult: (state, action: PayloadAction<{ path: string; isValid: boolean; error?: string }>) => {
+      const { path, isValid, error } = action.payload;
       state.pathValidationResults[path] = isValid;
+      state.pathValidationErrors ??= {};
+      if (!isValid && error) {
+        state.pathValidationErrors[path] = error;
+      } else {
+        delete state.pathValidationErrors[path];
+      }
     },
     setPackageValidationResult: (state, action: PayloadAction<{ path: string; isValid: boolean }>) => {
       const { path, isValid } = action.payload;

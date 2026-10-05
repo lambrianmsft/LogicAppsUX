@@ -19,8 +19,25 @@ import { validateNodeJsIsLatest } from '../nodeJs/validateNodeJsIsLatest';
 import { callWithTelemetryAndErrorHandling, type IActionContext } from '@microsoft/vscode-azext-utils';
 import type { IRuntimeDependencyVersions } from '@microsoft/vscode-extension-logic-apps';
 import * as vscode from 'vscode';
+import { getActiveLocalCandidate } from '../../utils/localCandidateRuntime';
+import { getGlobalSetting } from '../../utils/vsCodeConfig/settings';
+import { dotNetBinaryPathSettingKey, funcCoreToolsBinaryPathSettingKey, nodeJsBinaryPathSettingKey } from '../../../constants';
+import { access } from 'fs/promises';
+import path from 'path';
 
 export async function validateAndInstallBinaries(context: IActionContext) {
+  if (getActiveLocalCandidate()) {
+    for (const key of [dotNetBinaryPathSettingKey, funcCoreToolsBinaryPathSettingKey, nodeJsBinaryPathSettingKey]) {
+      const executable = getGlobalSetting<string>(key);
+      if (!executable || !path.isAbsolute(executable)) {
+        throw new Error(`Local candidate mode requires an existing absolute executable path for ${key}; automatic downloads are disabled.`);
+      }
+      await access(executable);
+    }
+    await ensureExtensionBundleHealthy();
+    await installLSPSDK();
+    return;
+  }
   const helpLink = 'https://aka.ms/lastandard/onboarding/troubleshoot';
   const requireStrictDependencyValidation = shouldRequireStrictDependencyValidation();
 

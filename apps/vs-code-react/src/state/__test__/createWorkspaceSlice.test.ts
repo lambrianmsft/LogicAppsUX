@@ -10,6 +10,7 @@ import createWorkspaceReducer, {
   setCurrentStep,
   setWorkspaceName,
   setTargetFramework,
+  setPathValidationResult,
 } from '../createWorkspaceSlice';
 import type { CreateWorkspaceState } from '../createWorkspaceSlice';
 import { Platform } from '@microsoft/vscode-extension-logic-apps';
@@ -20,6 +21,36 @@ const getState = (overrides: Partial<CreateWorkspaceState> = {}): CreateWorkspac
 });
 
 describe('createWorkspaceSlice', () => {
+  describe('path validation errors', () => {
+    it('stores host errors per path without changing other validation flags', () => {
+      const state = getState({ isValidatingWorkspace: true, isValidatingPackage: true });
+      const result = createWorkspaceReducer(
+        state,
+        setPathValidationResult({ path: 'D:\\outside', isValid: false, error: 'Select a folder under D:\\candidate.' })
+      );
+      expect(result.pathValidationResults['D:\\outside']).toBe(false);
+      expect(result.pathValidationErrors?.['D:\\outside']).toBe('Select a folder under D:\\candidate.');
+      expect(result.isValidatingWorkspace).toBe(true);
+      expect(result.isValidatingPackage).toBe(true);
+    });
+
+    it.each([true, false])('clears stale host errors for a new result without an error (isValid=%s)', (isValid) => {
+      const state = getState({ pathValidationErrors: { first: 'Old error', second: 'Keep this error' } });
+      const result = createWorkspaceReducer(state, setPathValidationResult({ path: 'first', isValid }));
+      expect(result.pathValidationResults.first).toBe(isValid);
+      expect(result.pathValidationErrors).toEqual({ second: 'Keep this error' });
+    });
+
+    it('accepts legacy state and validation replies without errors', () => {
+      const result = createWorkspaceReducer(
+        getState({ pathValidationErrors: undefined }),
+        setPathValidationResult({ path: 'D:\\project', isValid: false })
+      );
+      expect(result.pathValidationErrors).toEqual({});
+      expect(result.pathValidationResults['D:\\project']).toBe(false);
+    });
+  });
+
   describe('initializeWorkspace', () => {
     it('sets platform, separator, logicAppType and logicAppName from the host payload', () => {
       const result = createWorkspaceReducer(

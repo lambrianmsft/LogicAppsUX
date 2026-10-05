@@ -104,7 +104,11 @@ describe('workspace webview command wrappers', () => {
     const data = { workspaceName: 'MyWorkspace' };
     await config.createHandler(data);
 
-    expect(createLogicAppWorkspace).toHaveBeenCalledWith(expect.any(Object), data, false);
+    expect(createLogicAppWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ errorHandling: expect.objectContaining({ rethrow: true }) }),
+      data,
+      false
+    );
   });
 
   it('cloudToLocal passes package config and invokes createLogicAppWorkspace for package import', async () => {
@@ -126,7 +130,11 @@ describe('workspace webview command wrappers', () => {
     const data = { packagePath: 'D:\\downloads\\app.zip' };
     await config.createHandler(data);
 
-    expect(createLogicAppWorkspace).toHaveBeenCalledWith(expect.any(Object), data, true);
+    expect(createLogicAppWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ errorHandling: expect.objectContaining({ rethrow: true }) }),
+      data,
+      true
+    );
   });
 
   it('createProject opens the project webview when a workspace is present', async () => {

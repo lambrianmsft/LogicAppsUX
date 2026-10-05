@@ -12,6 +12,7 @@ import { cacheWebviewPanel, removeWebviewPanelFromCache, tryGetWebviewPanel } fr
 import { getWebViewHTML } from '../../utils/codeless/getWebViewHTML';
 import { assetsFolderName } from '../../../constants';
 import { localize } from '../../../localize';
+import { assertLocalCandidateProject } from '../../utils/localCandidateRuntime';
 
 export interface WorkspaceWebviewCommandConfig {
   panelName: string;
@@ -98,6 +99,14 @@ export async function createWorkspaceWebviewCommandHandler(config: WorkspaceWebv
       try {
         await createHandler(message.data);
         createSucceeded = true;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        ext.outputChannel.appendLog(`[${createCommand}] ${errorMessage}`);
+        await panel.webview.postMessage({
+          command: createCommand,
+          data: { project: projectName, error: errorMessage },
+        });
+        return;
       } finally {
         if (!createSucceeded) {
           isCreateInProgress = false;
@@ -180,6 +189,22 @@ export async function createWorkspaceWebviewCommandHandler(config: WorkspaceWebv
 async function validatePath(data: any, projectName: string) {
   const { path: pathToValidate, type } = data || {};
   let exists = false;
+
+  if (!type && typeof pathToValidate === 'string' && pathToValidate) {
+    try {
+      assertLocalCandidateProject(pathToValidate);
+    } catch (error) {
+      return {
+        command: ExtensionCommand.validatePath,
+        data: {
+          project: projectName,
+          path: pathToValidate,
+          isValid: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  }
 
   try {
     if (pathToValidate && typeof pathToValidate === 'string') {

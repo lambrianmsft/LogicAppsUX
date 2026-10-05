@@ -17,6 +17,7 @@ import { getAuthData } from '../../utils/codeless/getAuthorizationToken';
 import type { IActionContext } from '@microsoft/vscode-azext-utils';
 import { parseError } from '@microsoft/vscode-azext-utils';
 import type { AzureConnectorDetails } from '@microsoft/vscode-extension-logic-apps';
+import { getActiveLocalCandidate, assertLocalCandidateProject, isLocalCandidateManualMode } from '../../utils/localCandidateRuntime';
 
 // --- Azure connector details cache and orchestration ---
 
@@ -27,6 +28,13 @@ export async function getAzureConnectorDetailsForLocalProject(
   context: IActionContext,
   projectPath: string
 ): Promise<AzureConnectorDetails> {
+  if (getActiveLocalCandidate()) {
+    assertLocalCandidateProject(projectPath);
+    if (!isLocalCandidateManualMode()) {
+      context.telemetry.properties.localCandidateConnectors = 'disabled';
+      return { enabled: false };
+    }
+  }
   if (!projectPath) {
     context.telemetry.properties.azureConnectorDetailsProjectPathMissing = 'true';
     return {

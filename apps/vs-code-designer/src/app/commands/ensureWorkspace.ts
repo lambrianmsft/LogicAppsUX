@@ -96,6 +96,7 @@ async function createWorkspaceStructureWebview(): Promise<boolean> {
       createCommand: ExtensionCommand.createWorkspaceStructure,
       createHandler: async (data: any) => {
         await callWithTelemetryAndErrorHandling(ExtensionCommand.createWorkspaceStructure, async (actionContext: IActionContext) => {
+          actionContext.errorHandling.rethrow = true;
           await createWorkspaceFile(actionContext, data);
         });
       },
@@ -212,13 +213,7 @@ function validateWorkspaceProjectPath(options: any): IWebviewProjectContext {
       keys: Object.keys(options || {}),
     });
     ext.outputChannel.appendLog(`[EnsureWorkspace] Invalid workspaceProjectPath: ${detail}`);
-    throw new Error(
-      localize(
-        'invalidWorkspaceProjectPath',
-        'Invalid workspaceProjectPath: {0}.',
-        detail
-      )
-    );
+    throw new Error(localize('invalidWorkspaceProjectPath', 'Invalid workspaceProjectPath: {0}.', detail));
   }
   return ctx;
 }

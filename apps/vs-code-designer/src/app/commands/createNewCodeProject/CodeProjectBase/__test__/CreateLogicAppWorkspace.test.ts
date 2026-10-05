@@ -16,6 +16,17 @@ import { ProjectType } from '@microsoft/vscode-extension-logic-apps';
 import type { IActionContext } from '@microsoft/vscode-azext-utils';
 import type { IWebviewProjectContext } from '@microsoft/vscode-extension-logic-apps';
 import { ext } from '../../../../../extensionVariables';
+import { ensureLocalCandidateInstalled } from '../../../../utils/localCandidate';
+import { assertLocalCandidateProject } from '../../../../utils/localCandidateRuntime';
+
+vi.mock('../../../../utils/localCandidateRuntime', () => ({
+  assertLocalCandidateProject: vi.fn(),
+  getActiveLocalCandidate: vi.fn(),
+}));
+
+vi.mock('../../../../utils/localCandidate', () => ({
+  ensureLocalCandidateInstalled: vi.fn(),
+}));
 
 vi.mock('vscode', () => ({
   window: {
@@ -56,11 +67,13 @@ vi.mock('fs-extra', () => ({
   readFile: vi.fn(),
   copyFile: vi.fn(),
   mkdirSync: vi.fn(),
+  stat: vi.fn(),
 }));
 
 vi.mock('path', () => ({
   join: vi.fn(),
   resolve: vi.fn(),
+  isAbsolute: vi.fn(),
 }));
 
 vi.mock('../../../../utils/vsCodeConfig/settings', () => ({
@@ -149,18 +162,73 @@ describe('CreateLogicAppWorkspace - Codeful Workflows', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
+    vi.mocked(ensureLocalCandidateInstalled).mockResolvedValue(undefined);
 
     // Restore path.join to use actual implementation
     vi.mocked(path.join).mockImplementation((...args: string[]) => actualPath.join(...args));
     vi.mocked(path.resolve).mockImplementation((...args: string[]) => actualPath.resolve(...args));
+    vi.mocked(path.isAbsolute).mockImplementation(actualPath.isAbsolute);
 
     // Default getGlobalSetting behavior
     vi.mocked(vscodeConfigModule.getGlobalSetting).mockReturnValue(testLspDirectory);
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.resetAllMocks();
   });
+
+  it.each([undefined, actualPath.resolve('offline & packages')])(
+    'generates exact candidate SDK references with offline source %s',
+    async (offlineSource) => {
+      vi.stubEnv('LOGICAPPS_LOCAL_CANDIDATE_NUGET_SOURCE', offlineSource);
+      vi.mocked(fse.stat).mockResolvedValue(actualFs.statSync('.'));
+      vi.mocked(ensureLocalCandidateInstalled).mockResolvedValue({
+        schemaVersion: 1,
+        manifestPath: actualPath.join(testLspDirectory, 'candidate.json'),
+        root: testLspDirectory,
+        bundleRoot: actualPath.join(testLspDirectory, 'bundles'),
+        bundlePath: actualPath.join(testLspDirectory, 'bundles', '1.2.3'),
+        bundle: { path: actualPath.join(testLspDirectory, 'bundle.zip'), version: '1.2.3', sha256: 'a'.repeat(64) },
+        dependenciesPath: testLspDirectory,
+        sdkPath: actualPath.join(testLspDirectory, 'candidate.nupkg'),
+        sdk: {
+          path: actualPath.join(testLspDirectory, 'candidate.nupkg'),
+          packageId: 'Microsoft.Azure.Workflows.Sdk',
+          version: '1.0.0-e2e.abc',
+          sha256: 'b'.repeat(64),
+        },
+      });
+      vi.mocked(fse.pathExists).mockResolvedValue(false);
+      vi.mocked(fse.readFile).mockImplementation(async (filePath: string) =>
+        actualFs.readFileSync(
+          new URL(`../../../../../assets/CodefulProjectTemplate/${actualPath.basename(filePath)}`, import.meta.url),
+          'utf-8'
+        )
+      );
+
+      await CreateLogicAppWorkspaceModule.createCodefulWorkflowFile(
+        testProjectPath,
+        testProjectName,
+        testWorkflowName,
+        WorkflowType.stateful
+      );
+
+      const project = vi.mocked(fse.writeFile).mock.calls.find(([file]) => String(file).endsWith('.csproj'))?.[1];
+      const nuget = vi.mocked(fse.writeFile).mock.calls.find(([file]) => String(file).endsWith('nuget.config'))?.[1];
+      expect(project).toContain('Include="Microsoft.Azure.Workflows.Sdk" Version="1.0.0-e2e.abc"');
+      expect(project).not.toContain('ExcludeAssets');
+      expect(nuget).toContain('<packageSource key="current"><package pattern="Microsoft.Azure.Workflows.Sdk" /></packageSource>');
+      if (offlineSource) {
+        expect(nuget).toContain('<clear />');
+        expect(nuget).toContain(offlineSource.replace(/&/g, '&amp;'));
+        expect(nuget).toContain('<packageSource key="offline"><package pattern="*" /></packageSource>');
+        expect(nuget).not.toContain('nuget.org');
+      } else {
+        expect(nuget).toContain('<packageSource key="nuget.org">');
+      }
+    }
+  );
 
   describe('createAgentCodefulWorkflowFile', () => {
     it('should create conversational agent provider workflow without adding a Program.cs AddWorkflow call', async () => {
@@ -761,6 +829,33 @@ describe('createLogicAppWorkspace', () => {
     await CreateLogicAppWorkspaceModule.createLogicAppWorkspace(mockContext, mockOptionsLogicApp, false);
 
     expect(funcVersionModule.addLocalFuncTelemetry).toHaveBeenCalledWith(mockContext);
+  });
+
+  it('rejects an outside candidate workspace before any files, installation, package extraction, or project commands', async () => {
+    vi.mocked(assertLocalCandidateProject).mockImplementationOnce(() => {
+      throw new Error('Local candidate projects must be inside the isolated candidate root.');
+    });
+    await expect(CreateLogicAppWorkspaceModule.createLogicAppWorkspace(mockContext, mockOptionsLogicApp, false)).rejects.toThrow(
+      'isolated candidate root'
+    );
+    expect(fse.ensureDir).not.toHaveBeenCalled();
+    expect(fse.writeJson).not.toHaveBeenCalled();
+    expect(fse.writeFile).not.toHaveBeenCalled();
+    expect(ensureLocalCandidateInstalled).not.toHaveBeenCalled();
+    expect(cloudToLocalUtilsModule.unzipLogicAppPackageIntoWorkspace).not.toHaveBeenCalled();
+    expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+  });
+
+  it('rejects an outside codeful file before expensive candidate installation', async () => {
+    vi.mocked(assertLocalCandidateProject).mockImplementationOnce(() => {
+      throw new Error('Local candidate projects must be inside the isolated candidate root.');
+    });
+    await expect(
+      CreateLogicAppWorkspaceModule.createCodefulWorkflowFile('D:\\outside', 'App', 'Workflow', WorkflowType.statefulCodeful)
+    ).rejects.toThrow('isolated candidate root');
+    expect(ensureLocalCandidateInstalled).not.toHaveBeenCalled();
+    expect(fse.readFile).not.toHaveBeenCalled();
+    expect(fse.writeFile).not.toHaveBeenCalled();
   });
 
   it('should create workspace structure with logic app and workflow', async () => {

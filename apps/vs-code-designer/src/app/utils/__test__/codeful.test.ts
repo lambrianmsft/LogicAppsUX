@@ -6,6 +6,7 @@ import { codefulProjectsExist, invalidateCodefulSdkCacheIfNeeded, parseCsprojCop
 const mocks = vi.hoisted(() => ({
   ensureDir: vi.fn(),
   getGlobalSetting: vi.fn(),
+  getLocalCandidate: vi.fn(),
   pathExists: vi.fn(),
   readdir: vi.fn(),
   readFile: vi.fn(),
@@ -35,6 +36,9 @@ vi.mock('fs-extra', () => ({
 
 vi.mock('../vsCodeConfig/settings', () => ({
   getGlobalSetting: mocks.getGlobalSetting,
+}));
+vi.mock('../localCandidate', () => ({
+  getLocalCandidate: mocks.getLocalCandidate,
 }));
 
 vi.mock('../../../extensionVariables', () => ({
@@ -72,6 +76,7 @@ describe('invalidateCodefulSdkCacheIfNeeded', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getLocalCandidate.mockResolvedValue(undefined);
     mocks.getGlobalSetting.mockReturnValue(runtimeDependenciesPath);
     mocks.ensureDir.mockResolvedValue(undefined);
     mocks.remove.mockResolvedValue(undefined);
@@ -98,6 +103,21 @@ describe('invalidateCodefulSdkCacheIfNeeded', () => {
       }
       return '';
     });
+  });
+
+  it('invalidates only the unique candidate SDK version, preserving the stock package', async () => {
+    const version = '1.0.0-e2e.abc';
+    const candidateCache = path.join(projectPath, '.nuget', 'packages', 'microsoft.azure.workflows.sdk', version);
+    mocks.getLocalCandidate.mockResolvedValue({
+      dependenciesPath: runtimeDependenciesPath,
+      sdk: { packageId: 'Microsoft.Azure.Workflows.Sdk', version },
+    });
+    setExistingPaths([localSettingsPath, nugetConfigPath, installedSdkHashMarkerPath, projectSdkPackagePath, candidateCache]);
+
+    expect(await invalidateCodefulSdkCacheIfNeeded(projectPath)).toBe(true);
+
+    expect(mocks.remove).toHaveBeenCalledWith(candidateCache);
+    expect(mocks.remove).not.toHaveBeenCalledWith(projectSdkPackagePath);
   });
 
   function setExistingPaths(paths: string[]): void {

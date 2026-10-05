@@ -29,6 +29,7 @@ import type {
   UpdateWorkflowPropertiesMessage,
   SelectRunMessage,
   GetDesignerVersionMessage,
+  CreateWorkspaceFailureMessage,
 } from './run-service';
 import {
   changeCustomXsltPathList,
@@ -95,6 +96,8 @@ import {
   setPackagePath,
   setPackageValidationResult,
   initializeWorkspace,
+  setError,
+  setLoading,
 } from './state/createWorkspaceSlice';
 
 const vscode: WebviewApi<unknown> = acquireVsCodeApi();
@@ -131,7 +134,8 @@ type WorkflowMessageType =
   | PackageExistenceResultMessage
   | AddStatusMessage
   | SetFinalStatusMessage
-  | ValidateWorkspacePathMessage;
+  | ValidateWorkspacePathMessage
+  | CreateWorkspaceFailureMessage;
 type MessageType = InjectValuesMessage | DesignerMessageType | DataMapperMessageType | WorkflowMessageType;
 
 export const WebViewCommunication: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -323,6 +327,14 @@ export const WebViewCommunication: React.FC<{ children: ReactNode }> = ({ childr
       case ProjectName.createWorkflow:
       case ProjectName.createWorkspaceStructure: {
         switch (message.command) {
+          case ExtensionCommand.createWorkspace:
+          case ExtensionCommand.createWorkspaceFromPackage:
+          case ExtensionCommand.createWorkspaceStructure:
+          case ExtensionCommand.createWorkflow: {
+            dispatch(setError(message.data.error));
+            dispatch(setLoading(false));
+            break;
+          }
           case ExtensionCommand.initialize_frame: {
             dispatch(initializeWorkspace(message.data));
             break;
@@ -356,6 +368,11 @@ export const WebViewCommunication: React.FC<{ children: ReactNode }> = ({ childr
       }
       case ProjectName.createLogicApp: {
         switch (message.command) {
+          case ExtensionCommand.createLogicApp: {
+            dispatch(setError(message.data.error));
+            dispatch(setLoading(false));
+            break;
+          }
           case ExtensionCommand.initialize_frame: {
             dispatch(initializeProject(message.data));
             break;

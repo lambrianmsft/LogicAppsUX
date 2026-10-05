@@ -85,6 +85,7 @@ export async function addCustomCode(context: IActionContext, node?: vscode.Uri):
     createCommand: ExtensionCommand.createLogicApp,
     createHandler: async (data: any) => {
       await callWithTelemetryAndErrorHandling('addCustomCode.createHandler', async (actionContext: IActionContext) => {
+        actionContext.errorHandling.rethrow = true;
         await createLogicAppProject(actionContext, data, workspaceRootFolder);
       });
     },

@@ -59,6 +59,13 @@ import { getAuthData } from '../../../utils/codeless/getAuthorizationToken';
 import { createAzureWizard } from '../azureConnectorWizard';
 import { getAzureConnectorDetailsForLocalProject, invalidateAzureDetailsCache } from '../azureConnectorDetails';
 import { setConnectorSetupSkipped } from '../../../state/connectors';
+import { getActiveLocalCandidate, isLocalCandidateManualMode, assertLocalCandidateProject } from '../../../utils/localCandidateRuntime';
+
+vi.mock('../../../utils/localCandidateRuntime', () => ({
+  getActiveLocalCandidate: vi.fn(),
+  isLocalCandidateManualMode: vi.fn(),
+  assertLocalCandidateProject: vi.fn(),
+}));
 
 describe('getAzureConnectorDetailsForLocalProject', () => {
   const projectPath = 'D:\\workspace\\LogicApp';
@@ -75,6 +82,29 @@ describe('getAzureConnectorDetailsForLocalProject', () => {
     mockGlobalStateGet = vi.mocked(ext.context.globalState.get);
     mockGlobalStateUpdate = vi.mocked(ext.context.globalState.update);
     mockGlobalStateGet.mockReturnValue(undefined);
+    vi.mocked(getActiveLocalCandidate).mockReturnValue(undefined);
+    vi.mocked(isLocalCandidateManualMode).mockReturnValue(false);
+  });
+
+  it('keeps automated candidates offline without reading Azure settings or invoking authentication', async () => {
+    vi.mocked(getActiveLocalCandidate).mockReturnValue({ root: projectPath } as ReturnType<typeof getActiveLocalCandidate>);
+    expect(await getAzureConnectorDetailsForLocalProject(context, projectPath)).toEqual({ enabled: false });
+    expect(assertLocalCandidateProject).toHaveBeenCalledWith(projectPath);
+    expect(getLocalSettingsJson).not.toHaveBeenCalled();
+    expect(createAzureWizard).not.toHaveBeenCalled();
+    expect(getAuthData).not.toHaveBeenCalled();
+  });
+
+  it('allows explicitly manual candidates to use the normal Azure wizard, preserving cancellation', async () => {
+    vi.mocked(getActiveLocalCandidate).mockReturnValue({ root: projectPath } as ReturnType<typeof getActiveLocalCandidate>);
+    vi.mocked(isLocalCandidateManualMode).mockReturnValue(true);
+    vi.mocked(getLocalSettingsJson).mockResolvedValue({ Values: {} });
+    const prompt = vi.fn().mockRejectedValue({ isUserCancelledError: true });
+    vi.mocked(createAzureWizard).mockReturnValue({ prompt, execute: vi.fn() } as ReturnType<typeof createAzureWizard>);
+    expect(await getAzureConnectorDetailsForLocalProject(context, projectPath)).toEqual({ enabled: false });
+    expect(assertLocalCandidateProject).toHaveBeenCalledWith(projectPath);
+    expect(prompt).toHaveBeenCalledOnce();
+    expect(getAuthData).not.toHaveBeenCalled();
   });
 
   it('defaults cancelled Azure connector discovery to disabled settings via globalState', async () => {

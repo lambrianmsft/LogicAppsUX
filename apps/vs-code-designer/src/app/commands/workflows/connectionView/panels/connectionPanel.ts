@@ -6,7 +6,7 @@ import { ext } from '../../../../../extensionVariables';
 import { localize } from '../../../../../localize';
 import { cacheWebviewPanel, removeWebviewPanelFromCache } from '../../../../utils/codeless/common';
 import { getAzureConnectorDetailsForLocalProject } from '../../../azureConnectors/azureConnectorDetails';
-import { callWithTelemetryAndErrorHandling, type IActionContext } from '@microsoft/vscode-azext-utils';
+import { callWithTelemetryAndErrorHandling, type IActionContext, parseError } from '@microsoft/vscode-azext-utils';
 import type { CodeSelection, ConnectionPanelMetadata } from '@microsoft/vscode-extension-logic-apps';
 import { ExtensionCommand, ProjectName, RouteName } from '@microsoft/vscode-extension-logic-apps';
 import { DesignerPanel } from '../../designer/panels/designerPanel';
@@ -85,75 +85,150 @@ export default class ConnectionPanel extends DesignerPanel {
       ViewColumn.Beside, // Editor column to show the new webview panel in.
       this.getPanelOptions()
     );
-    this.panel.iconPath = {
-      light: Uri.file(path.join(ext.context.extensionPath, 'assets', 'light', 'workflow.svg')),
-      dark: Uri.file(path.join(ext.context.extensionPath, 'assets', 'dark', 'workflow.svg')),
-    };
-
-    // Show loading state in webview
-    this.panel.webview.html = this.getLoadingHtml();
-
-    // Start design time API and load metadata in parallel
-    const startDesignTimePromise = callWithTelemetryAndErrorHandling('ConnectionPanel.create.startDesignTimeApi', async (actionContext: IActionContext) => {
-      await startDesignTimeApi(actionContext, this.projectPath!);
-    });
-    const [_, panelMetadata] = await Promise.all([startDesignTimePromise, this.getConnectionPanelMetadata()]);
-
-    if (!ext.designTimeInstances.has(this.projectPath)) {
-      throw new Error(localize('designTimeNotRunning', `Design time is not running for project ${this.projectPath}.`));
-    }
-
-    const designTimePort = ext.designTimeInstances.get(this.projectPath)?.port;
-    if (!designTimePort) {
-      throw new Error(localize('designTimePortNotFound', 'Design time port not found.'));
-    }
-    this.baseUrl = `http://localhost:${designTimePort}${managementApiPrefix}`;
-    this.workflowRuntimeBaseUrl = ext.getWorkflowRuntimeBaseUrl();
-
-    this.panelMetadata = panelMetadata;
-
-    // Pre-warm the auth token while the webview loads so that
-    // saveConnection → getConnectionsAndSettingsToUpdate → getAuthorizationToken
-    // returns instantly from cache when the user clicks a connection
-    if (this.panelMetadata.azureDetails?.tenantId) {
-      getAuthorizationToken(this.panelMetadata.azureDetails.tenantId).catch(() => {});
-    }
-
-    const callbackUri: Uri = await (env as any).asExternalUri(
-      Uri.parse(`${env.uriScheme}://ms-azuretools.vscode-azurelogicapps/authcomplete`)
-    );
-    this.context.telemetry.properties.extensionBundleVersion = this.panelMetadata.extensionBundleVersion;
-    this.oauthRedirectUrl = callbackUri.toString(true);
-
-    this.panelMetadata.mapArtifacts = this.mapArtifacts;
-    this.panelMetadata.schemaArtifacts = this.schemaArtifacts;
-
-    // Register message handler BEFORE setting the React webview content.
-    // The React app sends "initialize" immediately on boot — if the handler
-    // isn't registered yet, the message is silently dropped and the UI stays
-    // stuck on "Loading connection data..." forever.
-    this.panel.webview.onDidReceiveMessage(async (message) => await this.handleWebviewMsg(message), ext.context.subscriptions);
-
-    this.panel.onDidDispose(
-      () => {
+    const panel = this.panel;
+    let disposed = false;
+    const releasePanel = () => {
+      // An older failed panel must not evict a later retry with the same name.
+      if (this.getExistingPanel() === panel) {
         removeWebviewPanelFromCache(this.panelGroupKey, this.panelName);
+      }
+    };
+    panel.onDidDispose(
+      () => {
+        disposed = true;
+        releasePanel();
       },
       null,
       ext.context.subscriptions
     );
+    cacheWebviewPanel(this.panelGroupKey, this.panelName, panel);
+    ext.context.subscriptions.push(panel);
+    panel.iconPath = {
+      light: Uri.file(path.join(ext.context.extensionPath, 'assets', 'light', 'workflow.svg')),
+      dark: Uri.file(path.join(ext.context.extensionPath, 'assets', 'dark', 'workflow.svg')),
+    };
 
-    cacheWebviewPanel(this.panelGroupKey, this.panelName, this.panel);
-    ext.context.subscriptions.push(this.panel);
+    try {
+      // Show loading state in webview
+      panel.webview.html = this.getLoadingHtml();
 
-    // Set the React content LAST — handler is ready to receive "initialize"
-    this.panel.webview.html = await this.getWebviewContent({
-      connectionsData: this.panelMetadata.connectionsData,
-      parametersData: this.panelMetadata.parametersData || {},
-      localSettings: this.panelMetadata.localSettings,
-      artifacts: this.panelMetadata.artifacts,
-      azureDetails: this.panelMetadata.azureDetails,
-      workflowDetails: this.panelMetadata.workflowDetails,
+      // Start design time API and load metadata in parallel.
+      const startDesignTimePromise = this.startDesignTime(this.projectPath);
+      const [, panelMetadata] = await Promise.all([startDesignTimePromise, this.getConnectionPanelMetadata()]);
+      if (disposed) {
+        return;
+      }
+
+      if (!ext.designTimeInstances.has(this.projectPath)) {
+        throw new Error(localize('designTimeNotRunning', 'Design time is not running for project {0}.', this.projectPath));
+      }
+
+      const designTimePort = ext.designTimeInstances.get(this.projectPath)?.port;
+      if (!designTimePort) {
+        throw new Error(localize('designTimePortNotFound', 'Design time port not found.'));
+      }
+      this.baseUrl = `http://localhost:${designTimePort}${managementApiPrefix}`;
+      this.workflowRuntimeBaseUrl = ext.getWorkflowRuntimeBaseUrl();
+
+      this.panelMetadata = panelMetadata;
+
+      // Pre-warm the auth token while the webview loads so that
+      // saveConnection → getConnectionsAndSettingsToUpdate → getAuthorizationToken
+      // returns instantly from cache when the user clicks a connection
+      if (this.panelMetadata.azureDetails?.tenantId) {
+        getAuthorizationToken(this.panelMetadata.azureDetails.tenantId).catch(() => {});
+      }
+
+      const callbackUri: Uri = await (env as any).asExternalUri(
+        Uri.parse(`${env.uriScheme}://ms-azuretools.vscode-azurelogicapps/authcomplete`)
+      );
+      if (disposed) {
+        return;
+      }
+      this.context.telemetry.properties.extensionBundleVersion = this.panelMetadata.extensionBundleVersion;
+      this.oauthRedirectUrl = callbackUri.toString(true);
+
+      this.panelMetadata.mapArtifacts = this.mapArtifacts;
+      this.panelMetadata.schemaArtifacts = this.schemaArtifacts;
+
+      // Register message handler BEFORE setting the React webview content.
+      // The React app sends "initialize" immediately on boot — if the handler
+      // isn't registered yet, the message is silently dropped and the UI stays
+      // stuck on "Loading connection data..." forever.
+      panel.webview.onDidReceiveMessage(async (message) => await this.handleWebviewMsg(message), ext.context.subscriptions);
+
+      // Set the React content LAST — handler is ready to receive "initialize"
+      const html = await this.getWebviewContent({
+        connectionsData: this.panelMetadata.connectionsData,
+        parametersData: this.panelMetadata.parametersData || {},
+        localSettings: this.panelMetadata.localSettings,
+        artifacts: this.panelMetadata.artifacts,
+        azureDetails: this.panelMetadata.azureDetails,
+        workflowDetails: this.panelMetadata.workflowDetails,
+      });
+      if (!disposed) {
+        panel.webview.html = html;
+      }
+    } catch (error) {
+      releasePanel();
+      if (!disposed) {
+        if (parseError(error).isUserCancelledError) {
+          panel.dispose();
+        } else {
+          panel.webview.html = this.getErrorHtml(error);
+        }
+      }
+      // The command handler owns error notification; this panel only replaces its loading state.
+      throw error;
+    }
+  }
+
+  private async startDesignTime(projectPath: string): Promise<void> {
+    let failure: { error: unknown } | undefined;
+    await callWithTelemetryAndErrorHandling('ConnectionPanel.create.startDesignTimeApi', async (actionContext: IActionContext) => {
+      actionContext.errorHandling.rethrow = true;
+      actionContext.errorHandling.suppressDisplay = true;
+      try {
+        await startDesignTimeApi(actionContext, projectPath);
+      } catch (error) {
+        failure = { error };
+        throw error;
+      }
     });
+    // The telemetry helper swallows user cancellation even with rethrow enabled.
+    if (failure) {
+      throw failure.error;
+    }
+  }
+
+  private getErrorHtml(error: unknown): string {
+    const escapeHtml = (text: string) =>
+      text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const title = escapeHtml(localize('connectionViewLoadFailed', 'Unable to load the connection view.'));
+    const guidance = escapeHtml(
+      localize(
+        'connectionViewLoadFailedRecovery',
+        'Check the Azure Logic Apps output for details, resolve the reported error, then close this tab and open the connection view again.'
+      )
+    );
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+    <style>
+        body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); padding: 24px; }
+        pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    </style>
+</head>
+<body>
+    <main role="alert">
+        <h1>${title}</h1>
+        <p>${guidance}</p>
+        <pre>${escapeHtml(parseError(error).message)}</pre>
+    </main>
+</body>
+</html>`;
   }
 
   private getLoadingHtml(): string {

@@ -1,14 +1,9 @@
 import './nodeUtilCompatibility';
 import { LogicAppResolver } from './LogicAppResolver';
 import { registerCommands } from './app/commands/registerCommands';
-import { getResourceGroupsApi } from './app/resourcesExtension/getExtensionApi';
-import type { AzureAccountTreeItemWithProjects } from './app/tree/AzureAccountTreeItemWithProjects';
+import { initializeResourceGroupsApi } from './app/resourcesExtension/getExtensionApi';
 import { downloadExtensionBundle } from './app/utils/bundleFeed';
-import {
-  scheduleStartAllDesignTimeApis,
-  stopAllDesignTimeApis,
-  startDesignTimeApi,
-} from './app/utils/codeless/startDesignTimeApi';
+import { scheduleStartAllDesignTimeApis, stopAllDesignTimeApis, startDesignTimeApi } from './app/utils/codeless/startDesignTimeApi';
 import { UriHandler } from './app/utils/codeless/urihandler';
 import { getExtensionVersion, initializeCustomExtensionContext, updateLogicAppsContext } from './app/utils/extension';
 import { registerFuncHostTaskEvents } from './app/utils/funcCoreTools/funcHostTask';
@@ -42,7 +37,7 @@ import TelemetryReporter from '@vscode/extension-telemetry';
 import { createVSCodeAzureSubscriptionProvider } from './app/utils/services/VSCodeAzureSubscriptionProvider';
 import { logExtensionSettings, logSubscriptions } from './app/utils/telemetry';
 import { registerAzureUtilsExtensionVariables } from '@microsoft/vscode-azext-azureutils';
-import { getAzExtResourceType, getAzureResourcesExtensionApi } from '@microsoft/vscode-azureresources-api';
+import { getAzExtResourceType } from '@microsoft/vscode-azureresources-api';
 import { startLanguageServer } from './app/languageServer/languageServer';
 import { runPostExtractStepsFromCache } from './app/utils/cloudToLocalUtils';
 import { codefulProjectsExist } from './app/utils/codeful';
@@ -51,7 +46,12 @@ import { enableLocalManagedIdentityAuth } from './app/utils/managedIdentity';
 import { localize } from './localize';
 import { isDevContainerWorkspace } from './app/utils/devContainerUtils';
 import { parameterizeAllConnections } from './app/commands/parameterizeConnections';
-import { getWorkspaceSetting, isManagedIdentityAuthEnabled, shouldParameterizeConnections, updateGlobalSetting } from './app/utils/vsCodeConfig/settings';
+import {
+  getWorkspaceSetting,
+  isManagedIdentityAuthEnabled,
+  shouldParameterizeConnections,
+  updateGlobalSetting,
+} from './app/utils/vsCodeConfig/settings';
 import {
   isAutoStartDesignTimeNotificationSuppressed,
   isManagedIdentityAuthNotificationSuppressed,
@@ -65,10 +65,27 @@ import { validateAndInstallBinaries } from './app/commands/binaries/validateAndI
 import { ensureProjectFiles } from './app/projectConsistency/projectFilesConsistency';
 import { runProjectConsistencyCheck } from './app/commands/runProjectConsistencyCheck';
 import { getWorkspaceLogicAppRoots } from './app/utils/workspace';
+import { initializeLocalCandidateRuntime, assertLocalCandidateProject, inspectLocalCandidate } from './app/utils/localCandidateRuntime';
+import { installLSPSDK } from './app/utils/languageServerProtocol';
+import path from 'path';
+import { createLocalCandidateWorkspace } from './app/utils/localCandidateWorkspace';
 
 const telemetryString = 'setInGitHubBuild';
 
 export async function activate(context: vscode.ExtensionContext) {
+  const candidate = await initializeLocalCandidateRuntime();
+  if (candidate) {
+    if (!vscode.workspace.isTrusted) {
+      throw new Error('Local candidate activation requires a trusted isolated workspace.');
+    }
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      assertLocalCandidateProject(folder.uri.fsPath);
+    }
+    context.subscriptions.push(vscode.commands.registerCommand('azureLogicAppsStandard.inspectLocalCandidate', inspectLocalCandidate));
+    context.subscriptions.push(
+      vscode.commands.registerCommand('azureLogicAppsStandard.createLocalCandidateWorkspace', createLocalCandidateWorkspace)
+    );
+  }
   initializeCustomExtensionContext();
   await updateLogicAppsContext();
 
@@ -86,15 +103,20 @@ export async function activate(context: vscode.ExtensionContext) {
   registerAzureUtilsExtensionVariables(ext);
   registerAppServiceExtensionVariables(ext);
 
+  // Commands and LSP metadata can open subscription pickers during activation.
+  await initializeResourceGroupsApi(context);
+
   await callWithTelemetryAndErrorHandling(extensionCommand.activate, async (activateContext: IActionContext) => {
     activateContext.telemetry.properties.isActivationEvent = 'true';
 
     // Workspace setup and consistency checks
     runPostExtractStepsFromCache();
-    callWithTelemetryAndErrorHandling('activate.logSubscriptions', async (actionContext: IActionContext) => {
-      actionContext.telemetry.properties.isActivationEvent = 'true';
-      await logSubscriptions(actionContext);
-    });
+    if (!candidate) {
+      callWithTelemetryAndErrorHandling('activate.logSubscriptions', async (actionContext: IActionContext) => {
+        actionContext.telemetry.properties.isActivationEvent = 'true';
+        await logSubscriptions(actionContext);
+      });
+    }
 
     activateContext.telemetry.properties.lastStep = 'registerCommands';
     registerCommands();
@@ -165,19 +187,20 @@ export async function activate(context: vscode.ExtensionContext) {
     activateContext.telemetry.properties.lastStep = 'ensureBinaries';
     await ensureBinaries(activateContext, isDevContainer);
 
+    if (candidate && (await codefulProjectsExist())) {
+      // An unanswered optional design-time prompt must not block local C# authoring.
+      activateContext.telemetry.properties.lastStep = 'startLanguageServer';
+      await startLanguageServer();
+    }
+
     // Start background processes (design-time func, codeful language server)
     activateContext.telemetry.properties.lastStep = 'startDesignTime';
     await startDesignTime(activateContext, isDevContainer);
 
     activateContext.telemetry.properties.lastStep = 'startLanguageServer';
-    const hasCodefulProjects = await codefulProjectsExist();
-    if (hasCodefulProjects) {
+    if (!candidate && (await codefulProjectsExist())) {
       startLanguageServer();
     }
-
-    ext.rgApi = await getResourceGroupsApi();
-    // @ts-expect-error _rootTreeItem does not exist on type AzExtTreeDataProvider
-    ext.azureAccountTreeItem = ext.rgApi.appResourceTree._rootTreeItem as AzureAccountTreeItemWithProjects;
 
     // TODO(aeldridge): This was added to avoid behavior change after modifying .vscode config validation to not set
     // ext.defaultLogicAppPath. This should be revisited - a default logic app shouldn't be needed in ext context.
@@ -199,13 +222,31 @@ export async function activate(context: vscode.ExtensionContext) {
     registerFuncHostTaskEvents();
 
     ext.rgApi.registerApplicationResourceResolver(getAzExtResourceType(logicAppFilter)!, new LogicAppResolver());
-    const azureResourcesApi = await getAzureResourcesExtensionApi(context, '2.0.0');
-    ext.rgApiV2 = azureResourcesApi;
-
     vscode.window.registerUriHandler(new UriHandler());
 
     logExtensionSettings(activateContext);
   });
+  if (candidate) {
+    return {
+      localCandidateSmoke: async ({ workspacePath }: { workspacePath: string }) => {
+        if (!vscode.workspace.isTrusted) {
+          throw new Error('Local candidate smoke requires a trusted workspace.');
+        }
+        assertLocalCandidateProject(workspacePath);
+        if (!vscode.workspace.getWorkspaceFolder(vscode.Uri.file(workspacePath))) {
+          throw new Error('The candidate smoke project must belong to the open workspace.');
+        }
+        await installLSPSDK();
+        const selection = await inspectLocalCandidate();
+        return {
+          ...selection,
+          lspServerPath: path.join(candidate.dependenciesPath, 'LSPServer', 'SdkLspServer.dll'),
+          bundleSha256: candidate.bundle.sha256,
+          sdkSha256: candidate.sdk.sha256,
+        };
+      },
+    };
+  }
 }
 
 async function promptShouldParameterizeConnections(context: IActionContext): Promise<boolean> {
