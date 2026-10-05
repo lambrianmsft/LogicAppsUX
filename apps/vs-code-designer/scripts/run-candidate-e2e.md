@@ -356,10 +356,234 @@ Timeout cleanup targets only the child process tree launched by this runner,
 using explicit PIDs, never process names or global cache cleanup. Keep receipts
 and private profile logs local; review logs before sharing them.
 
+## Manually switching candidates without losing edited source
+
+This runner validates one candidate selection per run. Day-to-day manual testing
+instead opens a real, user-controlled VS Code window against an already-installed
+candidate and iterates: edit the generated project's source (for example
+`CandidateWorkflow.cs`), F5, inspect, repeat. Candidate selection itself is just
+the existing `LOGICAPPS_LOCAL_CANDIDATE_MANIFEST` and `LOGICAPPS_LOCAL_CANDIDATE_ROOT`
+environment variables (or their per-window equivalents) read by `getLocalCandidate()`
+and `ensureLocalCandidateInstalled()`; there is no separate product "selection file."
+
+Moving to a **new** candidate (a new manifest/root pointing at a rebuilt SDK or
+bundle) normally means rerunning `azureLogicAppsStandard.createLocalCandidateWorkspace`,
+which always scaffolds a brand-new project from the standard new-workspace wizard
+pipeline — it does not carry forward an already-edited project's source. Preserving
+that edited source across a candidate switch was previously done by hand, copying
+the existing project directory into a new location. `copy-candidate-workspace.js`
+is the generic, parameterized replacement for that manual step:
+
+```powershell
+node apps\vs-code-designer\scripts\copy-candidate-workspace.js `
+  --source C:\private-runs\candidate-001\candidate\MyLogicApp `
+  --dest   C:\private-runs\candidate-002\candidate\MyLogicApp
+```
+
+- `--source` and `--dest` are both required, absolute paths.
+- `--source` must look like a Logic Apps workspace or project: it (or an
+  immediate subdirectory) must contain `host.json`, `local.settings.json`, or a
+  `.code-workspace` file. Arbitrary directories are rejected.
+- **Overwrite protection only**: `--dest` must not already exist (its parent must).
+  The helper never overwrites, merges into, or cleans an existing destination —
+  consistent with this runner's own `--root` contract above. Retry with a new
+  `--dest` rather than reusing one. This check only prevents clobbering another
+  candidate's workspace at copy time; it does **not** detect edits made to
+  `--source` afterward, and a copy does not become "stale" on its own — see the
+  drift check below for that.
+- Regenerated or candidate-run-specific content is excluded from the copy so a
+  previous candidate's stale build output, derived debug host, or project-local
+  NuGet restore cache is never carried into the new selection: `bin/`, `obj/`,
+  `.vs/`, `.nuget/`, `node_modules/`, `debug-hosts/`, `lib\codeful\` (the csproj's
+  `AfterTargets="Build;Publish"` regenerated output, see `codeful.ts`), and the
+  installed-candidate-root owner marker file. Everything else, including edited
+  source, is copied byte-for-byte.
+- Symbolic links are rejected rather than followed.
+- A `.copied-from-candidate-workspace.json` receipt is written into `--dest`
+  recording the source path, timestamp, file counts, and a SHA-256 fingerprint of
+  every copied file.
+- **Source-drift guard**: call `assertOriginalSourceUnchangedSincePrepare(dest)`
+  (exported from the same script) before treating an already-copied `--dest` as
+  launch-ready. It recomputes fingerprints for the ORIGINAL `--source` directory
+  (not `dest`) and throws, naming the exact files, if anything was changed,
+  added, or removed in `source` since the copy ran — this is what actually
+  detects source drift; `--dest` overwrite protection above does not. Editing
+  the copied `dest` itself afterward is the expected normal F5/iterate workflow
+  and is never flagged by this check. A separate, lower-priority
+  `assertDestinationCopyIntegrity(dest)` instead checks whether `dest` was
+  externally corrupted (not edited) since it was copied; most callers want
+  `assertOriginalSourceUnchangedSincePrepare`, not that one.
+- This is a pure file-system operation: it never launches VS Code, dotnet, or
+  `func`, and never changes which candidate is selected.
+
+### Retargeting the copy's package/feed bindings to a new candidate
+
+Copying preserves source but does not, by itself, make the copied project build
+against the new candidate's SDK/LSP. Of the project's bindings to a candidate,
+only some retarget automatically the first time each subsystem runs against the
+project in its new location, via existing product code — the rest must be
+rewritten explicitly. This was confirmed by direct source inspection, not
+assumed from naming:
+
+- **Automatic**: debug tasks/host environment, via `migrateLocalCandidateTasks`
+  (`app/utils/localCandidateTasks.ts`), applied at F5 time through
+  `fetchLocalCandidateDebugTasks`. Confirmed to rewrite only `.vscode/tasks.json`
+  (`options.env`, the node-launcher command/args wrapper, and the `--offline`
+  flag), gated on `assertLocalCandidateProject`/`assertLocalCandidateInstalled`,
+  which only require the project to physically live under the active
+  candidate's root — satisfied by the copy step above.
+- **Automatic**: language server SDK selection. `languageServer.ts`'s
+  `this.sdkNupkgPath` is extension-host runtime state computed directly from the
+  active candidate, not anything stored in the project's files;
+  `recordLocalCandidateLspSdk` is only a post-start sanity assertion, not a
+  retargeting mechanism — there is nothing project-side to rewrite here at all.
+- **NOT automatic**: the generated `.csproj`'s
+  `<PackageReference Include="Microsoft.Azure.Workflows.Sdk" Version="...">` and
+  `nuget.config`'s `packageSources/current` value. Both are literal strings
+  rendered exactly once, at fresh-project-creation time, by
+  `createCodefulWorkflowFile`
+  (`app/commands/createNewCodeProject/CodeProjectBase/CreateLogicAppWorkspace.ts`),
+  inside the `else` branch of `if (await fse.pathExists(programFilePath))` —
+  permanently skipped once `Program.cs` exists, which is true for any copied
+  project. `invalidateCodefulSdkCacheIfNeeded` (`app/utils/codeful.ts`) only
+  clears a project-local NuGet cache entry for a same-version VSIX content
+  change; its own gate, `codefulNugetConfigUsesExtensionSdkCache`, requires
+  `nuget.config`'s `packageSources/current` to *already* equal the new
+  candidate's LSP directory, so it no-ops (does not rewrite anything) for a
+  genuine cross-candidate retarget.
+
+`retarget-candidate-workspace.js` rewrites exactly those two NOT-automatic
+values, reusing `CreateLogicAppWorkspace.ts`'s exact literal-replace technique
+and XML attribute escaping rather than reimplementing new logic. It never
+touches any other file or value (user config/connections are untouched), and
+fails closed — throws rather than guessing — if either file's expected literal
+shape is not found:
+
+```powershell
+node apps\vs-code-designer\scripts\retarget-candidate-workspace.js `
+  --project            C:\private-runs\candidate-002\candidate\MyLogicApp `
+  --candidate-manifest C:\private-runs\candidate-002\candidate.json `
+  --candidate-root     C:\private-runs\candidate-002\candidate
+```
+
+`--candidate-manifest` is the same `{schemaVersion: 1, sdk: {packageId, version}}`
+manifest consumed elsewhere in this document; `--candidate-root` is the
+installed candidate's root directory, whose `dependencies/LanguageServerLogicApps`
+subdirectory (matching `LocalCandidate.dependenciesPath` exactly) supplies the
+new `nuget.config` value. Calling it again with the same candidate is a no-op
+(`changed: false` in its JSON result) — safe to call unconditionally before
+every relaunch.
+
+### Refusing to relaunch into an already-active profile
+
+Relaunching VS Code with a `--user-data-dir` that a running process already
+owns does not open a second, independent window against the new candidate — it
+silently attaches to/reuses the existing window and ignores the new launch's
+arguments and environment variables, producing a misleadingly "successful"
+launch that is not actually running against the intended candidate. No
+existing code in this repo detects that condition (confirmed by search).
+`detect-active-candidate-profile.js` is new, narrowly-scoped, **read-only**
+functionality for it: it enumerates processes once (`Get-CimInstance
+Win32_Process` on Windows, `ps -axo pid=,ppid=,command=` elsewhere) and matches
+the normalized `--user-data-dir` value in each command line. It never kills,
+signals, or otherwise touches any process — on a match it only throws, naming
+the exact owning PID(s), parent PID(s), and command line(s); resolving the
+conflict (closing that window yourself, or picking a different root) is left
+to whoever reads that error.
+
+```js
+const { assertNoActiveProfile } = require('./detect-active-candidate-profile');
+assertNoActiveProfile('C:\\private-runs\\candidate-002\\candidate\\user-data'); // throws on conflict, otherwise returns
+```
+
+### Composed guarded launch
+
+`launch-candidate-workspace.js` composes the three pieces above —
+`copyCandidateWorkspace`/`assertOriginalSourceUnchangedSincePrepare`,
+`retargetCodefulProject`, and `assertNoActiveProfile` — into a single
+`prepareCandidateWorkspace` (pure file-system; never spawns anything) followed
+by a `launchCandidateWorkspace` step that refuses (read-only) if the target
+`--user-data-dir` is already active, then spawns the given VS Code binary
+detached (`--new-window`, `--user-data-dir`, `--extensions-dir`, the prepared
+`--dest`), with `LOGICAPPS_LOCAL_CANDIDATE_MANIFEST`/`ROOT` set on top of the
+caller's own real environment:
+
+```powershell
+node apps\vs-code-designer\scripts\launch-candidate-workspace.js `
+  --source             C:\private-runs\candidate-001\candidate\MyLogicApp `
+  --dest               C:\private-runs\candidate-002\candidate\MyLogicApp `
+  --candidate-manifest C:\private-runs\candidate-002\candidate.json `
+  --candidate-root     C:\private-runs\candidate-002\candidate
+```
+
+`--user-data-dir`/`--extensions-dir`/`--code` default to
+`<candidate-root>\user-data`, `<candidate-root>\extensions`, and `code`
+respectively, and can be overridden. Unlike this runner's own `isolatedEnv`,
+this does **not** fabricate a brand-new sandboxed HOME/dotnet/NuGet
+environment — the scenario is an interactive manual relaunch against the
+developer's real VS Code install and real machine environment, only
+overlaying the two candidate-selection environment variables the product
+already reads. If `--dest` already exists, it is re-validated and
+re-retargeted (both idempotent) rather than recopied, so editing the prepared
+copy and rerunning this same command is the expected iterate loop. This
+script is not invoked by any agent session; it exists for the user (or a
+future authorized step) to run directly. **Not covered by this helper**:
+proving the relaunched window actually loaded the new engine — guarded F5
+acceptance is unchanged from the rest of this document: a `Running` host
+status alone is not acceptance. Confirm the loaded engine identity and that
+the specific edited workflow's metadata actually loaded before treating a
+manual relaunch as successful, per "What the receipt proves (and does not
+prove)" above.
+
+### Tests for all four pieces
+
+`src/test/candidate/copyCandidateWorkspace.test.js`,
+`retargetCandidateWorkspace.test.js`, `detectActiveCandidateProfile.test.js`,
+and `launchCandidateWorkspace.test.js` cover the copy/fingerprint/drift
+semantics, csproj/nuget.config rewriting against realistic fixtures (including
+the `packageSourceMapping` block), process-match detection, and the composed
+prepare/launch flow — all with real temporary directories but an injected
+`spawnSyncImpl`/`spawnImpl`/`assertNoActiveProfileImpl`, so none of them
+enumerate this machine's real processes or launch a real VS Code/dotnet/func
+process. Run with `node --test` against each file directly (they are plain
+`node:test` files, not part of the ExTester suite).
+- **Package/feed/LSP/task retargeting is not reimplemented here** — it already
+  happens automatically, the first time each subsystem runs against the project
+  in its new location, via existing product code, all gated on
+  `assertLocalCandidateProject` (`app/utils/localCandidateRuntime.ts`), which
+  requires the project to physically live under the active candidate's root (the
+  copy above is what satisfies that):
+  - NuGet/package cache: `invalidateCodefulSdkCacheIfNeeded` (`app/utils/codeful.ts`),
+    invoked from `publishCodefulProject.ts` on build/publish. It compares the
+    project-local `.nuget/.lspsdk-hash` marker against the active candidate's
+    installed SDK hash and, on mismatch, deletes the stale versioned package
+    folder plus `obj/project.assets.json`/`obj/project.nuget.cache`.
+  - Language server SDK selection: `recordLocalCandidateLspSdk`
+    (`app/utils/localCandidateRuntime.ts`) and the `lspSdkHashMarkerName` marker
+    (`app/utils/languageServerProtocolConstants.ts`), compared on language client
+    start.
+  - Debug tasks/host environment: `migrateLocalCandidateTasks`
+    (`app/utils/localCandidateTasks.ts`), applied at F5 time, exactly as
+    described above for the automated runner — this helper does not duplicate or
+    bypass that logic.
+- Guarded F5 acceptance is unchanged from the rest of this document: a `Running`
+  host status alone is not acceptance. Confirm the loaded engine identity and that
+  the specific edited workflow's metadata actually loaded before treating a manual
+  relaunch as successful, per "What the receipt proves (and does not prove)" above.
+- **Not covered by this helper**: refusing to operate against an already-active
+  private VS Code profile/extension-host, and actually composing this copy step
+  with this runner's isolated-launch machinery into a single tool that starts an
+  editor window. Both would mean this script (or a new one) launching a real
+  editor/process, which conflicts with this repo's existing automated-runner
+  design (launch stays inside `run-candidate-e2e.js`'s own isolated
+  profile/process lifecycle, never ad hoc). Treat those as a separate, explicitly
+  scoped decision rather than an implicit extension of this copy helper.
+
 ## Harness-only tests
 
 These unit tests do not launch VS Code or download anything:
 
 ```powershell
 node --test apps\vs-code-designer\src\test\candidate\runner.test.js
+node --test apps\vs-code-designer\src\test\candidate\copyCandidateWorkspace.test.js
 ```

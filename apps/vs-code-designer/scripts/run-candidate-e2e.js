@@ -795,6 +795,8 @@ module.exports = {
   isolatedEnv,
   installExtensions,
   settings,
+  runProcess,
+  stopOwnedTree,
   main,
   bundleId,
 };
