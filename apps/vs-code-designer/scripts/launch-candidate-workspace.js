@@ -48,6 +48,7 @@
 // it is written for the user (or a future authorized step) to run.
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { copyCandidateWorkspace, assertOriginalSourceUnchangedSincePrepare } = require('./copy-candidate-workspace');
 const { readCandidateFacts, retargetCodefulProject } = require('./retarget-candidate-workspace');
 const { assertNoActiveProfile } = require('./detect-active-candidate-profile');
@@ -68,11 +69,26 @@ const sealedRootDirectories = [
   'nuget/feed',
 ];
 
+// Must match app/utils/localCandidate.ts's own `ownerFile` exactly: this is the marker
+// file the real extension's install() writes (atomically, via fs.rename of a staging
+// directory) as the last step of a successful install, alongside the bundle directory and
+// SDK .nupkg -- and the same file checkInstalled() re-reads on every later activation.
+const ownerFile = '.logicapps-local-candidate.json';
+
+function hash(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
 /**
  * Refuse (read-only) to treat `root` as an installed candidate unless it already has the
  * exact sealed directory layout run-candidate-e2e.js's createRoot produces, and -- if it
  * already has a receipt.json from a prior run -- unless that receipt's manifestPath matches
  * the given `manifestPath`. Never creates, repairs, or deletes anything under `root`.
+ *
+ * NOTE: this only checks the surrounding sandbox layout (logs/home/temp/user-data/...); it
+ * deliberately does not look at `root/candidate` at all (the real product's install
+ * destination is not in `sealedRootDirectories` above), so it does not prove the candidate
+ * itself was ever installed. Use assertCandidateInstalled below for that.
  */
 function assertSealedRoot(root, manifestPath) {
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
@@ -100,6 +116,49 @@ function assertSealedRoot(root, manifestPath) {
           `(${manifestPath}); refusing to reuse a sealed root across different candidates.`
       );
     }
+  }
+}
+
+/**
+ * Refuse (read-only) to copy/retarget a workspace into `root/candidate` unless the real
+ * product installer (the extension's own install() in app/utils/localCandidate.ts, run via
+ * `ensureLocalCandidateInstalled` during a prior `run-candidate-e2e.js --scope activation`)
+ * has already written its owner-marker file there for this exact --manifest.
+ *
+ * Why this is needed in addition to assertSealedRoot: assertSealedRoot only validates the
+ * surrounding sandbox layout and never looks at `root/candidate`, and readCandidateFacts
+ * (retarget-candidate-workspace.js) deliberately defers all archive/SHA256 validation to
+ * "the installer, already run before this point" per its own header comment -- neither one
+ * actually confirms the candidate was installed. Without this guard, running this launcher
+ * before a successful install completes would silently copy/retarget a workspace into a
+ * `root/candidate` that does not exist or is incomplete yet (pointing the copy's
+ * nuget.config at a nonexistent LSP feed path, failing far later and less clearly at NuGet
+ * restore/F5 time), and could also make a *subsequent* real install's own
+ * `if (await exists(candidate.root)) return;` short-circuit skip installing altogether,
+ * since something would already exist at that path.
+ */
+function assertCandidateInstalled(root, manifestPath) {
+  const candidateRoot = path.join(root, 'candidate');
+  const markerPath = path.join(candidateRoot, ownerFile);
+  if (!fs.existsSync(markerPath)) {
+    throw new Error(
+      `${candidateRoot} has not been installed yet (missing ${ownerFile}). This launcher never installs a candidate ` +
+        `itself; run the install step first: "node run-candidate-e2e.js --manifest ${manifestPath} --root ${root} ` +
+        '--code <code> --dotnet <dotnet> --func <func> --node <node> --extension <extension> --scope activation" ' +
+        '(see run-candidate-e2e.md), then retry this launcher against the same --root.'
+    );
+  }
+  const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  const manifestHash = hash(fs.readFileSync(manifestPath));
+  if (
+    marker.schemaVersion !== 1 ||
+    marker.manifestHash !== manifestHash ||
+    path.resolve(marker.manifestPath) !== path.resolve(manifestPath)
+  ) {
+    throw new Error(
+      `${candidateRoot} was installed against a different or modified manifest than ${manifestPath}; refusing to copy ` +
+        'a workspace into a candidate root that does not match. Install a fresh --root for this manifest and retry.'
+    );
   }
 }
 
@@ -134,8 +193,16 @@ function parseArgs(argv) {
  * sealed `root`'s own LOGICAPPS_LOCAL_CANDIDATE_ROOT location (`root/candidate`). Safe to
  * call repeatedly against the same freshly copied `dest` -- the copy step only runs once,
  * iterated edits to `dest` are preserved, and retargeting is a no-op if already current.
+ *
+ * Checks assertCandidateInstalled(root, manifest) first (see its doc comment): `dest` is
+ * expected to live under `root/candidate` (e.g. `root/candidate/manual-workspace/<Project>`)
+ * so that the real extension's own containment check (assertLocalCandidateProject in
+ * app/utils/localCandidateRuntime.ts, which requires every local-candidate project to be a
+ * descendant of the active candidate's root) accepts it at F5/build time -- so this must
+ * refuse before copying anything if `root/candidate` was never actually installed.
  */
 function prepareCandidateWorkspace({ source, dest, manifest, root }) {
+  assertCandidateInstalled(root, manifest);
   if (!fs.existsSync(dest)) {
     copyCandidateWorkspace({ source, dest });
   }
@@ -228,6 +295,7 @@ function main(argv) {
 module.exports = {
   parseArgs,
   assertSealedRoot,
+  assertCandidateInstalled,
   manualSettings,
   prepareCandidateWorkspace,
   launchCandidateWorkspace,

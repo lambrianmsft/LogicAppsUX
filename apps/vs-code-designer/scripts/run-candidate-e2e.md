@@ -511,7 +511,35 @@ sealed environment — it does **not** overlay the developer's real ambient
 previously produced by this same `run-candidate-e2e.js`, below): the launcher
 never calls `createRoot` itself and refuses with a pointer to the install step
 if `--root` is missing, partial, or was installed against a different
-`--manifest` (via its `receipt.json`):
+`--manifest` (via its `receipt.json`). `prepareCandidateWorkspace` additionally
+refuses, before copying anything, unless `root/candidate` itself was actually
+installed by this repo's real `install()` (`app/utils/localCandidate.ts`): it
+re-reads that function's own owner-marker file
+(`root/candidate/.logicapps-local-candidate.json`) and checks its
+`manifestHash`/`manifestPath` against `--manifest`, the same check the real
+extension's `checkInstalled()` performs on every activation. This distinct
+check exists because `assertSealedRoot` only validates the surrounding sandbox
+layout (it never looks at `root/candidate`), and `readCandidateFacts`
+(`retarget-candidate-workspace.js`) deliberately defers all archive/SHA256
+validation to "the installer, already run before this point" per its own
+header comment — without this guard, running this launcher before a
+successful `--scope activation` install completes would silently copy/retarget
+a workspace into a `root/candidate` that does not exist yet.
+
+`--dest` is expected to live **under** `root/candidate` (e.g.
+`root\candidate\manual-workspace\MyLogicApp`, not a sibling of it): the real
+extension's own `assertLocalCandidateProject`
+(`app/utils/localCandidateRuntime.ts`) requires every local-candidate project
+to be a descendant of the active candidate's root
+(`LOGICAPPS_LOCAL_CANDIDATE_ROOT`, i.e. `root/candidate`) and throws
+`localCandidateProjectOutsideRoot` otherwise, so F5/build against a sibling
+`--dest` would fail that containment check even though this launcher itself
+does not enforce it. Because the one-time install step always runs first in
+the recipe below, `root/candidate` already exists by the time
+`prepareCandidateWorkspace` copies into it; the new owner-marker check above
+exists for the case where that ordering was not followed (e.g. install failed,
+or this launcher was invoked against the wrong/unactivated `--root`), not
+because nesting `--dest` inside `root/candidate` is otherwise unsafe:
 
 ```powershell
 # One-time install step (produces the sealed --root this launcher requires):

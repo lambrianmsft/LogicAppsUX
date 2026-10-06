@@ -1,10 +1,12 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const {
   parseArgs,
   assertSealedRoot,
+  assertCandidateInstalled,
   manualSettings,
   prepareCandidateWorkspace,
   launchCandidateWorkspace,
@@ -47,6 +49,23 @@ function makeSealedRoot(parent, { name = 'sealed-root', manifestPath } = {}) {
     fs.writeFileSync(path.join(root, 'receipt.json'), JSON.stringify({ manifestPath }));
   }
   return root;
+}
+
+/**
+ * Write the exact owner-marker file the real extension's install() writes
+ * (app/utils/localCandidate.ts: `{schemaVersion, manifestHash: sha256(manifest bytes),
+ * manifestPath}` at `root/candidate/.logicapps-local-candidate.json`) so tests can exercise
+ * prepareCandidateWorkspace/launchCandidateWorkspace against a root that looks genuinely
+ * installed, without running a real archive/SDK install.
+ */
+function installCandidateMarker(sealedRoot, manifestPath) {
+  const candidateRoot = path.join(sealedRoot, 'candidate');
+  fs.mkdirSync(candidateRoot, { recursive: true });
+  const manifestHash = crypto.createHash('sha256').update(fs.readFileSync(manifestPath)).digest('hex');
+  fs.writeFileSync(
+    path.join(candidateRoot, '.logicapps-local-candidate.json'),
+    JSON.stringify({ schemaVersion: 1, manifestHash, manifestPath })
+  );
 }
 
 function toolPaths(root) {
@@ -142,6 +161,7 @@ test('prepareCandidateWorkspace copies a fresh source, then retargets the copy a
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const sealedRoot = makeSealedRoot(root);
   const manifestPath = makeCandidateManifest(root, '1.0.0-e2e.new1');
+  installCandidateMarker(sealedRoot, manifestPath);
 
   const result = prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot });
 
@@ -159,6 +179,7 @@ test('prepareCandidateWorkspace does not recopy an already-prepared dest, preser
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const sealedRoot = makeSealedRoot(root);
   const manifestPath = makeCandidateManifest(root, '1.0.0-e2e.new1');
+  installCandidateMarker(sealedRoot, manifestPath);
   prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot });
 
   fs.writeFileSync(path.join(dest, 'Added.cs'), '// iterated edit');
@@ -174,6 +195,7 @@ test('prepareCandidateWorkspace refuses when the original source was edited agai
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const sealedRoot = makeSealedRoot(root);
   const manifestPath = makeCandidateManifest(root, '1.0.0-e2e.new1');
+  installCandidateMarker(sealedRoot, manifestPath);
   prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot });
 
   fs.writeFileSync(path.join(source, 'host.json'), '{"edited": true}');
@@ -181,6 +203,63 @@ test('prepareCandidateWorkspace refuses when the original source was edited agai
     () => prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot }),
     /was edited after it was copied/
   );
+});
+
+test('assertCandidateInstalled refuses a sealed root whose candidate was never installed (no owner marker), before any copy', (t) => {
+  const root = sandbox(t);
+  const source = makeProject(root);
+  const dest = path.join(root, 'new-candidate', 'LogicApp');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const sealedRoot = makeSealedRoot(root); // assertSealedRoot's sandbox layout exists...
+  const manifestPath = makeCandidateManifest(root, '1.0.0-e2e.new1');
+  // ...but root/candidate/.logicapps-local-candidate.json (the real installer's owner
+  // marker) was never written, i.e. `--scope activation` never completed.
+  assert.throws(() => assertCandidateInstalled(sealedRoot, manifestPath), /has not been installed yet/);
+  assert.throws(() => prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot }), /has not been installed yet/);
+  // Refusing before copying anything is the point: a pre-created `candidate/manual-workspace`
+  // directory here could make a later real install's `exists(candidate.root)` short-circuit
+  // wrongly believe installation already happened.
+  assert.equal(fs.existsSync(dest), false);
+  assert.equal(fs.existsSync(path.join(sealedRoot, 'candidate')), false);
+});
+
+test('assertCandidateInstalled refuses an installed candidate whose owner marker does not match the given --manifest', (t) => {
+  const root = sandbox(t);
+  const source = makeProject(root);
+  const dest = path.join(root, 'new-candidate', 'LogicApp');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const sealedRoot = makeSealedRoot(root);
+  const installedManifest = makeCandidateManifest(root, '1.0.0-e2e.installed', 'installed.json');
+  installCandidateMarker(sealedRoot, installedManifest);
+  // A different manifest (different content -> different sha256) than the one installed.
+  const otherManifest = makeCandidateManifest(root, '1.0.0-e2e.other', 'other.json');
+  assert.throws(() => assertCandidateInstalled(sealedRoot, otherManifest), /different or modified manifest/);
+  assert.throws(
+    () => prepareCandidateWorkspace({ source, dest, manifest: otherManifest, root: sealedRoot }),
+    /different or modified manifest/
+  );
+  assert.equal(fs.existsSync(dest), false);
+});
+
+test('prepareCandidateWorkspace accepts a --dest nested under root/candidate once installed, matching assertLocalCandidateProject containment', (t) => {
+  // app/utils/localCandidateRuntime.ts's assertLocalCandidateProject requires every
+  // local-candidate project to be a descendant of the active candidate's root
+  // (LOGICAPPS_LOCAL_CANDIDATE_ROOT, i.e. root/candidate) or F5/build refuses it -- so a
+  // real manual workspace must live under root/candidate, not as a sibling of it.
+  const root = sandbox(t);
+  const source = makeProject(root);
+  const sealedRoot = makeSealedRoot(root);
+  const manifestPath = makeCandidateManifest(root, '1.0.0-e2e.new1');
+  installCandidateMarker(sealedRoot, manifestPath);
+  const dest = path.join(sealedRoot, 'candidate', 'manual-workspace', 'LogicApp');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+
+  const result = prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot });
+
+  assert.equal(result.retarget.csproj.changed, true);
+  assert.equal(path.relative(path.join(sealedRoot, 'candidate'), dest).startsWith('..'), false);
+  const csproj = fs.readFileSync(path.join(dest, 'MyLogicApp.csproj'), 'utf8');
+  assert.match(csproj, /Version="1\.0\.0-e2e\.new1"/);
 });
 
 test('manualSettings omits silentAuth (so real sign-in is not suppressed) while keeping tool binary paths', (t) => {
@@ -202,6 +281,7 @@ function prepareForLaunch(t) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const sealedRoot = makeSealedRoot(root);
   const manifestPath = makeCandidateManifest(root, '1.0.0-e2e.new1');
+  installCandidateMarker(sealedRoot, manifestPath);
   const tools = toolPaths(root);
   prepareCandidateWorkspace({ source, dest, manifest: manifestPath, root: sealedRoot });
   return { root, source, dest, sealedRoot, manifestPath, tools };
