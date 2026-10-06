@@ -25,11 +25,7 @@ import { getFunctionsCommand } from '../funcCoreTools/funcVersion';
 import { getWorkspaceLogicAppRoots } from '../workspace';
 import { ensureProjectFiles } from '../../projectConsistency/projectFilesConsistency';
 import { delay } from '../delay';
-import {
-  type IActionContext,
-  type IAzExtOutputChannel,
-  callWithTelemetryAndErrorHandling,
-} from '@microsoft/vscode-azext-utils';
+import { type IActionContext, type IAzExtOutputChannel, callWithTelemetryAndErrorHandling } from '@microsoft/vscode-azext-utils';
 import type { ILocalSettingsJson } from '@microsoft/vscode-extension-logic-apps';
 import { Platform } from '@microsoft/vscode-extension-logic-apps';
 import axios from 'axios';
@@ -215,7 +211,12 @@ export async function startDesignTimeApi(context: IActionContext, projectPath: s
   await designTimeInst.startupPromise;
 }
 
-async function startDesignTimeApiInternal(context: IActionContext, designTimeInst: FuncInstance, projectPath: string, currRetry: number): Promise<void> {
+async function startDesignTimeApiInternal(
+  context: IActionContext,
+  designTimeInst: FuncInstance,
+  projectPath: string,
+  currRetry: number
+): Promise<void> {
   try {
     context.telemetry.properties.didStartDesignTime = 'false';
 
@@ -242,7 +243,7 @@ async function startDesignTimeApiInternal(context: IActionContext, designTimeIns
       warnIfJdbcJavaRuntimeMissing(context, projectPath).catch(() => undefined);
 
       const designTimeDirectory = path.join(projectPath, designTimeDirectoryName);
-      const portArgs = `--port ${designTimeInst.port}`;
+      const portArgs = `--port ${designTimeInst.port}${process.env.LOGICAPPS_LOCAL_CANDIDATE_MANIFEST ? ' --address 127.0.0.1' : ''}`;
       ext.outputChannel.appendLog(
         localize(
           'startingDesignTimeApiDetails',
@@ -458,6 +459,17 @@ export async function waitForDesignTimeStartUp(
   const initialTime = Date.now();
   let isDesignTimeStarted = false;
   while (Date.now() - initialTime < designerApiLoadTimeout) {
+    const hostProcess = ext.designTimeInstances.get(projectPath)?.process;
+    if (hostProcess && (hostProcess.exitCode != null || hostProcess.signalCode != null)) {
+      throw new Error(
+        localize(
+          'designTimeExitedBeforeReady',
+          'Design-time process exited before becoming ready for project "{0}" (exit: {1}). Check the Azure Logic Apps (Standard) output, correct the startup error, then reopen the panel.',
+          projectPath,
+          hostProcess.exitCode ?? hostProcess.signalCode
+        )
+      );
+    }
     if (await isDesignTimeUp(url)) {
       isDesignTimeStarted = true;
       break;
@@ -554,9 +566,12 @@ export function startDesignTimeProcess(
           ext.outputChannel.appendLog(`Failed to stop design-time process before restart. Error: ${error}`);
         })
         .finally(() => {
-          callWithTelemetryAndErrorHandling('designTimeError.languageWorkerFailed.startDesignTimeApi', async (actionContext: IActionContext) => {
-            await startDesignTimeApi(actionContext, projectPath);
-          });
+          callWithTelemetryAndErrorHandling(
+            'designTimeError.languageWorkerFailed.startDesignTimeApi',
+            async (actionContext: IActionContext) => {
+              await startDesignTimeApi(actionContext, projectPath);
+            }
+          );
         });
     }
   });
@@ -646,7 +661,11 @@ export function scheduleStartAllDesignTimeApis(): void {
   );
   startAllDesignTimeApis().catch((error) => {
     ext.outputChannel.appendLog(
-      localize('scheduleAllDesignTimeApisFailed', 'Background design-time startup encountered an error. Error: {0}', error instanceof Error ? error.message : String(error))
+      localize(
+        'scheduleAllDesignTimeApisFailed',
+        'Background design-time startup encountered an error. Error: {0}',
+        error instanceof Error ? error.message : String(error)
+      )
     );
   });
 }
@@ -658,7 +677,9 @@ export function scheduleStartAllDesignTimeApis(): void {
 export async function startAllDesignTimeApis(): Promise<void> {
   const projectPaths = await getWorkspaceLogicAppRoots();
   if (projectPaths.length === 0) {
-    ext.outputChannel.appendLog(localize('noLogicAppsFound', 'No Logic App projects found in the current workspace, skipping design-time startup.'));
+    ext.outputChannel.appendLog(
+      localize('noLogicAppsFound', 'No Logic App projects found in the current workspace, skipping design-time startup.')
+    );
     return;
   }
 
@@ -670,11 +691,13 @@ export async function startAllDesignTimeApis(): Promise<void> {
     )
   );
 
-  await Promise.all(projectPaths.map(async (projectPath) => {
-    await callWithTelemetryAndErrorHandling('startAllDesignTimeApis.startDesignTimeApi', async (actionContext: IActionContext) => {
-      await startDesignTimeApi(actionContext, projectPath);
-    });
-  }));
+  await Promise.all(
+    projectPaths.map(async (projectPath) => {
+      await callWithTelemetryAndErrorHandling('startAllDesignTimeApis.startDesignTimeApi', async (actionContext: IActionContext) => {
+        await startDesignTimeApi(actionContext, projectPath);
+      });
+    })
+  );
 }
 
 /**

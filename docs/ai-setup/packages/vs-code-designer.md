@@ -235,6 +235,25 @@ After pushing E2E test changes, **automatically monitor the GitHub Actions CI ru
 
 Do NOT stop after pushing and tell the user "I'll wait" — proactively check and iterate.
 
+## Local SDK/Bundle Candidate Testing
+
+For testing a not-yet-published Logic Apps SDK or extension-bundle candidate
+against this extension (install verification, Windows F5 host staging, and
+native C# Swagger path metadata), see
+`apps/vs-code-designer/scripts/run-candidate-e2e.md`. It documents the generic,
+parameterized candidate manifest/CLI, isolation/limits, what each receipt does
+and does not prove, the static-Swagger-shape-vs-runtime-execution distinction,
+and the manual candidate-switch tooling for preserving edited source across a
+candidate change without losing in-progress edits:
+`copy-candidate-workspace.js` (copy), `retarget-candidate-workspace.js`
+(rewrite the copy's csproj/nuget.config to the new candidate — NOT automatic,
+confirmed by source inspection), `detect-active-candidate-profile.js`
+(read-only refusal if a process already owns the target `--user-data-dir`),
+and `launch-candidate-workspace.js` (composes all three, then launches). This
+is session-local/manual testing infrastructure, not shipped product behavior
+or PR CI. For the corresponding SDK-repo-side harness and fixtures, see that
+repository's `tests\ExtensionE2E\README.md`.
+
 ## Graphify
 
 Read `apps/vs-code-designer/src/graphify-out/GRAPH_REPORT.md` for structural context (god nodes, communities, surprising connections).

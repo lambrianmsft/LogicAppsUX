@@ -1,7 +1,11 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/main.ts'],
+  entry: {
+    main: 'src/main.ts',
+    localCandidate: 'src/app/utils/localCandidate.ts',
+    localCandidateHost: 'src/app/utils/localCandidateHost.ts',
+  },
   splitting: false,
   sourcemap: true,
   clean: true,

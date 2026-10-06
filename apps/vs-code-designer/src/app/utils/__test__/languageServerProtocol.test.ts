@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     admZip,
+    ensureLocalCandidateInstalled: vi.fn(),
     copyFile: vi.fn(),
     ensureDir: vi.fn(),
     extractAllTo,
@@ -49,6 +50,9 @@ vi.mock('../vsCodeConfig/settings', () => ({
 vi.mock('../binaries', () => ({
   ensureRuntimeDependenciesDir: vi.fn(async () => 'D:\\runtime-dependencies'),
 }));
+vi.mock('../localCandidate', () => ({
+  ensureLocalCandidateInstalled: mocks.ensureLocalCandidateInstalled,
+}));
 vi.mock('../../../extensionVariables', () => ({
   ext: {
     languageClient: undefined,
@@ -78,6 +82,7 @@ describe('installLSPSDK', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.ensureLocalCandidateInstalled.mockResolvedValue(undefined);
     mocks.extractAllTo.mockReset();
     mocks.getGlobalSetting.mockReturnValue(targetDirectory);
     mocks.copyFile.mockResolvedValue(undefined);
@@ -155,6 +160,24 @@ describe('installLSPSDK', () => {
 
     expect(ensureRuntimeDependenciesDir).toHaveBeenCalled();
     expect(mocks.extractAllTo).toHaveBeenCalledWith(defaultDependencyPathValue, true, true);
+  });
+
+  it('copies the complete candidate package to its exact versioned path without seeding the stock SDK', async () => {
+    const source = 'D:\\artifacts\\candidate.nupkg';
+    const destination = path.join(sdkDirectoryPath, 'Microsoft.Azure.Workflows.Sdk.1.0.0-e2e.abc.nupkg');
+    mocks.ensureLocalCandidateInstalled.mockResolvedValue({
+      dependenciesPath: targetDirectory,
+      sdk: { path: source },
+      sdkPath: destination,
+    });
+    setExistingPaths([]);
+
+    await installLSPSDK();
+
+    expect(ensureRuntimeDependenciesDir).not.toHaveBeenCalled();
+    expect(mocks.copyFile).toHaveBeenCalledExactlyOnceWith(source, destination);
+    expect(mocks.admZip).toHaveBeenCalledTimes(1);
+    expect(mocks.admZip).not.toHaveBeenCalledWith(source);
   });
 
   it('updates both assets when target files exist but hash markers are missing', async () => {

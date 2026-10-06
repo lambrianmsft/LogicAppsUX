@@ -13,6 +13,7 @@ import {
   startDesignTimeApi,
   startDesignTimeProcess,
   stopDesignTimeApi,
+  waitForDesignTimeStartUp,
 } from '../startDesignTimeApi';
 
 vi.mock('../../appSettings/localSettings', () => ({
@@ -101,6 +102,17 @@ describe('startAllDesignTimeApis', () => {
     vi.mocked(reserveFreePort).mockImplementation(async () => nextPort++);
   });
 
+  it.each([0, 1])('fails immediately when the tracked host exits with code %s before readiness', async (exitCode) => {
+    const projectPath = 'D:\\private\\candidate\\app';
+    const host = new cp.ChildProcess();
+    host.exitCode = exitCode;
+    ext.designTimeInstances.set(projectPath, { process: host });
+    await expect(waitForDesignTimeStartUp(createMockContext(), projectPath, 'http://127.0.0.1:8001')).rejects.toThrow(
+      'Design-time process exited before becoming ready'
+    );
+    expect(axios.get).not.toHaveBeenCalled();
+  });
+
   it('logs zero-project startup when the workspace contains no Logic App folders', async () => {
     (workspace as any).workspaceFolders = [{ uri: { fsPath: 'D:/workspace' } }];
     vi.mocked(workspaceUtils.getWorkspaceLogicAppRoots).mockResolvedValue([]);
@@ -161,8 +173,8 @@ describe('startAllDesignTimeApis', () => {
     // to the default createDirectory rejection mock). This verifies the restart logic works without
     // entering an infinite loop.
     vi.mocked(axios.get)
-      .mockResolvedValueOnce({} as any)  // first port: orphan responds
-      .mockRejectedValue(new Error('API not ready'));  // new port: nothing responding
+      .mockResolvedValueOnce({} as any) // first port: orphan responds
+      .mockRejectedValue(new Error('API not ready')); // new port: nothing responding
 
     await expect(startDesignTimeApi(createMockContext(), 'D:/workspace/app-one')).rejects.toThrow();
 
@@ -180,9 +192,7 @@ describe('startAllDesignTimeApis', () => {
 
     await startDesignTimeApi(createMockContext(), 'D:/workspace/app-one');
 
-    expect(ext.outputChannel.appendLog).toHaveBeenCalledWith(
-      expect.stringContaining('Unable to validate the func child process PID')
-    );
+    expect(ext.outputChannel.appendLog).toHaveBeenCalledWith(expect.stringContaining('Unable to validate the func child process PID'));
   });
 
   it('reuses the in-flight startup promise for concurrent calls on the same project', async () => {

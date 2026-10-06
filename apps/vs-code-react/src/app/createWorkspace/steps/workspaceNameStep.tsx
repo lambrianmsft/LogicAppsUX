@@ -26,6 +26,7 @@ export const WorkspaceNameStep: React.FC = () => {
     workspaceName,
     workspaceProjectPath,
     pathValidationResults,
+    pathValidationErrors,
     workspaceExistenceResults,
     isValidatingWorkspace,
     separator,
@@ -49,12 +50,12 @@ export const WorkspaceNameStep: React.FC = () => {
       // Check if we have a validation result for this path
       const isPathValid = pathValidationResults[path];
       if (isPathValid === false) {
-        return intlText.PATH_NOT_EXISTS;
+        return pathValidationErrors?.[path] || intlText.PATH_NOT_EXISTS;
       }
 
       return undefined;
     },
-    [intlText.PATH_NOT_EXISTS, intlText.WORKSPACE_PARENT_FOLDER_EMPTY, pathValidationResults]
+    [intlText.PATH_NOT_EXISTS, intlText.WORKSPACE_PARENT_FOLDER_EMPTY, pathValidationResults, pathValidationErrors]
   );
 
   const validateWorkspaceName = useCallback(

@@ -32,6 +32,7 @@ import { getFunctionsCommand } from './funcCoreTools/funcVersion';
 import * as fse from 'fs-extra';
 import { executeCommand } from './funcCoreTools/cpUtils';
 import { tryGetLogicAppProjectRoot } from './verifyIsProject';
+import { assertLocalCandidateInstalled, ensureLocalCandidateInstalled } from './localCandidate';
 
 const PUBLIC_BUNDLE_BASE_URL = 'https://cdn.functions.azure.com/public';
 
@@ -1124,6 +1125,13 @@ function throwBundleHealthError(prefix: string, failure: BundleOnDiskHealthFailu
 }
 
 export async function assertExtensionBundleOnDiskHealthy(version?: string): Promise<BundleOnDiskHealthResult> {
+  const candidate = await assertLocalCandidateInstalled();
+  if (candidate) {
+    if (version && version !== candidate.bundle.version) {
+      throw new Error('The requested bundle version does not match the selected local candidate.');
+    }
+    return { ok: true, version: candidate.bundle.version };
+  }
   let targetVersion = version;
   if (!targetVersion) {
     const localVersions = await getExtensionBundleVersionFolders(defaultExtensionBundlePathValue);
@@ -1562,6 +1570,9 @@ export async function ensureExtensionBundleHealthy(
   context?: IActionContext,
   options: EnsureExtensionBundleHealthyOptions = {}
 ): Promise<void> {
+  if (await ensureLocalCandidateInstalled()) {
+    return;
+  }
   await waitForExtensionBundleReady();
   if (lastBundleInstallResult === 'failed') {
     const cause = lastBundleInstallError?.message ?? 'unknown error';
@@ -1778,6 +1789,15 @@ async function tryHealthyLocalBundleFastPath(
 async function downloadExtensionBundleCore(context: IActionContext, options: DownloadExtensionBundleOptions): Promise<boolean> {
   const downloadExtensionBundleStartTime = Date.now();
   try {
+    const candidate = await ensureLocalCandidateInstalled();
+    if (candidate) {
+      ext.defaultBundleVersion = candidate.bundle.version;
+      ext.latestBundleVersion = candidate.bundle.version;
+      context.telemetry.properties.extensionBundleVersionSource = 'localCandidate';
+      context.telemetry.properties.didUpdateExtensionBundle = 'false';
+      // Candidate installation never participates in the CDN repair/restart pipeline.
+      return false;
+    }
     let envVarVer: string | undefined = process.env.AzureFunctionsJobHost_extensionBundle_version;
     const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
     const projectPath = await tryGetLogicAppProjectRoot(context, workspaceFolder);
@@ -2255,6 +2275,10 @@ export function resetCachedBundleVersion(): void {
  * @throws {Error} If the extension bundle folder is missing or contains no subdirectories.
  */
 export async function getBundleVersionNumber(workingDirectory?: string): Promise<string> {
+  const candidate = await ensureLocalCandidateInstalled();
+  if (candidate) {
+    return candidate.bundle.version;
+  }
   // Return cached version if available (saves ~450ms on subsequent calls)
   if (cachedBundleVersion) {
     return cachedBundleVersion;
@@ -2291,6 +2315,10 @@ export async function getBundleVersionNumber(workingDirectory?: string): Promise
  * @returns {string} Extension bundle folder path.
  */
 export async function getExtensionBundleFolder(workingDirectory?: string): Promise<string> {
+  const candidate = await ensureLocalCandidateInstalled();
+  if (candidate) {
+    return candidate.bundleRoot;
+  }
   let command: string;
   try {
     command = getFunctionsCommand();

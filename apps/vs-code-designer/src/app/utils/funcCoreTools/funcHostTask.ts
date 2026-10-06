@@ -17,6 +17,8 @@ import * as cp from 'child_process';
 import * as os from 'os';
 import * as path from 'path';
 import { Platform } from '@microsoft/vscode-extension-logic-apps';
+import { getActiveLocalCandidate } from '../localCandidateRuntime';
+import { isLocalCandidateHostExecution } from '../localCandidateTasks';
 export interface IRunningFuncTask {
   startTime: number;
   processId: number;
@@ -142,6 +144,17 @@ export async function stopFuncTaskForWorkspace(
  * @returns {number} Returns true if the task is a func host start task, otherwise returns false.
  */
 export function isFuncHostTask(task: vscode.Task): boolean {
+  if (
+    getActiveLocalCandidate() &&
+    task.name === 'func: host start' &&
+    (task.definition.type === 'shell' || task.definition.type === 'process') &&
+    isLocalCandidateHostExecution(
+      task.execution as vscode.ShellExecution | vscode.ProcessExecution | undefined,
+      path.join(__dirname, 'localCandidateHost.js')
+    )
+  ) {
+    return true;
+  }
   const commandLine: string | undefined = task.execution && (task.execution as vscode.ShellExecution).commandLine;
   if (task.definition.type === 'shell') {
     const command = (task.execution as vscode.ShellExecution).command?.toString();

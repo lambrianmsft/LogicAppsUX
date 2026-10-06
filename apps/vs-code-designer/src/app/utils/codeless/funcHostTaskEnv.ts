@@ -29,6 +29,8 @@
  *
  * Reference: https://code.visualstudio.com/docs/editor/tasks#_operating-system-specific-properties
  */
+import { getLocalCandidateHostEnvironment } from '../localCandidateRuntime';
+
 interface FuncHostTaskOptionsBlock {
   cwd?: string;
   env: Record<string, string>;
@@ -59,7 +61,7 @@ const POSIX_PATH = `${DEPS_VAR}/NodeJs:${DEPS_VAR}/DotNetSDK:${INHERITED_PATH}`;
 export function getFuncHostTaskEnv(extras?: { cwd?: string }): FuncHostTaskOptions {
   const createOptions = (path: string): FuncHostTaskOptionsBlock => ({
     ...(extras?.cwd ? { cwd: extras.cwd } : {}),
-    env: { PATH: path },
+    env: { PATH: path, ...getLocalCandidateHostEnvironment() },
   });
 
   return {

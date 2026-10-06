@@ -4,11 +4,13 @@
  *--------------------------------------------------------------------------------------------*/
 import { defaultVersionRange, extensionBundleId, workflowOperationDiscoveryHostModeKey } from '../../../constants';
 import type { IHostJsonV2 } from '@microsoft/vscode-extension-logic-apps';
+import { getActiveLocalCandidate } from '../../utils/localCandidateRuntime';
 
 /**
  * Generates the canonical root host.json content for a Logic App project.
  */
 export function generateHostJson(): IHostJsonV2 {
+  const candidate = getActiveLocalCandidate();
   return {
     version: '2.0',
     logging: {
@@ -21,7 +23,7 @@ export function generateHostJson(): IHostJsonV2 {
     },
     extensionBundle: {
       id: extensionBundleId,
-      version: defaultVersionRange,
+      version: candidate ? `[${candidate.bundle.version}]` : defaultVersionRange,
     },
   };
 }
@@ -31,11 +33,12 @@ export function generateHostJson(): IHostJsonV2 {
  * Enables workflow operation discovery host mode for the design-time API.
  */
 export function generateDesignTimeHostJson(): Record<string, unknown> {
+  const candidate = getActiveLocalCandidate();
   return {
     version: '2.0',
     extensionBundle: {
       id: extensionBundleId,
-      version: defaultVersionRange,
+      version: candidate ? `[${candidate.bundle.version}]` : defaultVersionRange,
     },
     extensions: {
       workflow: {

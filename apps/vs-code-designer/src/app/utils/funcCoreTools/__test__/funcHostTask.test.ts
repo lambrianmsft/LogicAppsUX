@@ -4,11 +4,14 @@
  *--------------------------------------------------------------------------------------------*/
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { ext } from '../../../../extensionVariables';
 
-const { registerEventMock } = vi.hoisted(() => ({
+const { registerEventMock, candidateMock } = vi.hoisted(() => ({
   registerEventMock: vi.fn(),
+  candidateMock: vi.fn(),
 }));
+vi.mock('../../localCandidateRuntime', () => ({ getActiveLocalCandidate: candidateMock }));
 
 vi.mock('@microsoft/vscode-azext-utils', () => ({
   registerEvent: registerEventMock,
@@ -46,6 +49,7 @@ describe('funcHostTask', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    candidateMock.mockReturnValue(undefined);
     runningFuncTaskMap.clear();
     (ext as any).workflowRuntimePort = '7071';
     (vscode as any).tasks = {
@@ -58,6 +62,39 @@ describe('funcHostTask', () => {
   });
 
   describe('isFuncHostTask', () => {
+    it('recognizes the packaged candidate wrapper for start/stop tracking only in candidate mode', () => {
+      const task = {
+        ...createShellTask('node', workspaceFolder),
+        name: 'func: host start',
+        execution: {
+          command: 'node',
+          args: [path.join(__dirname, '..', 'localCandidateHost.js'), path.resolve('tools', 'func.exe'), 'host', 'start'],
+        },
+      } as vscode.Task;
+      expect(isFuncHostTask(task)).toBe(false);
+      candidateMock.mockReturnValue({});
+      expect(isFuncHostTask(task)).toBe(true);
+    });
+    it('tracks the same Windows helper casing with unresolved config arguments but rejects unrelated wrappers', () => {
+      const launcher = path.resolve(__dirname, '..', 'localCandidateHost.js');
+      const task = {
+        ...createShellTask('node', workspaceFolder),
+        name: 'func: host start',
+        execution: {
+          command: 'node',
+          args: [
+            process.platform === 'win32' ? launcher.toUpperCase() : launcher,
+            '${config:azureLogicAppsStandard.funcCoreToolsBinaryPath}',
+            'host',
+            'start',
+          ],
+        },
+      } as vscode.Task;
+      candidateMock.mockReturnValue({});
+      expect(isFuncHostTask(task)).toBe(true);
+      (task.execution as vscode.ShellExecution).args[0] = path.resolve('unrelated', 'localCandidateHost.js');
+      expect(isFuncHostTask(task)).toBe(false);
+    });
     it('returns true for shell tasks using funcCoreToolsBinaryPath config', () => {
       const task = createShellTask('${config:azureLogicAppsStandard.funcCoreToolsBinaryPath}');
 

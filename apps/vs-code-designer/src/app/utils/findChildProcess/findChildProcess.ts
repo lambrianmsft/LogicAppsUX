@@ -1,4 +1,5 @@
 import * as cp from 'child_process';
+import * as path from 'path';
 import { ext } from '../../../extensionVariables';
 import { getExtensionAssetPath } from '../extensionAssets';
 import { localize } from '../../../localize';
@@ -10,17 +11,22 @@ interface ProcessInfo {
 }
 
 async function runPowerShellScript(scriptPath: string, ...args: string[]): Promise<string> {
+  if (!process.env.SystemRoot) {
+    throw new Error('Windows SystemRoot is required to locate Windows PowerShell for process discovery.');
+  }
+  const powershell = path.win32.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
   return new Promise((resolve, reject) => {
-    // Escape arguments for PowerShell
-    const escapedArgs = args.map((arg) => `"${arg.replace(/"/g, '`"')}"`).join(' ');
-    const command = `powershell.exe -NoProfile -NoLogo -ExecutionPolicy Bypass -File "${scriptPath}" ${escapedArgs}`;
+    const commandArgs = ['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...args];
+    const target = args[0] === '-ListeningPort' ? `port "${args[1]}"` : `parent PID "${args[0]}"`;
 
-    ext.outputChannel.appendLog(`Executing PowerShell script: ${command}`);
+    ext.outputChannel.appendLog(`Executing PowerShell script: "${scriptPath}" for ${target}.`);
 
-    const child = cp.exec(
-      command,
+    cp.execFile(
+      powershell,
+      commandArgs,
       {
         timeout: 10000,
+        windowsHide: true,
         encoding: 'utf8',
         maxBuffer: 1024 * 1024, // 1MB buffer
       },
@@ -30,22 +36,27 @@ async function runPowerShellScript(scriptPath: string, ...args: string[]): Promi
           if (stderr) {
             ext.outputChannel.appendLog(`PowerShell stderr: ${stderr}`);
           }
-          reject(error);
+          reject(
+            error.killed && typeof error.code !== 'string'
+              ? new Error(`PowerShell process discovery timed out after 10000 ms for ${target}.`)
+              : error
+          );
           return;
         }
 
         resolve(stdout.trim());
       }
     );
-
-    // Backup timeout
-    setTimeout(() => {
-      if (!child.killed) {
-        child.kill('SIGKILL');
-        reject(new Error('PowerShell script execution timed out'));
-      }
-    }, 12000);
   });
+}
+
+export async function getListeningProcessIds(port: number): Promise<number[]> {
+  const output = await runPowerShellScript(getExtensionAssetPath('scripts', 'get-child-processes.ps1'), '-ListeningPort', String(port));
+  const owners: unknown = JSON.parse(output);
+  if (!Array.isArray(owners) || !owners.every((owner) => Number.isInteger(owner) && owner > 0)) {
+    throw new Error('PowerShell returned invalid listening process IDs.');
+  }
+  return owners;
 }
 
 export async function getChildProcesses(parentProcessId: number): Promise<ProcessInfo[]> {

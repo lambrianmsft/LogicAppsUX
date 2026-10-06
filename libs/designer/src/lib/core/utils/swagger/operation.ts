@@ -48,6 +48,8 @@ import {
   startsWith,
   unmap,
   cleanResourceId,
+  parseNativeCSharpPath,
+  matchNativeCSharpPath,
 } from '@microsoft/logic-apps-shared';
 import type { LAOperation, LogicAppsV2, OperationInfo, OutputParameter, SwaggerParser } from '@microsoft/logic-apps-shared';
 import type { Dispatch } from '@reduxjs/toolkit';
@@ -333,6 +335,17 @@ export const getOperationIdFromDefinition = (operationInputInfo: OperationInputI
   }
 
   const path = operationInputInfo.path ?? operationInputInfo?.pathTemplate?.template ?? '';
+  const nativePath = parseNativeCSharpPath(path);
+  if (nativePath) {
+    const matches = operations.filter(
+      (operation) =>
+        equals(operation.method, operationInputInfo.method) && matchNativeCSharpPath(nativePath, removeConnectionPrefix(operation.path))
+    );
+    if (matches.length > 1) {
+      throw new Error('Native C# connector path matches multiple Swagger operations.');
+    }
+    return matches[0]?.operationId;
+  }
   return getOperationIdFromSwagger(operationInputInfo.method, path, operations);
 };
 

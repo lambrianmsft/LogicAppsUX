@@ -76,6 +76,7 @@ export async function createWorkflow(context: IActionContext, uri?: vscode.Uri) 
     createCommand: ExtensionCommand.createWorkflow,
     createHandler: async (data: any) => {
       await callWithTelemetryAndErrorHandling(ExtensionCommand.createWorkflow, async (actionContext: IActionContext) => {
+        actionContext.errorHandling.rethrow = true;
         ext.outputChannel.appendLog(`[createWorkflow] createHandler invoked. logicAppName="${data.logicAppName}"`);
         // Resolve project root from the user's selection in the webview
         const selectedName = data.logicAppName;

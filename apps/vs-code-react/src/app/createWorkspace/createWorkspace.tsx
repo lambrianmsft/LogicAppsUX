@@ -13,6 +13,7 @@ import {
   setCurrentStep,
   setFlowType,
   setLoading,
+  setError,
   resetState,
   setProjectPath,
   setWorkspaceName,
@@ -517,6 +518,7 @@ const CreateWorkspaceInternal = () => {
       flowType,
     });
 
+    dispatch(setError(undefined));
     dispatch(setLoading(true));
 
     const baseData = {

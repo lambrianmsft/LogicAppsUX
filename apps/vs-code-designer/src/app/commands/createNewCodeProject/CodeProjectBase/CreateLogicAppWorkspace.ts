@@ -38,6 +38,7 @@ import { ProjectType, WorkflowType } from '@microsoft/vscode-extension-logic-app
 import { createDevContainerContents, createLogicAppVsCodeContents } from './CreateLogicAppVSCodeContents';
 import { logicAppPackageProcessing, unzipLogicAppPackageIntoWorkspace } from '../../../utils/cloudToLocalUtils';
 import { getGlobalSetting } from '../../../utils/vsCodeConfig/settings';
+import { assertLocalCandidateProject } from '../../../utils/localCandidateRuntime';
 
 export async function createRulesFiles(context: IFunctionWizardContext): Promise<void> {
   if (context.projectType === ProjectType.rulesEngine) {
@@ -67,6 +68,7 @@ export async function createLogicAppAndWorkflow(
   context: IActionContext
 ) {
   const { logicAppType, workflowType, functionName, workflowName, logicAppName } = webviewProjectContext;
+  assertLocalCandidateProject(logicAppFolderPath);
 
   context.telemetry.properties.logicAppType = logicAppType || 'logicApp';
   context.telemetry.properties.workflowType = workflowType || 'unknown';
@@ -118,8 +120,15 @@ export const createCodefulWorkflowFile = async (
   workflowName: string,
   workflowType: WorkflowType
 ) => {
+  assertLocalCandidateProject(logicAppFolderPath);
+  const { ensureLocalCandidateInstalled } = await import('../../../utils/localCandidate');
+  const candidate = await ensureLocalCandidateInstalled();
+  const offlineSource = candidate ? process.env.LOGICAPPS_LOCAL_CANDIDATE_NUGET_SOURCE : undefined;
+  if (offlineSource && (!path.isAbsolute(offlineSource) || !(await fse.stat(offlineSource)).isDirectory())) {
+    throw new Error('LOGICAPPS_LOCAL_CANDIDATE_NUGET_SOURCE must be an existing absolute offline package directory.');
+  }
   const workflowTemplateFileName = getCodefulWorkflowTemplateFileName(workflowType);
-  const targetDirectory = getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey);
+  const targetDirectory = candidate?.dependenciesPath ?? getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey);
   const lspDirectoryPath = path.join(targetDirectory, lspDirectory);
 
   // Create the workflow-specific .cs file
@@ -149,13 +158,40 @@ export const createCodefulWorkflowFile = async (
 
     // Create the .csproj file (only for first workflow)
     const templateProjPath = path.join(__dirname, assetsFolderName, 'CodefulProjectTemplate', 'CodefulProj');
-    const templateProjContent = await fse.readFile(templateProjPath, 'utf-8');
+    let templateProjContent = await fse.readFile(templateProjPath, 'utf-8');
+    if (candidate) {
+      if (!templateProjContent.includes('Include="Microsoft.Azure.Workflows.Sdk" Version="1.0.0-preview.1"')) {
+        throw new Error('The codeful project template SDK reference has changed; cannot safely select the candidate package.');
+      }
+      templateProjContent = templateProjContent.replace(
+        'Include="Microsoft.Azure.Workflows.Sdk" Version="1.0.0-preview.1"',
+        `Include="${candidate.sdk.packageId}" Version="${candidate.sdk.version}"`
+      );
+    }
     const csprojFilePath = path.join(logicAppFolderPath, `${logicAppName}.csproj`);
     await fse.writeFile(csprojFilePath, templateProjContent);
 
     // Create nuget.config file (only for first workflow)
     const templateNugetPath = path.join(__dirname, assetsFolderName, 'CodefulProjectTemplate', 'nuget');
-    const templateNugetContent = (await fse.readFile(templateNugetPath, 'utf-8')).replace(/<%= lspDirectory %>/g, `"${lspDirectoryPath}"`);
+    const sourcePath = candidate ? lspDirectoryPath.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : lspDirectoryPath;
+    let templateNugetContent = (await fse.readFile(templateNugetPath, 'utf-8')).replace(/<%= lspDirectory %>/g, `"${sourcePath}"`);
+    if (candidate) {
+      if (offlineSource) {
+        const escapedOfflineSource = offlineSource.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        templateNugetContent = templateNugetContent
+          .replace('<packageSources>', '<packageSources>\n        <clear />')
+          .replace('</packageSources>', `    <add key="offline" value="${escapedOfflineSource}" />\n    </packageSources>`);
+      }
+      templateNugetContent = templateNugetContent.replace(
+        '</configuration>',
+        `<packageSourceMapping>
+  <clear />
+  <packageSource key="current"><package pattern="${candidate.sdk.packageId}" /></packageSource>
+  <packageSource key="${offlineSource ? 'offline' : 'nuget.org'}"><package pattern="*" /></packageSource>
+</packageSourceMapping>
+</configuration>`
+      );
+    }
     const nugetFilePath = path.join(logicAppFolderPath, 'nuget.config');
     await fse.writeFile(nugetFilePath, templateNugetContent);
   }
@@ -222,10 +258,16 @@ export async function createWorkspaceFiles(webviewProjectContext: IWebviewProjec
 
   //Create the workspace folder
   const workspaceFolder = path.join(workspaceProjectPath.fsPath, workspaceName);
+  const workspaceFilePath = path.join(workspaceFolder, `${workspaceName}.code-workspace`);
+  assertLocalCandidateProject(workspaceFolder);
+  assertLocalCandidateProject(workspaceFilePath);
+  assertLocalCandidateProject(path.join(workspaceFolder, logicAppName));
+  if (functionFolderName) {
+    assertLocalCandidateProject(path.join(workspaceFolder, functionFolderName));
+  }
   await fse.ensureDir(workspaceFolder);
 
   // Create the workspace .code-workspace file
-  const workspaceFilePath = path.join(workspaceFolder, `${workspaceName}.code-workspace`);
   const workspaceFolders = [];
   workspaceFolders.push({ name: logicAppName, path: `./${logicAppName}` });
 
@@ -274,7 +316,12 @@ export async function updateWorkspaceFile(context: IWebviewProjectContext) {
   await fse.writeJson(context.workspaceFilePath, workspaceContent, { spaces: 2 });
 }
 
-export async function createLogicAppWorkspace(context: IActionContext, options: any, fromPackage: boolean): Promise<void> {
+export async function createLogicAppWorkspace(
+  context: IActionContext,
+  options: any,
+  fromPackage: boolean,
+  openWorkspace = true
+): Promise<void> {
   addLocalFuncTelemetry(context);
 
   const webviewProjectContext: IWebviewProjectContext = options;
@@ -359,5 +406,7 @@ export async function createLogicAppWorkspace(context: IActionContext, options: 
     ext.outputChannel.appendLog(localize('finishedCreating', 'Finished creating project.'));
   }
 
-  await vscode.commands.executeCommand(vscodeCommand.openFolder, vscode.Uri.file(workspaceFilePath), true /* forceNewWindow */);
+  if (openWorkspace) {
+    await vscode.commands.executeCommand(vscodeCommand.openFolder, vscode.Uri.file(workspaceFilePath), true /* forceNewWindow */);
+  }
 }

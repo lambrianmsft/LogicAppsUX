@@ -53,6 +53,7 @@ export async function createProject(_context: IActionContext): Promise<void> {
     createCommand: ExtensionCommand.createLogicApp,
     createHandler: async (data: any) => {
       await callWithTelemetryAndErrorHandling(ExtensionCommand.createLogicApp, async (actionContext: IActionContext) => {
+        actionContext.errorHandling.rethrow = true;
         await createLogicAppProject(actionContext, data, workspaceRootFolder);
       });
     },

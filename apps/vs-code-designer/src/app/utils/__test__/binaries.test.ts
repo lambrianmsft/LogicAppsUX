@@ -61,8 +61,26 @@ vi.mock('../vsCodeConfig/settings');
 vi.mock('../vsCodeConfig/tasks');
 vi.mock('../../commands/nodeJs/validateNodeJsInstalled');
 vi.mock('../devContainerUtils');
+const candidateMode = vi.hoisted(() => vi.fn());
+vi.mock('../localCandidateRuntime', () => ({ getActiveLocalCandidate: candidateMode }));
 
 describe('binaries', () => {
+  it('uses verified external executables in candidate mode without requiring cache folders or changing settings', async () => {
+    candidateMode.mockReturnValue({});
+    const executable = path.resolve('tools', 'func.exe');
+    vi.mocked(getGlobalSetting).mockImplementation((key) => (key === funcCoreToolsBinaryPathSettingKey ? executable : undefined));
+    vi.mocked(fs.existsSync).mockImplementation((value) => value === executable);
+    vi.mocked(updateGlobalSetting).mockClear();
+    try {
+      expect(binariesExistSync(funcDependencyName)).toBe(true);
+      expect(await binariesExist(funcDependencyName)).toBe(true);
+      expect(binariesExistSync(dotnetDependencyName)).toBe(false);
+      expect(updateGlobalSetting).not.toHaveBeenCalled();
+    } finally {
+      candidateMode.mockReset();
+    }
+  });
+
   describe('downloadAndExtractDependency', () => {
     let context: IActionContext;
 

@@ -27,6 +27,8 @@ import {
   replaceTemplatePlaceholders,
   startsWith,
   UnsupportedException,
+  parseNativeCSharpPath,
+  matchNativeCSharpPath,
 } from '@microsoft/logic-apps-shared';
 import type { Expression, ExpressionFunction, InputParameter, Segment } from '@microsoft/logic-apps-shared';
 
@@ -535,6 +537,14 @@ function createMultipart(name: string, body: any, fileName?: string) {
  * @return {Record<string, any>} - input parameters in the path input {pathKey: value}
  */
 export function processPathInputs(pathValue: string, pathTemplate: string): Record<string, any> {
+  const nativePath = parseNativeCSharpPath(pathValue);
+  if (nativePath) {
+    const parameters = matchNativeCSharpPath(nativePath, pathTemplate);
+    if (!parameters) {
+      throw new Error('Native C# connector path does not match the Swagger path template.');
+    }
+    return parameters;
+  }
   const intl = getIntl();
   const pathInputs: Record<string, any> = {};
   const regex = /{(.*?)}/g;

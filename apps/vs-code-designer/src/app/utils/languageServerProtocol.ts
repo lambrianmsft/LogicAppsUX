@@ -6,6 +6,7 @@ import { lspSdkHashMarkerName, lspServerDirectoryName, lspServerHashMarkerName }
 import AdmZip from 'adm-zip';
 import { createHash } from 'crypto';
 import { ensureRuntimeDependenciesDir } from './binaries';
+import { ensureLocalCandidateInstalled } from './localCandidate';
 
 export { lspSdkHashMarkerName, lspServerDirectoryName, lspServerHashMarkerName };
 const lockedFileErrorCodes = new Set(['EBUSY', 'EPERM']);
@@ -13,7 +14,8 @@ const lockedFileRetryDelayMs = 2000;
 const lockedFileRetryAttempts = 3;
 
 export async function installLSPSDK(): Promise<void> {
-  const targetDirectory = await ensureRuntimeDependenciesDir();
+  const candidate = await ensureLocalCandidateInstalled();
+  const targetDirectory = candidate?.dependenciesPath ?? (await ensureRuntimeDependenciesDir());
 
   // Check if LSPServer needs to be extracted or updated
   const serverZipFile = path.join(__dirname, assetsFolderName, 'LSPServer', 'LSPServer.zip');
@@ -25,9 +27,10 @@ export async function installLSPSDK(): Promise<void> {
 
   // Check if SDK needs to be copied or updated
   const lspDirectoryPath = path.join(targetDirectory, lspDirectory);
-  const sdkNupkgFile = path.join(__dirname, assetsFolderName, 'LSPServer', 'Microsoft.Azure.Workflows.Sdk.1.0.0-preview.1.nupkg');
+  const sdkNupkgFile =
+    candidate?.sdk.path ?? path.join(__dirname, assetsFolderName, 'LSPServer', 'Microsoft.Azure.Workflows.Sdk.1.0.0-preview.1.nupkg');
   const sdkHashMarkerFile = path.join(targetDirectory, lspSdkHashMarkerName);
-  const destinationFile = path.join(lspDirectoryPath, path.basename(sdkNupkgFile));
+  const destinationFile = candidate?.sdkPath ?? path.join(lspDirectoryPath, path.basename(sdkNupkgFile));
   const sdkHash = await getFileHash(sdkNupkgFile);
 
   const shouldCopy = await shouldCopySdkFromHash(sdkHash, sdkHashMarkerFile, destinationFile);

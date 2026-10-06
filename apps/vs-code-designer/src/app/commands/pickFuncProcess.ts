@@ -20,7 +20,7 @@ import { isTimeoutError } from '../utils/requestUtils';
 import { executeIfNotActive } from '../utils/taskUtils';
 import { tryGetLogicAppProjectRoot } from '../utils/verifyIsProject';
 import { getWorkspaceSetting } from '../utils/vsCodeConfig/settings';
-import { getChildProcesses } from '../utils/findChildProcess/findChildProcess';
+import { getChildProcesses, getListeningProcessIds } from '../utils/findChildProcess/findChildProcess';
 import { HTTP_METHODS } from '@microsoft/logic-apps-shared';
 import type { AzExtRequestPrepareOptions } from '@microsoft/vscode-azext-azureutils';
 import { sendRequestWithTimeout } from '@microsoft/vscode-azext-azureutils';
@@ -37,6 +37,8 @@ const funcTaskStartupTimeoutSeconds = 10 * 60;
 import { getProjFiles } from '../utils/dotnet/dotnet';
 import { hasCodefulWorkflowSetting } from '../utils/codeful';
 import { delay } from '../utils/delay';
+import { fetchLocalCandidateDebugTasks } from '../utils/localCandidateTasks';
+import { getActiveLocalCandidate } from '../utils/localCandidateRuntime';
 
 type OSAgnosticProcess = { command: string | undefined; pid: number | string };
 type ActualUnixPS = unixPsTree.PS & { COMM?: string };
@@ -114,7 +116,8 @@ export async function pickFuncProcessInternal(
   await stopFuncTaskForWorkspace(workspaceFolder);
 
   context.telemetry.properties.lastStep = 'buildProject';
-  if (await hasCodefulWorkflowSetting(projectPath)) {
+  const codeful = await hasCodefulWorkflowSetting(projectPath);
+  if (codeful) {
     // For codeful projects, the `func: host start` task chains a Debug `build` via dependsOn,
     // and the modern codeful template hooks `CopyToCodefulFolder`/`ReplaceLanguageNetCore` to
     // `AfterTargets="Build;Publish"`. Running an explicit Release `publish` first would just
@@ -139,7 +142,7 @@ export async function pickFuncProcessInternal(
   const isBundleProject: boolean = projectFiles.length > 0 ? false : true;
 
   const preLaunchTaskName: string | undefined = debugConfig.preLaunchTask;
-  const tasks: vscode.Task[] = await vscode.tasks.fetchTasks();
+  const tasks: vscode.Task[] = await fetchLocalCandidateDebugTasks(workspaceFolder, projectPath, preLaunchTaskName, codeful);
   const funcTask: vscode.Task | undefined = tasks.find((task) => {
     return (
       scopeMatchesWorkspace(task.scope, workspaceFolder) && (preLaunchTaskName ? task.name === preLaunchTaskName : isFuncHostTask(task))
@@ -309,9 +312,33 @@ async function startFuncTask(
       }
 
       taskInfo = getRunningFuncTaskForWorkspace(workspaceFolder) ?? taskInfo;
+      const candidateProcesses =
+        getActiveLocalCandidate() && process.platform === Platform.windows ? await getWorkflowDebugProcessCandidates(taskInfo) : undefined;
+      if (candidateProcesses && (!candidateProcesses[0] || !candidateProcesses[1])) {
+        await delay(intervalMs);
+        continue;
+      }
+      if (candidateProcesses) {
+        const owners = await getListeningProcessIds(Number(funcPort));
+        if (owners.some((owner) => owner !== Number(candidateProcesses[1]))) {
+          throw new Error(
+            localize(
+              'candidatePortConflict',
+              'Port {0} is occupied by process {1}, not this candidate Functions host ({2}). Stop the conflicting task explicitly before retrying.',
+              funcPort,
+              owners.join(', '),
+              candidateProcesses[1] ?? ''
+            )
+          );
+        }
+        if (!owners.length) {
+          await delay(intervalMs);
+          continue;
+        }
+      }
       for (const scheme of ['http', 'https']) {
         const statusRequest: AzExtRequestPrepareOptions = {
-          url: `${scheme}://localhost:${funcPort}/admin/host/status`,
+          url: `${scheme}://${candidateProcesses ? '127.0.0.1' : 'localhost'}:${funcPort}/admin/host/status`,
           method: HTTP_METHODS.GET,
         };
         if (scheme === 'https') {
@@ -323,7 +350,7 @@ async function startFuncTask(
           const response = await sendRequestWithTimeout(context, statusRequest, statusRequestTimeout, undefined);
           if (response.parsedBody.state.toLowerCase() === 'running') {
             funcTaskReadyEmitter.fire(workspaceFolder);
-            taskInfo.childProcessId = await getWorkflowDebugProcessCandidates(taskInfo);
+            taskInfo.childProcessId = candidateProcesses ?? (await getWorkflowDebugProcessCandidates(taskInfo));
             return taskInfo;
           }
         } catch (error) {
@@ -357,6 +384,13 @@ async function startFuncTask(
  * Discover (or reuse cached) child process IDs for workflow debug attachment.
  */
 async function getWorkflowDebugProcessCandidates(taskInfo: IRunningFuncTask): Promise<Array<string | undefined>> {
+  if (getActiveLocalCandidate() && process.platform === Platform.windows) {
+    // The wrapper stages the complete host before spawning func. Never cache its shell PID as a debug target.
+    const func = await getMatchingWorkflowChildProcess(taskInfo.processId);
+    const children = func ? await getWindowsChildren(Number(func.pid)) : [];
+    const host = children.find((child) => /(^|[\\/])func(\.exe)?$/i.test(child.command || ''));
+    return [func?.pid.toString(), host?.pid.toString()];
+  }
   const hasCachedFirstChildProcessId = (taskInfo.childProcessId?.length ?? 0) >= 1;
   const hasCachedHostChildProcessId = (taskInfo.childProcessId?.length ?? 0) >= 2;
   const firstChildProcessId = hasCachedFirstChildProcessId ? taskInfo.childProcessId?.[0] : await pickChildProcess(taskInfo);
@@ -367,6 +401,14 @@ async function getWorkflowDebugProcessCandidates(taskInfo: IRunningFuncTask): Pr
 
 export async function pickWorkflowDebugProcess(taskInfo: IRunningFuncTask, preferHostChildProcess = false): Promise<string> {
   const [firstChildProcessId, hostChildProcessId] = await getWorkflowDebugProcessCandidates(taskInfo);
+  if (getActiveLocalCandidate() && process.platform === Platform.windows && (!firstChildProcessId || !hostChildProcessId)) {
+    throw new Error(
+      localize(
+        'candidateHostNotReady',
+        'The local candidate task has not started its Functions host yet. View the task output for staging errors.'
+      )
+    );
+  }
   taskInfo.childProcessId = [firstChildProcessId, hostChildProcessId];
   const selectedProcessId =
     process.platform === Platform.windows && preferHostChildProcess
@@ -404,7 +446,20 @@ async function getMatchingWorkflowChildProcess(processId: number): Promise<OSAgn
   const children: OSAgnosticProcess[] =
     process.platform === Platform.windows ? await getWindowsChildren(processId) : await getUnixChildren(processId);
 
-  return children.reverse().find((candidate) => workflowProcessRegex.test(candidate.command || ''));
+  const isWindowsCandidate = getActiveLocalCandidate() && process.platform === Platform.windows;
+  const child = children
+    .reverse()
+    .find((candidate) => (isWindowsCandidate ? /(^|[\\/])func(\.exe)?$/i : workflowProcessRegex).test(candidate.command || ''));
+  if (!child && isWindowsCandidate) {
+    for (const wrapper of children.filter((candidate) => /(^|[\\/])node(\.exe)?$/i.test(candidate.command || ''))) {
+      const wrapped = await getWindowsChildren(Number(wrapper.pid));
+      const func = wrapped.find((candidate) => /(^|[\\/])func(\.exe)?$/i.test(candidate.command || ''));
+      if (func) {
+        return func;
+      }
+    }
+  }
+  return child;
 }
 
 async function tryUseActiveTerminalProcess(taskInfo: IRunningFuncTask): Promise<OSAgnosticProcess | undefined> {
@@ -443,6 +498,13 @@ async function tryUseActiveTerminalProcess(taskInfo: IRunningFuncTask): Promise<
  * The only processes we should want to attach to are the "func" process itself or a "dotnet" process running a dll, so we will pick the innermost one of those
  */
 export async function pickChildProcess(taskInfo: IRunningFuncTask): Promise<string> {
+  if (getActiveLocalCandidate() && process.platform === Platform.windows) {
+    const child = await getMatchingWorkflowChildProcess(taskInfo.processId);
+    if (!child) {
+      throw new Error(localize('candidateFuncNotReady', 'No Functions child process is running under the local candidate task.'));
+    }
+    return child.pid.toString();
+  }
   // Workaround for https://github.com/microsoft/vscode-azurefunctions/issues/2656
   if (!isRunning(taskInfo.processId) && vscode.window.activeTerminal) {
     const terminalPid = await vscode.window.activeTerminal.processId;

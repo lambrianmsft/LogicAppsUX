@@ -3,6 +3,10 @@ import * as vscode from 'vscode';
 import { ext } from '../../../extensionVariables';
 import type { IRunningFuncTask } from '../../utils/funcCoreTools/funcHostTask';
 import * as findChildProcessModule from '../../utils/findChildProcess/findChildProcess';
+import * as localCandidateTasks from '../../utils/localCandidateTasks';
+const candidateForProcess = vi.hoisted(() => vi.fn());
+vi.mock('../../utils/localCandidateRuntime', () => ({ getActiveLocalCandidate: candidateForProcess }));
+afterEach(() => candidateForProcess.mockReset());
 
 // Mock ps-tree to prevent spawning `ps` on Windows hosts.
 vi.mock('ps-tree', () => ({
@@ -195,6 +199,30 @@ describe('pickFuncProcessInternal', () => {
     expect(executeIfNotActive).not.toHaveBeenCalled();
   });
 
+  it('awaits candidate task preparation before executing any debug or host task', async () => {
+    let rejectPreparation!: (error: Error) => void;
+    const preparation = vi.spyOn(localCandidateTasks, 'fetchLocalCandidateDebugTasks').mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectPreparation = reject;
+        })
+    );
+    const pending = pickFuncProcessModule.pickFuncProcessInternal(
+      context,
+      { type: 'logicapp', isCodeless: false, preLaunchTask: 'func: host start' },
+      workspaceFolder,
+      projectPath
+    );
+    const rejected = expect(pending).rejects.toThrow('candidate configuration rejected');
+    await vi.waitFor(() => expect(preparation).toHaveBeenCalledWith(workspaceFolder, projectPath, 'func: host start', true));
+    expect(vscode.tasks.fetchTasks).not.toHaveBeenCalled();
+    expect(vscode.tasks.executeTask).not.toHaveBeenCalled();
+    expect(executeIfNotActive).not.toHaveBeenCalled();
+    rejectPreparation(new Error('candidate configuration rejected'));
+    await rejected;
+    expect(executeIfNotActive).not.toHaveBeenCalled();
+  });
+
   it('custom code project skips codeful publish', async () => {
     (hasCodefulWorkflowSetting as any).mockResolvedValue(false);
     (vscode.tasks.fetchTasks as any).mockResolvedValue([]);
@@ -212,6 +240,90 @@ describe('pickFuncProcessInternal', () => {
     expect(tryBuildCustomCodeFunctionsProject).toHaveBeenCalledWith(expect.any(Object), workspaceFolder.uri);
     expect(publishCodefulProject).not.toHaveBeenCalled();
     expect(executeIfNotActive).not.toHaveBeenCalled();
+  });
+
+  it('waits for the candidate wrapper to spawn func/inproc8 before probing status or choosing a PID', async () => {
+    restoreProcessPlatform();
+    setProcessPlatform('win32');
+    candidateForProcess.mockReturnValue({});
+    vi.spyOn(localCandidateTasks, 'fetchLocalCandidateDebugTasks').mockResolvedValue([funcTask]);
+    vi.spyOn(findChildProcessModule, 'getListeningProcessIds').mockResolvedValue([222]);
+    let staged = false;
+    vi.mocked(delay).mockImplementation(async () => {
+      expect(sendRequestWithTimeout).not.toHaveBeenCalled();
+      staged = true;
+    });
+    vi.spyOn(findChildProcessModule, 'getChildProcesses').mockImplementation(async (pid) => {
+      if (pid === 1234) {
+        return [{ processId: 110, name: 'node.exe', parentProcessId: pid }];
+      }
+      if (pid === 110 && staged) {
+        return [{ processId: 111, name: 'func.exe', parentProcessId: pid }];
+      }
+      if (pid === 111) {
+        return [{ processId: 222, name: 'func.exe', parentProcessId: pid }];
+      }
+      return [];
+    });
+    await expect(
+      pickFuncProcessModule.pickFuncProcessInternal(
+        context,
+        { type: 'logicapp', isCodeless: false, preLaunchTask: 'func: host start' },
+        workspaceFolder,
+        projectPath
+      )
+    ).resolves.toBe('222');
+    expect(staged).toBe(true);
+    expect(sendRequestWithTimeout).toHaveBeenCalledTimes(1);
+    expect(runningFuncTaskMap.get(workspaceFolder)?.childProcessId).toEqual(['111', '222']);
+  });
+
+  it('rejects an unrelated listener instead of accepting its successful host status', async () => {
+    restoreProcessPlatform();
+    setProcessPlatform('win32');
+    candidateForProcess.mockReturnValue({});
+    vi.spyOn(localCandidateTasks, 'fetchLocalCandidateDebugTasks').mockResolvedValue([funcTask]);
+    vi.spyOn(findChildProcessModule, 'getChildProcesses').mockImplementation(async (pid) => {
+      if (pid === 1234) {
+        return [{ processId: 111, name: 'func.exe', parentProcessId: pid }];
+      }
+      if (pid === 111) {
+        return [{ processId: 222, name: 'func.exe', parentProcessId: pid }];
+      }
+      return [];
+    });
+    vi.spyOn(findChildProcessModule, 'getListeningProcessIds').mockResolvedValue([888]);
+    await expect(
+      pickFuncProcessModule.pickFuncProcessInternal(
+        context,
+        { type: 'logicapp', isCodeless: false, preLaunchTask: 'func: host start' },
+        workspaceFolder,
+        projectPath
+      )
+    ).rejects.toThrow('Port 7071 is occupied by process 888, not this candidate Functions host (222)');
+    expect(sendRequestWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('keeps the configured deadline while the candidate has no host child', async () => {
+    restoreProcessPlatform();
+    setProcessPlatform('win32');
+    candidateForProcess.mockReturnValue({});
+    vi.spyOn(localCandidateTasks, 'fetchLocalCandidateDebugTasks').mockResolvedValue([funcTask]);
+    vi.spyOn(findChildProcessModule, 'getChildProcesses').mockResolvedValue([]);
+    let now = 1000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    vi.mocked(delay).mockImplementation(async () => {
+      now += 500;
+    });
+    await expect(
+      pickFuncProcessModule.pickFuncProcessInternal(
+        context,
+        { type: 'logicapp', isCodeless: false, preLaunchTask: 'func: host start' },
+        workspaceFolder,
+        projectPath
+      )
+    ).rejects.toThrow('Failed to detect running Functions host within "1" seconds');
+    expect(sendRequestWithTimeout).not.toHaveBeenCalled();
   });
 
   it('stops a previous func task before codeful publish', async () => {
@@ -421,6 +533,49 @@ describe('pickWorkflowDebugProcess', () => {
     expect(result).toBe('222');
     expect(taskInfo.childProcessId).toEqual(['111', '222']);
     expect(ext.outputChannel.appendLog).toHaveBeenCalledWith(expect.stringContaining('selectedPid=222'));
+  });
+
+  it('traverses only the candidate Node wrapper before choosing the real inproc8 host', async () => {
+    setProcessPlatform('win32');
+    candidateForProcess.mockReturnValue({});
+    const taskInfo: IRunningFuncTask = { startTime: Date.now(), processId: 100 };
+    vi.spyOn(findChildProcessModule, 'getChildProcesses').mockImplementation(async (pid: number) => {
+      if (pid === 100) {
+        return [{ processId: 110, name: 'node.exe', parentProcessId: 100 }];
+      }
+      if (pid === 110) {
+        return [{ processId: 111, name: 'func.exe', parentProcessId: 110 }];
+      }
+      if (pid === 111) {
+        return [{ processId: 222, name: 'func.exe', parentProcessId: 111 }];
+      }
+      return [];
+    });
+
+    expect(await pickFuncProcessModule.pickWorkflowDebugProcess(taskInfo, true)).toBe('222');
+    expect(taskInfo.childProcessId).toEqual(['111', '222']);
+  });
+
+  it('rejects cached shell fallback while candidate staging is incomplete, even with another active terminal', async () => {
+    setProcessPlatform('win32');
+    candidateForProcess.mockReturnValue({});
+    const taskInfo: IRunningFuncTask = { startTime: Date.now(), processId: 100, childProcessId: ['100', undefined] };
+    (vscode.window as any).activeTerminal = { processId: Promise.resolve(999) };
+    const discovery = vi.spyOn(findChildProcessModule, 'getChildProcesses').mockImplementation(async (pid) => {
+      if (pid === 100) {
+        return [
+          { processId: 110, name: 'node.exe', parentProcessId: pid },
+          { processId: 120, name: 'dotnet.exe', parentProcessId: pid },
+        ];
+      }
+      if (pid === 999) {
+        return [{ processId: 888, name: 'func.exe', parentProcessId: pid }];
+      }
+      return [];
+    });
+    await expect(pickFuncProcessModule.pickWorkflowDebugProcess(taskInfo, true)).rejects.toThrow('has not started its Functions host');
+    await expect(pickFuncProcessModule.pickChildProcess(taskInfo)).rejects.toThrow('No Functions child process');
+    expect(discovery).not.toHaveBeenCalledWith(999);
   });
 
   it('should fall back to the immediate Windows child when no deeper host child exists', async () => {

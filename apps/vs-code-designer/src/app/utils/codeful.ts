@@ -1,7 +1,13 @@
 import path from 'path';
 import * as fse from 'fs-extra';
 import * as vscode from 'vscode';
-import { autoRuntimeDependenciesPathSettingKey, defaultDependencyPathValue, localSettingsFileName, lspDirectory, workflowCodefulEnabledKey } from '../../constants';
+import {
+  autoRuntimeDependenciesPathSettingKey,
+  defaultDependencyPathValue,
+  localSettingsFileName,
+  lspDirectory,
+  workflowCodefulEnabledKey,
+} from '../../constants';
 import { ext } from '../../extensionVariables';
 import { getGlobalSetting } from './vsCodeConfig/settings';
 
@@ -79,7 +85,12 @@ export const invalidateCodefulSdkCacheIfNeeded = async (projectPath: string): Pr
     return false;
   }
 
-  const targetDirectory = getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey) || defaultDependencyPathValue;
+  const { getLocalCandidate } = await import('./localCandidate');
+  const candidate = await getLocalCandidate();
+  const { assertLocalCandidateProject } = await import('./localCandidateRuntime');
+  assertLocalCandidateProject(projectPath);
+  const targetDirectory =
+    candidate?.dependenciesPath ?? (getGlobalSetting<string>(autoRuntimeDependenciesPathSettingKey) || defaultDependencyPathValue);
   const lspDirectoryPath = path.join(targetDirectory, lspDirectory);
   const nugetConfigPath = path.join(projectPath, 'nuget.config');
   const installedSdkHashMarkerPath = path.join(targetDirectory, lspSdkHashMarkerName);
@@ -99,7 +110,9 @@ export const invalidateCodefulSdkCacheIfNeeded = async (projectPath: string): Pr
 
   const projectNugetFolder = path.join(projectPath, '.nuget');
   const projectSdkHashMarkerPath = path.join(projectNugetFolder, codefulSdkProjectHashMarkerName);
-  const projectSdkPackagePath = path.join(projectNugetFolder, 'packages', codefulSdkPackageId.toLowerCase(), codefulSdkPackageVersion);
+  const packageId = candidate?.sdk.packageId ?? codefulSdkPackageId;
+  const packageVersion = candidate?.sdk.version ?? codefulSdkPackageVersion;
+  const projectSdkPackagePath = path.join(projectNugetFolder, 'packages', packageId.toLowerCase(), packageVersion);
   const restoreNoOpCachePaths = [
     path.join(projectPath, 'obj', 'project.assets.json'),
     path.join(projectPath, 'obj', 'project.nuget.cache'),
@@ -111,9 +124,7 @@ export const invalidateCodefulSdkCacheIfNeeded = async (projectPath: string): Pr
 
   if (await fse.pathExists(projectSdkPackagePath)) {
     await fse.remove(projectSdkPackagePath);
-    ext.outputChannel.appendLog(
-      `Removed stale ${codefulSdkPackageId} ${codefulSdkPackageVersion} from project-local NuGet cache at ${projectSdkPackagePath}.`
-    );
+    ext.outputChannel.appendLog(`Removed stale ${packageId} ${packageVersion} from project-local NuGet cache at ${projectSdkPackagePath}.`);
   }
 
   await Promise.all(restoreNoOpCachePaths.map((cachePath) => removeIfExists(cachePath)));
