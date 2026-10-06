@@ -144,6 +144,67 @@ test('copyCandidateWorkspace excludes lib/codeful build output and the project-l
   assert.ok(receipt.excludedNames.includes('.nuget'));
 });
 
+test('copyCandidateWorkspace preserves authored files that merely share a name/segment with the excluded lib/codeful subtree', (t) => {
+  // The exclusion policy must match only the exact generated relative subtree
+  // `lib/codeful` (written solely by the CopyToCodefulFolder MSBuild target at the
+  // project root), never every directory named `lib` or `codeful` anywhere in the tree.
+  // An authored file living under a top-level `lib/` directory that is NOT `lib/codeful`,
+  // or under a `codeful`-named directory that is NOT nested directly under a top-level
+  // `lib/`, is user source and must survive the copy byte-for-byte.
+  const root = sandbox(t);
+  const source = makeProject(root, 'LogicApp');
+  fs.mkdirSync(path.join(source, 'lib', 'codeful'), { recursive: true });
+  fs.writeFileSync(path.join(source, 'lib', 'codeful', 'Generated.g.cs'), '// regenerated on build');
+  fs.mkdirSync(path.join(source, 'lib'), { recursive: true });
+  fs.writeFileSync(path.join(source, 'lib', 'helpers.cs'), '// authored helper, lives directly under lib/');
+  fs.mkdirSync(path.join(source, 'workflows', 'codeful'), { recursive: true });
+  fs.writeFileSync(
+    path.join(source, 'workflows', 'codeful', 'stateful.cs'),
+    '// authored workflow source, named codeful but not under lib/'
+  );
+  const dest = path.join(root, 'new-candidate', 'LogicApp');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+
+  const receipt = copyCandidateWorkspace({ source, dest });
+
+  // The actual generated subtree is still excluded.
+  assert.equal(fs.existsSync(path.join(dest, 'lib', 'codeful')), false);
+  // Authored files that merely share a path segment with the excluded name survive exactly.
+  assert.equal(fs.readFileSync(path.join(dest, 'lib', 'helpers.cs'), 'utf8'), '// authored helper, lives directly under lib/');
+  assert.equal(
+    fs.readFileSync(path.join(dest, 'workflows', 'codeful', 'stateful.cs'), 'utf8'),
+    '// authored workflow source, named codeful but not under lib/'
+  );
+  // The same files were fingerprinted (not silently treated as excluded) so later drift
+  // detection actually covers them.
+  assert.ok(Object.hasOwn(receipt.fingerprints, path.join('lib', 'helpers.cs')));
+  assert.ok(Object.hasOwn(receipt.fingerprints, path.join('workflows', 'codeful', 'stateful.cs')));
+  assert.ok(!Object.hasOwn(receipt.fingerprints, path.join('lib', 'codeful', 'Generated.g.cs')));
+});
+
+test('assertOriginalSourceUnchangedSincePrepare is governed by the same exclusion policy: edits under the excluded subtree are invisible, edits to authored lib/codeful-adjacent files are detected', (t) => {
+  const root = sandbox(t);
+  const source = makeProject(root, 'LogicApp');
+  fs.mkdirSync(path.join(source, 'lib', 'codeful'), { recursive: true });
+  fs.writeFileSync(path.join(source, 'lib', 'codeful', 'Generated.g.cs'), '// build 1');
+  fs.writeFileSync(path.join(source, 'lib', 'helpers.cs'), '// authored v1');
+  const dest = path.join(root, 'new-candidate', 'LogicApp');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  copyCandidateWorkspace({ source, dest });
+  assert.doesNotThrow(() => assertOriginalSourceUnchangedSincePrepare(dest));
+
+  // Changing only the excluded generated subtree in the original source must not be
+  // reported as drift: it was never fingerprinted because it is excluded for both the
+  // copy and the fingerprint/drift check, by the same isExcludedRelativePath policy.
+  fs.writeFileSync(path.join(source, 'lib', 'codeful', 'Generated.g.cs'), '// build 2, different content');
+  assert.doesNotThrow(() => assertOriginalSourceUnchangedSincePrepare(dest));
+
+  // Changing an authored file that merely shares the `lib` segment (but is not the
+  // excluded `lib/codeful` subtree) must still be detected as real drift.
+  fs.writeFileSync(path.join(source, 'lib', 'helpers.cs'), '// authored v2, edited after copy');
+  assert.throws(() => assertOriginalSourceUnchangedSincePrepare(dest), /was edited after it was copied/);
+});
+
 test('assertDestinationCopyIntegrity passes immediately after a fresh copy', (t) => {
   const root = sandbox(t);
   const source = makeProject(root, 'LogicApp');

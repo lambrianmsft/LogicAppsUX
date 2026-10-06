@@ -498,40 +498,68 @@ assertNoActiveProfile('C:\\private-runs\\candidate-002\\candidate\\user-data'); 
 
 ### Composed guarded launch
 
-`launch-candidate-workspace.js` composes the three pieces above —
+`launch-candidate-workspace.js` composes the pieces above —
 `copyCandidateWorkspace`/`assertOriginalSourceUnchangedSincePrepare`,
-`retargetCodefulProject`, and `assertNoActiveProfile` — into a single
-`prepareCandidateWorkspace` (pure file-system; never spawns anything) followed
-by a `launchCandidateWorkspace` step that refuses (read-only) if the target
-`--user-data-dir` is already active, then spawns the given VS Code binary
-detached (`--new-window`, `--user-data-dir`, `--extensions-dir`, the prepared
-`--dest`), with `LOGICAPPS_LOCAL_CANDIDATE_MANIFEST`/`ROOT` set on top of the
-caller's own real environment:
+`retargetCodefulProject`, `assertNoActiveProfile`, and this runner's own
+`isolatedEnv`/`settings` — into a single `prepareCandidateWorkspace` (pure
+file-system; never spawns anything) followed by a `launchCandidateWorkspace`
+step that refuses (read-only) if the target `--root`'s `user-data` profile is
+already active, then spawns the given VS Code binary detached (`--new-window`,
+`--user-data-dir`, `--extensions-dir`, the prepared `--dest`) inside a fully
+sealed environment — it does **not** overlay the developer's real ambient
+`process.env`. `--root` must already be an **installed** sealed root (i.e. one
+previously produced by this same `run-candidate-e2e.js`, below): the launcher
+never calls `createRoot` itself and refuses with a pointer to the install step
+if `--root` is missing, partial, or was installed against a different
+`--manifest` (via its `receipt.json`):
 
 ```powershell
+# One-time install step (produces the sealed --root this launcher requires):
+node apps\vs-code-designer\scripts\run-candidate-e2e.js `
+  --manifest   C:\private-runs\candidate-002\candidate.json `
+  --root       C:\private-runs\candidate-002 `
+  --code       C:\path\to\code.exe --dotnet C:\path\to\dotnet.exe `
+  --func       C:\path\to\func.exe --node   C:\path\to\node.exe `
+  --extension  C:\path\to\built\vsix-or-folder --scope activation
+
+# Then, any number of times, iterate on a copy of the source and relaunch:
 node apps\vs-code-designer\scripts\launch-candidate-workspace.js `
-  --source             C:\private-runs\candidate-001\candidate\MyLogicApp `
-  --dest               C:\private-runs\candidate-002\candidate\MyLogicApp `
-  --candidate-manifest C:\private-runs\candidate-002\candidate.json `
-  --candidate-root     C:\private-runs\candidate-002\candidate
+  --source     C:\private-runs\candidate-001\candidate\MyLogicApp `
+  --dest       C:\private-runs\candidate-002\candidate\MyLogicApp `
+  --manifest   C:\private-runs\candidate-002\candidate.json `
+  --root       C:\private-runs\candidate-002 `
+  --node       C:\path\to\node.exe --dotnet C:\path\to\dotnet.exe `
+  --func       C:\path\to\func.exe
 ```
 
-`--user-data-dir`/`--extensions-dir`/`--code` default to
-`<candidate-root>\user-data`, `<candidate-root>\extensions`, and `code`
-respectively, and can be overridden. Unlike this runner's own `isolatedEnv`,
-this does **not** fabricate a brand-new sandboxed HOME/dotnet/NuGet
-environment — the scenario is an interactive manual relaunch against the
-developer's real VS Code install and real machine environment, only
-overlaying the two candidate-selection environment variables the product
-already reads. If `--dest` already exists, it is re-validated and
-re-retargeted (both idempotent) rather than recopied, so editing the prepared
-copy and rerunning this same command is the expected iterate loop. This
-script is not invoked by any agent session; it exists for the user (or a
-future authorized step) to run directly. **Not covered by this helper**:
-proving the relaunched window actually loaded the new engine — guarded F5
-acceptance is unchanged from the rest of this document: a `Running` host
-status alone is not acceptance. Confirm the loaded engine identity and that
-the specific edited workflow's metadata actually loaded before treating a
+`--code` defaults to `code` (resolved via `PATH`) and can be overridden;
+`--user-data-dir`/`--extensions-dir` are not separate flags — they are always
+`<root>\user-data` and `<root>\extensions`, matching the sealed root the
+install step produced. The sandboxed environment reuses `isolatedEnv` exactly
+as the automated harness does (real `HOME`/`APPDATA`/`TEMP`/`NUGET_PACKAGES`
+are never touched; `PATH` contains only the given `--node`/`--dotnet`/`--func`
+directories plus required system directories), with two differences scoped to
+this being an interactive manual relaunch rather than the Mocha harness: the
+Mocha-only `LA_CANDIDATE_TEST_ROOT`/`LA_CANDIDATE_TEST_TIMEOUT` markers are
+stripped, and `LOGICAPPS_LOCAL_CANDIDATE_MANUAL=true` is set (the real,
+pre-existing product flag — `isLocalCandidateManualMode()` in
+`app/utils/localCandidateRuntime.ts` — that re-enables real Azure connector
+auth under an active local candidate, which is otherwise disabled
+unconditionally). The written `user-data/User/settings.json` is this runner's
+own `settings()` output minus `azureLogicAppsStandard.silentAuth` (the actual
+auth-suppression setting read by `getAuthorizationToken.ts`), so a manual
+session is not silently prevented from showing the real sign-in prompt. If
+`--dest` already exists, it is re-validated and re-retargeted (both
+idempotent) rather than recopied, so editing the prepared copy and rerunning
+this same command is the expected iterate loop; an edit to the **original**
+`--source` after the first prepare is detected and blocks the launch (the same
+`assertOriginalSourceUnchangedSincePrepare` drift check used elsewhere in this
+document). This script is not invoked by any agent session; it exists for the
+user (or a future authorized step) to run directly. **Not covered by this
+helper**: proving the relaunched window actually loaded the new engine —
+guarded F5 acceptance is unchanged from the rest of this document: a `Running`
+host status alone is not acceptance. Confirm the loaded engine identity and
+that the specific edited workflow's metadata actually loaded before treating a
 manual relaunch as successful, per "What the receipt proves (and does not
 prove)" above.
 
