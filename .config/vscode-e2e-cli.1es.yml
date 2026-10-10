@@ -855,6 +855,16 @@ extends:
                 templateContext:
                   type: validationJob
                 steps:
+                  - task: UseNode@1
+                    displayName: Use trusted Node.js for cohort rollup validation
+                    inputs:
+                      version: '22.x'
+                    condition: and(always(), eq('${{ parameters.executionTopology }}', 'cohort'))
+
+                  - pwsh: node --version
+                    displayName: Print cohort rollup Node.js version
+                    condition: and(always(), eq('${{ parameters.executionTopology }}', 'cohort'))
+
                   - download: current
                     artifact: vscode-e2e-cli-diagnostics-linux-unit-tests
                     displayName: Download Linux unit tests diagnostics

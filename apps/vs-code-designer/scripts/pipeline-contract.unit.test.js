@@ -556,6 +556,7 @@ function testPnpmStoreCacheContract() {
 function testConsumerNodeProvisioningContract() {
   const setup = parseYaml('.azure-pipelines/templates/vscode-e2e-cli-setup.yml');
   const runSuites = parseYaml('.config/templates/vscode-e2e-cli-run-suite.yml');
+  const consumer = parseYaml('.config/vscode-e2e-cli.1es.yml');
   const setupNodeTasks = findObjects(setup.steps, (entry) => entry.task === 'UseNode@1');
   assert.strictEqual(setupNodeTasks.length, 1, 'The shared setup template keeps one optional Node provisioning task');
   assert.ok(
@@ -574,6 +575,22 @@ function testConsumerNodeProvisioningContract() {
   assert.strictEqual(setupInvocation.length, 1);
   assert.strictEqual(setupInvocation[0].parameters.provisionNode, false);
   assertRunSuitesProvisionsTrustedNodeBeforeVerifier(runSuites);
+
+  const fullRollupJob = getConsumerDirectJob(consumer, 'verify_both_os_full_rollup');
+  const cohortNodeIndex = fullRollupJob.steps.findIndex(
+    (step) => step.task === 'UseNode@1' && step.displayName === 'Use trusted Node.js for cohort rollup validation'
+  );
+  const cohortNodeVersionIndex = fullRollupJob.steps.findIndex(
+    (step) => step.pwsh === 'node --version' && step.displayName === 'Print cohort rollup Node.js version'
+  );
+  const cohortGateIndex = fullRollupJob.steps.findIndex(
+    (step) => step.displayName === 'Enforce registry-driven both-OS cohort rollup gate'
+  );
+  assert.ok(cohortNodeIndex >= 0, 'cohort rollup must provision trusted Node');
+  assert.strictEqual(fullRollupJob.steps[cohortNodeIndex].inputs.version, '22.x');
+  assert.strictEqual(fullRollupJob.steps[cohortNodeIndex].condition, "and(always(), eq('${{ parameters.executionTopology }}', 'cohort'))");
+  assert.ok(cohortNodeVersionIndex > cohortNodeIndex, 'cohort rollup must print the selected Node version');
+  assert.ok(cohortGateIndex > cohortNodeVersionIndex, 'cohort verifier must run after trusted Node is selected');
 }
 
 function testAzureToolsWrapperContract() {
