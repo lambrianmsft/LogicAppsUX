@@ -645,28 +645,34 @@ async function assertSemanticTargetOwnedByVisibleWorkbenchFrame(
   semanticCdp: CdpClient,
   deadline: number
 ): Promise<void> {
-  while (Date.now() < deadline) {
-    let ownerObjectId: string | undefined;
-    try {
-      ownerObjectId = await resolveSemanticFrameOwnerObjectId(ownerCdp, semanticCdp, deadline);
-      if (ownerObjectId && (await isResolvedOwnerFrameVisible(ownerCdp, ownerObjectId, deadline))) {
+  try {
+    while (Date.now() < deadline) {
+      let ownerObjectId: string | undefined;
+      try {
+        ownerObjectId = await resolveSemanticFrameOwnerObjectId(ownerCdp, semanticCdp, deadline);
+        if (ownerObjectId && (await isResolvedOwnerFrameVisible(ownerCdp, ownerObjectId, deadline))) {
+          return;
+        }
+      } catch (error) {
+        if (!isTransientOwnerFrameError(error)) {
+          throw error;
+        }
+      }
+      if (Date.now() >= deadline) {
+        break;
+      }
+      if (await hasExactVisibleWorkbenchIframeForSemanticTarget(ownerCdp, semanticCdp.targetUrl, deadline)) {
         return;
       }
-    } catch (error) {
-      if (!isTransientOwnerFrameError(error)) {
-        throw error;
+      if (Date.now() >= deadline) {
+        break;
       }
+      await delay(Math.min(100, Math.max(deadline - Date.now(), 0)));
     }
-    if (Date.now() >= deadline) {
-      break;
+  } catch (error) {
+    if (!(error instanceof Error && error.message === 'Screenshot deadline exceeded')) {
+      throw error;
     }
-    if (await hasExactVisibleWorkbenchIframeForSemanticTarget(ownerCdp, semanticCdp.targetUrl, deadline)) {
-      return;
-    }
-    if (Date.now() >= deadline) {
-      break;
-    }
-    await delay(Math.min(100, Math.max(deadline - Date.now(), 0)));
   }
 
   throw new Error('Screenshot binding failed: semantic frame is not owned by the workbench frame tree');
