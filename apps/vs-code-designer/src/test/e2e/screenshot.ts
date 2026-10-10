@@ -670,12 +670,19 @@ async function assertSemanticTargetOwnedByVisibleWorkbenchFrame(
       await delay(Math.min(100, Math.max(deadline - Date.now(), 0)));
     }
   } catch (error) {
-    if (!(error instanceof Error && error.message === 'Screenshot deadline exceeded')) {
+    if (!isOwnerBindingDeadlineError(error)) {
       throw error;
     }
   }
 
   throw new Error('Screenshot binding failed: semantic frame is not owned by the workbench frame tree');
+}
+
+function isOwnerBindingDeadlineError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === 'Screenshot deadline exceeded' || error.message === 'Timed out waiting for transient CDP DOM.resolveNode retry')
+  );
 }
 
 function isTransientOwnerFrameError(error: unknown): boolean {

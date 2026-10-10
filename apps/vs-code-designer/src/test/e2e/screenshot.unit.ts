@@ -1072,29 +1072,34 @@ async function testSerializedOwnerVisibilityOcclusionPredicates(
     );
   }
 
-  await assert.rejects(
-    captureCdpScreenshot(
-      new FakeCaptureCdp([snapshot({ revision: 0 }), snapshot({ revision: 0 })], {
-        ownerFrameVisibilityResponses: [new Error('Screenshot deadline exceeded')],
-      }),
-      'serialized-owner-visibility-deadline-normalized',
-      {
-        expectation: {
-          kind: 'monitoringAction',
-          label: 'serialized-owner-visibility-deadline-normalized',
-          actionTitle: 'Response',
-          expectedStatus: 'Succeeded',
-        },
-        semanticCdp: new FakeCaptureCdp([snapshot({ revision: 0 })], {
-          targetUrl,
-          contexts: [{ id: 7, text: 'Response Succeeded Outputs response payload', visible: true }],
+  for (const [name, error] of [
+    ['deadline', new Error('Screenshot deadline exceeded')],
+    ['resolve-retry-deadline', new Error('Timed out waiting for transient CDP DOM.resolveNode retry')],
+  ] as const) {
+    await assert.rejects(
+      captureCdpScreenshot(
+        new FakeCaptureCdp([snapshot({ revision: 0 }), snapshot({ revision: 0 })], {
+          ownerFrameVisibilityResponses: [error],
         }),
-        semanticContextId: 7,
-        timeoutMs: 1000,
-      }
-    ),
-    /semantic frame|owner frame/
-  );
+        `serialized-owner-visibility-${name}-normalized`,
+        {
+          expectation: {
+            kind: 'monitoringAction',
+            label: `serialized-owner-visibility-${name}-normalized`,
+            actionTitle: 'Response',
+            expectedStatus: 'Succeeded',
+          },
+          semanticCdp: new FakeCaptureCdp([snapshot({ revision: 0 })], {
+            targetUrl,
+            contexts: [{ id: 7, text: 'Response Succeeded Outputs response payload', visible: true }],
+          }),
+          semanticContextId: 7,
+          timeoutMs: 5000,
+        }
+      ),
+      /semantic frame|owner frame/
+    );
+  }
 
   const outsideNotification: OwnerVisibilityScenario = { name: 'notification-outside-frame', overlay: 'toast', rect: [10, 10, 80, 50] };
   await captureCdpScreenshot(
