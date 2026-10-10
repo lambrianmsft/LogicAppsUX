@@ -92,6 +92,7 @@ async function main(): Promise<void> {
   });
   await control('Scenario 1 runs through Overview and uses management only for exact run and action correlation', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../../../src/test/e2e/httpTimeoutComposeOriginal.test.ts'), 'utf8');
+    const sharedSource = fs.readFileSync(path.resolve(__dirname, '../../../src/test/e2e/workspaceLifecycle.test.ts'), 'utf8');
     assert.deepStrictEqual(localWorkflowManagementRequestTimeoutMs, {
       'callback-url': 30_000,
       'trigger-invocation': 20_000,
@@ -104,6 +105,8 @@ async function main(): Promise<void> {
     assert.ok(source.includes('await helpers.clickOverviewRunTrigger(overviewCdp, overviewContextId, entry)'));
     assert.ok(source.includes("targetName: 'HTTP timeout Overview webview after Run trigger'"));
     assert.ok(source.includes('overviewCdp = reboundOverview.cdp'));
+    assert.ok(sharedSource.includes("const exactId = 'msla-node-' + ${JSON.stringify(actionTitle)}"));
+    assert.ok(sharedSource.includes('const exactNode = document.getElementById(exactId)'));
     assert.ok(source.includes('await helpers.waitForWorkflowHealthy(entry.wfName'));
     assert.ok(source.includes('await helpers.waitForRunHistoryBaseline('));
     assert.ok(source.includes('await helpers.waitForNewRunStarted(entry.wfName, previousRunName, 60_000)'));

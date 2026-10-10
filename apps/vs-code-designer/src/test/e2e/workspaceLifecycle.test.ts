@@ -4988,44 +4988,21 @@ async function clickMonitoringActionCardByTitle(cdp: CdpEvaluator, contextId: nu
     contextId,
     `(() => {
       const actionTitle = ${JSON.stringify(actionTitle.toLowerCase())};
+      const exactId = 'msla-node-' + ${JSON.stringify(actionTitle)};
       const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
       const isVisible = (element) => !!(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
-      const allElements = [];
-      const collectElements = (root) => {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-        let node = walker.currentNode;
-        while (node) {
-          if (node instanceof HTMLElement) {
-            allElements.push(node);
-            if (node.shadowRoot) {
-              collectElements(node.shadowRoot);
-            }
-          }
-          node = walker.nextNode();
-        }
-      };
-      collectElements(document);
-
-      const candidates = allElements
-        .filter(isVisible)
+      const exactNode = document.getElementById(exactId);
+      const nodes = Array.from(document.querySelectorAll('.react-flow__node, [id^="msla-node-"]')).filter(isVisible);
+      const candidates = exactNode instanceof HTMLElement && isVisible(exactNode)
+        ? [exactNode]
+        : nodes
         .filter((element) => {
-          const text = normalize(element.textContent).toLowerCase();
-          const aria = normalize(element.getAttribute('aria-label')).toLowerCase();
-          return text === actionTitle || aria === actionTitle || text.includes(actionTitle) || aria.includes(actionTitle);
-        })
-        .map((element) => {
-          const rect = element.getBoundingClientRect();
-          return { element, rect, text: normalize(element.textContent || element.getAttribute('aria-label') || '') };
-        })
-        .filter(({ rect }) => rect.width > 80 && rect.height > 20)
-        .sort((a, b) => {
-          const aArea = a.rect.width * a.rect.height;
-          const bArea = b.rect.width * b.rect.height;
-          return aArea - bArea;
+          const title = element.querySelector('.msla-card-title, [data-automation-id^="card-"]');
+          return normalize(title?.textContent || element.getAttribute('aria-label')).toLowerCase() === actionTitle;
         });
 
-      const element = candidates[0]?.element;
-      const debugCandidates = candidates.slice(0, 20).map(({ rect, text }) => text.slice(0, 120) + ' | ' + Math.round(rect.left) + ',' + Math.round(rect.top) + ' ' + Math.round(rect.width) + 'x' + Math.round(rect.height));
+      const element = candidates.at(-1);
+      const debugCandidates = nodes.slice(0, 20).map((candidate) => candidate.id + ' | ' + normalize(candidate.textContent).slice(0, 120));
       if (!(element instanceof HTMLElement)) {
         return { ok: false, reason: 'Monitoring action card not found', candidates: debugCandidates, text: document.body?.innerText || '' };
       }
