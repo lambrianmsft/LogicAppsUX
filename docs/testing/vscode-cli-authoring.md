@@ -128,6 +128,24 @@ frame. A hidden, occluded, disabled or wrong-frame match is not readiness.
 Support both current `Add trigger` and legacy `Add a trigger` labels, and verify
 operation insertion before editing the resulting panel.
 
+## Step-by-step screenshot evidence is mandatory
+
+Capture a uniquely named evidence screenshot after every meaningful native UI
+interaction and after every resulting state that the scenario depends on. This
+includes navigation, operation insertion, field entry, option changes, saves,
+run initiation, status transitions and action-level monitoring. When a step
+enters a value, the screenshot expectation must validate that exact visible
+value; for example, HTTP authoring must prove the selected method and complete
+request URI before moving to Settings.
+
+Bind every evidence screenshot to the already-owned semantic CDP target and
+frame. A tab title, workbench shell, blank webview or unrelated visible text is
+not proof of the step. Readiness must reject loading/shimmer states, hidden or
+stale webviews, and evidence from a different run or action. Keep diagnostic
+failure screenshots separate from required evidence, and add source/readiness
+controls that prevent required checkpoints from being removed, reordered or
+weakened.
+
 `WorkspaceConfiguration` is a snapshot. After awaiting `update`, call
 `workspace.getConfiguration` again before checking the effective value.
 

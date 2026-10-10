@@ -5109,16 +5109,17 @@ async function waitForMonitoringActionDetails(
   );
 }
 
-async function clickOverviewRunRow(cdp: CdpEvaluator, contextId: number, runName: string): Promise<void> {
+async function clickOverviewRunRow(cdp: CdpEvaluator, contextId: number, runName: string, expectedStatus = 'Succeeded'): Promise<void> {
   const result = await cdp.evaluate<{ ok: boolean; reason?: string; text?: string }>(
     contextId,
     `(() => {
       const runName = ${JSON.stringify(runName)};
+      const expectedStatus = ${JSON.stringify(expectedStatus)};
       const isVisible = (element) => !!(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
       const rows = Array.from(document.querySelectorAll('[role="row"], .ms-DetailsRow, tr')).filter(isVisible);
       const row = rows.find((candidate) => {
         const text = candidate.textContent || '';
-        return text.includes(runName) && text.includes('Succeeded');
+        return text.includes(runName) && text.includes(expectedStatus);
       });
       if (!(row instanceof HTMLElement)) {
         return { ok: false, reason: 'Run row not found', text: document.body?.innerText || '' };
@@ -5135,7 +5136,10 @@ async function clickOverviewRunRow(cdp: CdpEvaluator, contextId: number, runName
       return { ok: true, text: row.textContent || '' };
     })()`
   );
-  assert.ok(result.ok, `Expected Overview run row ${runName} to open details. Reason=${result.reason} text=${result.text?.slice(0, 1000)}`);
+  assert.ok(
+    result.ok,
+    `Expected Overview run row ${runName} with status ${expectedStatus} to open details. Reason=${result.reason} text=${result.text?.slice(0, 1000)}`
+  );
 }
 
 async function waitForHostRunning(timeoutMs: number): Promise<void> {
@@ -5225,6 +5229,30 @@ async function getLatestRunName(workflowName: string): Promise<string | undefine
 
   const latestRun = parseListResponse(runs.body)[0];
   return typeof latestRun?.name === 'string' ? latestRun.name : undefined;
+}
+
+async function waitForRunHistoryBaseline(workflowName: string, timeoutMs: number): Promise<string | undefined> {
+  let latestRunName: string | undefined;
+  let lastStatus = 0;
+  await waitUntil(
+    async () => {
+      const runs = await httpRequest(
+        { url: `${managementBaseUrl}/workflows/${encodeURIComponent(workflowName)}/runs?api-version=${apiVersion}`, method: 'GET' },
+        5000
+      ).catch(() => undefined);
+      lastStatus = runs?.status ?? 0;
+      if (runs?.status !== 200) {
+        return false;
+      }
+
+      const latestRun = parseListResponse(runs.body)[0];
+      latestRunName = typeof latestRun?.name === 'string' ? latestRun.name : undefined;
+      return true;
+    },
+    timeoutMs,
+    `workflow ${workflowName} run history endpoint to return 200; last status=${lastStatus}`
+  );
+  return latestRunName;
 }
 
 async function waitForNewRunStarted(workflowName: string, previousRunName: string | undefined, timeoutMs: number): Promise<string> {
@@ -6353,7 +6381,14 @@ export const statelessLifecycleHelpers = {
   captureLifecycleScreenshot,
   startDebuggingGeneratedWorkspace,
   stopDebuggingAndTasks,
+  clickMonitoringActionCardByTitle,
+  clickOverviewRunRow,
+  clickOverviewRunTrigger,
+  getLatestRunName,
+  waitForMonitoringActionDetails,
+  waitForNewRunStarted,
   waitForOverviewRunStatus,
+  waitForRunHistoryBaseline,
   waitForWorkflowHealthy,
 };
 

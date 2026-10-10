@@ -67,6 +67,7 @@ async function main(): Promise<void> {
   testCreateWorkspaceRejectsWrongFunctionNameFieldValue();
   testCreateWorkspaceRequiresEnabledCreateButton();
   testCreateWorkspaceRequiresScrollPosition();
+  testOverviewRequiresEmptyHistory();
   testOverviewRequiresStatusOnExpectedRunRow();
   testOverviewRejectsStatusFromRunListWrapper();
   testDiscoveryRequiresVisibleDiscoveryPanel();
@@ -1961,6 +1962,60 @@ function testOverviewRequiresStatusOnExpectedRunRow(): void {
 
   assert.strictEqual(snapshot.ready, false, JSON.stringify(snapshot));
   assert.ok(snapshot.reasonCodes.includes('overview-state-missing'));
+}
+
+function testOverviewRequiresEmptyHistory(): void {
+  const emptyDocument = new FakeDocument(
+    new FakeElement('body', {}, [
+      new FakeElement('main', {}, [
+        new FakeElement('h1', {}, [], 'Workflow overview wf'),
+        new FakeElement('button', {}, [], 'Run trigger'),
+        new FakeElement('tr', { class: 'ms-DetailsHeader' }, [], 'Status Start time Duration'),
+      ]),
+    ])
+  );
+  const populatedDocument = new FakeDocument(
+    new FakeElement('body', {}, [
+      new FakeElement('main', {}, [
+        new FakeElement('h1', {}, [], 'Workflow overview wf'),
+        new FakeElement('button', {}, [], 'Run trigger'),
+        new FakeElement('tr', {}, [], 'existing-run TimedOut'),
+      ]),
+    ])
+  );
+  const loadingDocument = new FakeDocument(
+    new FakeElement('body', {}, [
+      new FakeElement('main', {}, [
+        new FakeElement('h1', {}, [], 'Workflow overview wf'),
+        new FakeElement('button', {}, [], 'Run trigger'),
+        new FakeElement('div', { class: 'ms-Shimmer-container' }, [], 'Loading run history'),
+      ]),
+    ])
+  );
+
+  const accepted = runProbe(emptyDocument, {
+    kind: 'overview',
+    label: 'empty-run-history',
+    workflowName: 'wf',
+    emptyHistory: true,
+  });
+  const rejected = runProbe(populatedDocument, {
+    kind: 'overview',
+    label: 'empty-run-history',
+    workflowName: 'wf',
+    emptyHistory: true,
+  });
+  const loading = runProbe(loadingDocument, {
+    kind: 'overview',
+    label: 'empty-run-history',
+    workflowName: 'wf',
+    emptyHistory: true,
+  });
+
+  assert.strictEqual(accepted.ready, true, JSON.stringify(accepted));
+  assert.strictEqual(rejected.ready, false, JSON.stringify(rejected));
+  assert.strictEqual(loading.ready, false, JSON.stringify(loading));
+  assert.ok(loading.blockers.includes('loader-visible'));
 }
 
 function testOverviewRejectsStatusFromRunListWrapper(): void {

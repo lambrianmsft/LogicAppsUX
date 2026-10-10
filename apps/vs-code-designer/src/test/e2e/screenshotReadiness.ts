@@ -45,6 +45,7 @@ export type ScreenshotExpectation =
       kind: 'overview';
       label: string;
       workflowName?: string;
+      emptyHistory?: boolean;
       runName?: string;
       runStatus?: 'Running' | 'Succeeded' | 'Failed' | 'Cancelled' | 'Waiting';
     }
@@ -412,7 +413,7 @@ export const screenshotReadinessDomScript = `
   const activeTabText = visibleText(activeTab);
   const visibleFrames = visibleElements('iframe').filter((frame) => frame instanceof HTMLIFrameElement);
   const loaderSelector =
-    '.monaco-progress-container, .codicon-loading, .ms-Spinner, .fui-Spinner, [aria-busy="true"], [role="progressbar"], [class*="spinner"], [class*="loading"]';
+    '.monaco-progress-container, .codicon-loading, .ms-Spinner, .fui-Spinner, .ms-Shimmer-container, [aria-busy="true"], [role="progressbar"], [class*="spinner"], [class*="loading"]';
   const documentLoaders = visibleElements(loaderSelector);
   const blankWorkbench = text.length < 20 && visibleFrames.length === 0;
   const workbenchShell = visibleElements('.monaco-workbench').at(-1);
@@ -1779,19 +1780,28 @@ export const screenshotReadinessDomScript = `
       break;
     case 'overview':
       ready = overviewEvidence && (!expectation.workflowName || normalizedIncludes(text, expectation.workflowName));
-      if (expectation.runName && expectation.runStatus) {
-        const runRowSelector = [
-          '[role="row"]',
-          '.ms-DetailsRow',
-          'tr',
-          '[data-testid*="run-row"]',
-          '[data-testid*="runRow"]',
-          '[data-automation-id*="run-row"]',
-          '[data-automation-id*="runRow"]',
-        ].join(', ');
-        const runRows = visibleElements(runRowSelector).filter(
-          (row) => !Array.from(row.querySelectorAll?.(runRowSelector) || []).some((descendant) => descendant !== row && isVisible(descendant))
+      const runRowSelector = [
+        '[role="row"]',
+        '.ms-DetailsRow',
+        'tr',
+        '[data-testid*="run-row"]',
+        '[data-testid*="runRow"]',
+        '[data-automation-id*="run-row"]',
+        '[data-automation-id*="runRow"]',
+      ].join(', ');
+      const runRows = visibleElements(runRowSelector).filter(
+        (row) => !Array.from(row.querySelectorAll?.(runRowSelector) || []).some((descendant) => descendant !== row && isVisible(descendant))
+      );
+      if (expectation.emptyHistory) {
+        const dataRunRows = runRows.filter(
+          (row) =>
+            !row.matches?.('.ms-DetailsHeader') &&
+            row.getAttribute?.('role') !== 'rowheader' &&
+            !row.querySelector?.('[role="columnheader"], th')
         );
+        ready = ready && dataRunRows.length === 0;
+      }
+      if (expectation.runName && expectation.runStatus) {
         ready =
           ready &&
           runRows

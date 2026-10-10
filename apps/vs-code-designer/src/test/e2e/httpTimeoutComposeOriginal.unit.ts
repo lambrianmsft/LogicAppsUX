@@ -90,7 +90,7 @@ async function main(): Promise<void> {
     assert.ok(!source.includes("executeCommand('azureLogicAppsStandard.createWorkflow'"));
     assert.ok(!source.includes('LA_E2E_CLI_HTTP_TIMEOUT_REQUEST_SCENARIO'));
   });
-  await control('Scenario 1 management calls use phase policy, sanitized structured logs and exact-correlation retry rules', () => {
+  await control('Scenario 1 runs through Overview and uses management only for exact run and action correlation', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../../../src/test/e2e/httpTimeoutComposeOriginal.test.ts'), 'utf8');
     assert.deepStrictEqual(localWorkflowManagementRequestTimeoutMs, {
       'callback-url': 30_000,
@@ -98,12 +98,15 @@ async function main(): Promise<void> {
       'run-status': 20_000,
       'action-history': 30_000,
     });
-    for (const phase of ['callback-url', 'trigger-invocation', 'run-status', 'action-history']) {
+    for (const phase of ['run-status', 'action-history']) {
       assert.ok(source.includes(`'${phase}'`), `Scenario 1 must classify ${phase}`);
     }
-    assert.ok(source.includes("phase: 'trigger-invocation'"));
-    assert.ok(source.includes('attempt: 1'), 'Trigger invocation must remain a single fail-closed request');
-    assert.ok(/requestLocalManagementForPoll\(\s*'callback-url'/.test(source));
+    assert.ok(source.includes('await helpers.clickOverviewRunTrigger(overview.cdp, overview.contextId, entry)'));
+    assert.ok(source.includes('await helpers.waitForWorkflowHealthy(entry.wfName'));
+    assert.ok(source.includes('await helpers.waitForRunHistoryBaseline('));
+    assert.ok(source.includes('await helpers.waitForNewRunStarted(entry.wfName, previousRunName, 60_000)'));
+    assert.ok(!source.includes("phase: 'trigger-invocation'"));
+    assert.ok(!/requestLocalManagementForPoll\(\s*'callback-url'/.test(source));
     assert.ok(/requestLocalManagementForPoll\(\s*'run-status'/.test(source));
     assert.ok(/requestLocalManagementForPoll\(\s*'action-history'/.test(source));
     assert.ok(!source.includes('Math.min(10_000, httpTimeoutComposeRemaining(deadline))'));
@@ -266,6 +269,7 @@ async function main(): Promise<void> {
       'http-timeout-request-pt1s-request-inserted',
       'http-timeout-request-pt1s-http-panel-ready',
       'http-timeout-request-pt1s-method-selected',
+      'http-timeout-request-pt1s-uri-configured',
       'http-timeout-request-pt1s-timeout-configured',
       'http-timeout-request-pt1s-async-pattern-off',
       'http-timeout-request-pt1s-saved',
@@ -293,6 +297,36 @@ async function main(): Promise<void> {
     assert.ok(source.includes('semanticCdp: session.cdp'));
     assert.ok(source.includes('semanticContextId: session.contextId'));
     assert.ok(source.includes("binding: { activeTabText: [entry.wfName, 'Workspace'], semanticText }"));
+  });
+  await control('PT1S evidence binds empty history, triggered run, failed run, and failed HTTP action to live webviews', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../../../src/test/e2e/httpTimeoutComposeOriginal.test.ts'), 'utf8');
+    const empty = source.indexOf('http-timeout-request-pt1s-overview-empty');
+    const click = source.indexOf('await helpers.clickOverviewRunTrigger', empty);
+    const triggered = source.indexOf('http-timeout-request-pt1s-overview-run-triggered', click);
+    const failedStatus = source.indexOf("'Failed',", triggered);
+    const failedOverview = source.indexOf('http-timeout-request-pt1s-overview-run-failed', failedStatus);
+    const failedAction = source.indexOf('http-timeout-request-pt1s-http-action-failed', failedOverview);
+    assert.ok(
+      empty >= 0 &&
+        empty < click &&
+        click < triggered &&
+        triggered < failedStatus &&
+        failedStatus < failedOverview &&
+        failedOverview < failedAction
+    );
+    assert.ok(
+      source.includes("assert.strictEqual(previousRunName, undefined, 'Scenario 1 must begin with an empty workflow run history')")
+    );
+    assert.ok(source.includes("runStatus: 'Failed'"));
+    assert.ok(source.includes("expectedStatus: 'Failed'"));
+    assert.ok(source.includes('emptyHistory: true'));
+    assert.ok(source.includes('candidate.hasMonitoringCanvas && !candidate.hasRunTrigger'));
+    assert.ok(source.includes("{ labels: ['URI'], value: endpoint }"));
+    assert.ok(source.includes('semanticCdp: overview.cdp'));
+    assert.ok(source.includes('semanticContextId: overview.contextId'));
+    assert.ok(source.includes('semanticCdp: monitoring.cdp'));
+    assert.ok(source.includes('semanticContextId: monitoring.contextId'));
+    assert.ok(!source.includes("kind: 'workbenchShell', label: 'httpTimeoutRequestExecutionHistory'"));
   });
   await control('HTTP timeout updates prove a bounded fresh disk write without requiring unreliable V2 clean state', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../../../src/test/e2e/httpTimeoutComposeOriginal.test.ts'), 'utf8');

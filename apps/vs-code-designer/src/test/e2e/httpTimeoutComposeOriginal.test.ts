@@ -4,7 +4,13 @@ import * as http from 'http';
 import * as path from 'path';
 import { isDeepStrictEqual } from 'util';
 import * as vscode from 'vscode';
-import { connectToVsCodeWorkbenchCdp, type CdpConnection } from './cdpClient';
+import {
+  connectToVsCodeCdp,
+  connectToVsCodeCdpByText,
+  connectToVsCodeWorkbenchCdp,
+  type CdpConnection,
+  waitForWebviewFrameContext,
+} from './cdpClient';
 import { closeCopilotChatIfVisible } from './copilotChat';
 import { assertNoDialogAttempts, installDialogGuard } from './dialogGuard';
 import { HttpTimeoutComposeDriver } from './httpTimeoutComposeDriver';
@@ -146,25 +152,125 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
     async () => {
       historyLease.assertInstalled();
       await helpers.startDebuggingGeneratedWorkspace(entry);
-      const run = await invokeAndWaitForRun(entry, deadline);
-      assert.strictEqual(run.status, 'Failed', `Exact HTTP timeout run ${run.name} must fail`);
-      assertHttpTimeoutActionFailed(run.actions, run.name);
-      const endpointRequests = endpoint.requests();
-      assert.ok(endpointRequests.length > 0, 'The exact run must reach the runner-owned delayed endpoint');
-      assert.ok(
-        endpointRequests.some((request) => request.method === 'GET' && request.path === '/longresponse'),
-        'The exact run must issue GET /longresponse'
+      await helpers.waitForWorkflowHealthy(entry.wfName, Math.min(120_000, httpTimeoutComposeRemaining(deadline)));
+      const previousRunName = await helpers.waitForRunHistoryBaseline(
+        entry.wfName,
+        Math.min(60_000, httpTimeoutComposeRemaining(deadline))
       );
-      assert.ok(
-        endpointRequests.every((request) => request.responseCompletedAt === undefined),
-        'The owned endpoint must still be delaying every response when the HTTP action fails'
-      );
-      await openOverview(entry, deadline);
-      await captureEvidenceScreenshot(
-        'http-timeout-request-pt1s-run-failed',
-        { kind: 'workbenchShell', label: 'httpTimeoutRequestExecutionHistory' },
-        { deadlineMs: deadline, binding: { activeTabText: [entry.wfName] } }
-      );
+      assert.strictEqual(previousRunName, undefined, 'Scenario 1 must begin with an empty workflow run history');
+      const overview = await openOverview(entry, deadline);
+      try {
+        await captureEvidenceScreenshot(
+          'http-timeout-request-pt1s-overview-empty',
+          { kind: 'overview', label: 'httpTimeoutRequestEmptyHistory', workflowName: entry.wfName, emptyHistory: true },
+          {
+            deadlineMs: deadline,
+            semanticCdp: overview.cdp,
+            semanticContextId: overview.contextId,
+          }
+        );
+        await helpers.clickOverviewRunTrigger(overview.cdp, overview.contextId, entry);
+        const runName = await helpers.waitForNewRunStarted(entry.wfName, previousRunName, 60_000);
+        await captureEvidenceScreenshot(
+          'http-timeout-request-pt1s-overview-run-triggered',
+          { kind: 'overview', label: 'httpTimeoutRequestRunTriggered', workflowName: entry.wfName, runName },
+          {
+            deadlineMs: deadline,
+            semanticCdp: overview.cdp,
+            semanticContextId: overview.contextId,
+          }
+        );
+        await helpers.waitForOverviewRunStatus(
+          overview.cdp,
+          overview.contextId,
+          entry.wfName,
+          'HTTP timeout request',
+          runName,
+          'Failed',
+          Math.min(180_000, httpTimeoutComposeRemaining(deadline))
+        );
+        await captureEvidenceScreenshot(
+          'http-timeout-request-pt1s-overview-run-failed',
+          {
+            kind: 'overview',
+            label: 'httpTimeoutRequestExecutionHistory',
+            workflowName: entry.wfName,
+            runName,
+            runStatus: 'Failed',
+          },
+          {
+            deadlineMs: deadline,
+            semanticCdp: overview.cdp,
+            semanticContextId: overview.contextId,
+          }
+        );
+
+        const run = await waitForRun(entry, runName, deadline);
+        assert.strictEqual(run.status, 'Failed', `Exact HTTP timeout run ${run.name} must fail`);
+        assertHttpTimeoutActionFailed(run.actions, run.name);
+        const endpointRequests = endpoint.requests();
+        assert.ok(endpointRequests.length > 0, 'The exact run must reach the runner-owned delayed endpoint');
+        assert.ok(
+          endpointRequests.some((request) => request.method === 'GET' && request.path === '/longresponse'),
+          'The exact run must issue GET /longresponse'
+        );
+        assert.ok(
+          endpointRequests.every((request) => request.responseCompletedAt === undefined),
+          'The owned endpoint must still be delaying every response when the HTTP action fails'
+        );
+
+        await helpers.clickOverviewRunRow(overview.cdp, overview.contextId, runName, 'Failed');
+        await waitForWebviewTab('monitoring', 0, Math.min(90_000, httpTimeoutComposeRemaining(deadline)));
+        const monitoring = await connectToVsCodeCdpByText({
+          targetName: 'HTTP timeout failed run monitoring webview',
+          allTextIncludes: ['HTTP'],
+          timeoutMs: Math.min(90_000, httpTimeoutComposeRemaining(deadline)),
+          acceptCandidate: async (cdp, contextId) => {
+            const candidate = await cdp.evaluate<{ hasMonitoringCanvas: boolean; hasRunTrigger: boolean; text: string }>(
+              contextId,
+              `(() => {
+                const isVisible = (element) => !!(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
+                const bodyText = document.body?.innerText || '';
+                return {
+                  hasMonitoringCanvas: Array.from(document.querySelectorAll('.react-flow')).some(isVisible),
+                  hasRunTrigger: Array.from(document.querySelectorAll('button')).some(
+                    (button) => isVisible(button) && (button.textContent || '').trim() === 'Run trigger'
+                  ),
+                  text: bodyText,
+                };
+              })()`
+            );
+            assert.ok(
+              candidate.hasMonitoringCanvas && !candidate.hasRunTrigger,
+              `Expected monitoring canvas without Overview Run trigger. Text=${candidate.text.slice(0, 1000)}`
+            );
+          },
+        });
+        try {
+          await helpers.clickMonitoringActionCardByTitle(monitoring.cdp, monitoring.contextId, 'HTTP');
+          await helpers.waitForMonitoringActionDetails(
+            monitoring.cdp,
+            monitoring.contextId,
+            'HTTP',
+            Math.min(90_000, httpTimeoutComposeRemaining(deadline)),
+            'HTTP timeout failed action monitoring details'
+          );
+          await captureEvidenceScreenshot(
+            'http-timeout-request-pt1s-http-action-failed',
+            { kind: 'monitoringAction', label: 'httpTimeoutRequestFailedAction', actionTitle: 'HTTP', expectedStatus: 'Failed' },
+            {
+              deadlineMs: deadline,
+              semanticCdp: monitoring.cdp,
+              semanticContextId: monitoring.contextId,
+              binding: { activeTabText: [entry.wfName, runName] },
+            }
+          );
+        } finally {
+          monitoring.cdp.dispose();
+        }
+      } finally {
+        overview.cdp.dispose();
+      }
     },
     [
       {
@@ -360,7 +466,18 @@ async function authorHttpRequest(
     fields: [{ labels: ['Method'], value: 'GET' }],
   });
   await driver.fillParameter(['URI'], endpoint);
-  console.log(`[http-timeout][checkpoint] ${entry.wfName}: URI entered; waiting for HTTP panel Settings readiness`);
+  console.log(`[http-timeout][checkpoint] ${entry.wfName}: URI entered; capturing exact request URL evidence`);
+  await captureHttpDesignerEvidence(session, entry, deadline, 'http-timeout-request-pt1s-uri-configured', {
+    kind: 'designerPanel',
+    label: 'httpTimeoutRequestPt1sUriConfigured',
+    actionTitle: 'HTTP',
+    requiredText: ['Method', 'URI'],
+    fields: [
+      { labels: ['Method'], value: 'GET' },
+      { labels: ['URI'], value: endpoint },
+    ],
+  });
+  console.log(`[http-timeout][checkpoint] ${entry.wfName}: exact request URL captured; waiting for HTTP panel Settings readiness`);
   await driver.configureHttpRequestSettings(timeout, {
     timeoutConfigured: async () => {
       console.log(`[http-timeout][checkpoint] ${entry.wfName}: Networking Request options timeout visibly configured as ${timeout}`);
@@ -804,45 +921,12 @@ async function startOwnedDelayEndpoint(): Promise<OwnedDelayEndpoint> {
   };
 }
 
-async function invokeAndWaitForRun(entry: CreatedWorkspace, deadline: number): Promise<{ name: string; status: string; actions: unknown }> {
+async function waitForRun(
+  entry: CreatedWorkspace,
+  runName: string,
+  deadline: number
+): Promise<{ name: string; status: string; actions: unknown }> {
   const workflowUrl = `${managementRoot}/workflows/${encodeURIComponent(entry.wfName)}`;
-  const triggerName = Object.keys(readWorkflow(entry).definition?.triggers ?? {})[0];
-  assert.ok(triggerName, 'Saved HTTP timeout workflow must contain the Request trigger');
-  let callbackUrl = '';
-  let callbackUrlAttempt = 0;
-  await pollHttpTimeoutCompose(
-    async () =>
-      requestLocalManagementForPoll(
-        'callback-url',
-        `${workflowUrl}/triggers/${encodeURIComponent(triggerName)}/listCallbackUrl?api-version=${apiVersion}`,
-        'POST',
-        deadline,
-        ++callbackUrlAttempt
-      ),
-    (result) => {
-      if (result.status === 0 || result.status === 404 || result.status === 503) {
-        return false;
-      }
-      assert.strictEqual(result.status, 200);
-      const value = (JSON.parse(result.body) as { value?: unknown }).value;
-      assert.ok(typeof value === 'string' && value.length > 0);
-      callbackUrl = value;
-      return true;
-    },
-    deadline,
-    'HTTP timeout Request callback URL'
-  );
-  const callback = await requestLocalWorkflowManagement({
-    phase: 'trigger-invocation',
-    url: callbackUrl,
-    method: 'POST',
-    deadline,
-    attempt: 1,
-    body: '{}',
-  });
-  assert.ok(callback.status === 202 || callback.status === 500, `Unexpected callback status ${callback.status}`);
-  const runName = callback.headers['x-ms-workflow-run-id'];
-  assert.ok(typeof runName === 'string' && runName.length > 0, 'Callback must identify the exact workflow run');
   const runUrl = `${workflowUrl}/runs/${encodeURIComponent(runName)}`;
   let status = '';
   let runStatusAttempt = 0;
@@ -882,10 +966,22 @@ async function invokeAndWaitForRun(entry: CreatedWorkspace, deadline: number): P
   return { name: runName, status, actions: JSON.parse(actions.body) };
 }
 
-async function openOverview(entry: CreatedWorkspace, deadline: number): Promise<void> {
+async function openOverview(entry: CreatedWorkspace, deadline: number): Promise<{ cdp: CdpConnection; contextId: number }> {
   await closeAllTabs();
   await vscode.commands.executeCommand('azureLogicAppsStandard.openOverview', vscode.Uri.file(entry.workflowJsonPath));
   await waitForWebviewTab('workflowOverview', 0, Math.min(90_000, httpTimeoutComposeRemaining(deadline)));
+  const cdp = await connectToVsCodeCdp({ targetName: 'HTTP timeout Overview webview' });
+  try {
+    const contextId = await waitForWebviewFrameContext(cdp, {
+      allTextIncludes: ['Run trigger', 'Refresh'],
+      description: 'HTTP timeout Overview webview DOM context',
+      timeoutMs: Math.min(90_000, httpTimeoutComposeRemaining(deadline)),
+    });
+    return { cdp, contextId };
+  } catch (error) {
+    cdp.dispose();
+    throw error;
+  }
 }
 
 async function requestLocalManagementForPoll(
