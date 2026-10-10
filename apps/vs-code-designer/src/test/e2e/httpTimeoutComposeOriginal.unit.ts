@@ -101,7 +101,9 @@ async function main(): Promise<void> {
     for (const phase of ['run-status', 'action-history']) {
       assert.ok(source.includes(`'${phase}'`), `Scenario 1 must classify ${phase}`);
     }
-    assert.ok(source.includes('await helpers.clickOverviewRunTrigger(overview.cdp, overviewContextId, entry)'));
+    assert.ok(source.includes('await helpers.clickOverviewRunTrigger(overviewCdp, overviewContextId, entry)'));
+    assert.ok(source.includes("targetName: 'HTTP timeout Overview webview after Run trigger'"));
+    assert.ok(source.includes('overviewCdp = reboundOverview.cdp'));
     assert.ok(source.includes('await helpers.waitForWorkflowHealthy(entry.wfName'));
     assert.ok(source.includes('await helpers.waitForRunHistoryBaseline('));
     assert.ok(source.includes('await helpers.waitForNewRunStarted(entry.wfName, previousRunName, 60_000)'));
@@ -322,7 +324,7 @@ async function main(): Promise<void> {
     assert.ok(source.includes('emptyHistory: true'));
     assert.ok(source.includes('candidate.hasMonitoringCanvas && !candidate.hasRunTrigger'));
     assert.ok(source.includes("{ labels: ['URI'], value: endpoint }"));
-    assert.ok(source.includes('semanticCdp: overview.cdp'));
+    assert.ok(source.includes('semanticCdp: overviewCdp'));
     assert.ok(source.includes('semanticContextId: overviewContextId'));
     assert.ok(source.includes('semanticCdp: monitoring.cdp'));
     assert.ok(source.includes('semanticContextId: monitoring.contextId'));

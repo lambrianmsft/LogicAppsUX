@@ -159,6 +159,7 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
       );
       assert.strictEqual(previousRunName, undefined, 'Scenario 1 must begin with an empty workflow run history');
       const overview = await openOverview(entry, deadline);
+      let overviewCdp = overview.cdp;
       let overviewContextId = overview.contextId;
       try {
         await captureEvidenceScreenshot(
@@ -166,28 +167,31 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
           { kind: 'overview', label: 'httpTimeoutRequestEmptyHistory', workflowName: entry.wfName, emptyHistory: true },
           {
             deadlineMs: deadline,
-            semanticCdp: overview.cdp,
+            semanticCdp: overviewCdp,
             semanticContextId: overviewContextId,
           }
         );
-        await helpers.clickOverviewRunTrigger(overview.cdp, overviewContextId, entry);
+        await helpers.clickOverviewRunTrigger(overviewCdp, overviewContextId, entry);
         const runName = await helpers.waitForNewRunStarted(entry.wfName, previousRunName, 60_000);
-        overviewContextId = await waitForWebviewFrameContext(overview.cdp, {
+        overviewCdp.dispose();
+        const reboundOverview = await connectToVsCodeCdpByText({
+          targetName: 'HTTP timeout Overview webview after Run trigger',
           allTextIncludes: ['Run trigger', 'Refresh'],
-          description: 'HTTP timeout Overview webview after Run trigger',
           timeoutMs: Math.min(60_000, httpTimeoutComposeRemaining(deadline)),
         });
+        overviewCdp = reboundOverview.cdp;
+        overviewContextId = reboundOverview.contextId;
         await captureEvidenceScreenshot(
           'http-timeout-request-pt1s-overview-run-triggered',
           { kind: 'overview', label: 'httpTimeoutRequestRunTriggered', workflowName: entry.wfName },
           {
             deadlineMs: deadline,
-            semanticCdp: overview.cdp,
+            semanticCdp: overviewCdp,
             semanticContextId: overviewContextId,
           }
         );
         await helpers.waitForOverviewRunStatus(
-          overview.cdp,
+          overviewCdp,
           overviewContextId,
           entry.wfName,
           'HTTP timeout request',
@@ -206,7 +210,7 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
           },
           {
             deadlineMs: deadline,
-            semanticCdp: overview.cdp,
+            semanticCdp: overviewCdp,
             semanticContextId: overviewContextId,
           }
         );
@@ -225,7 +229,7 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
           'The owned endpoint must still be delaying every response when the HTTP action fails'
         );
 
-        await helpers.clickOverviewRunRow(overview.cdp, overviewContextId, runName, 'Failed');
+        await helpers.clickOverviewRunRow(overviewCdp, overviewContextId, runName, 'Failed');
         await waitForWebviewTab('monitoring', 0, Math.min(90_000, httpTimeoutComposeRemaining(deadline)));
         const monitoring = await connectToVsCodeCdpByText({
           targetName: 'HTTP timeout failed run monitoring webview',
@@ -275,7 +279,7 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
           monitoring.cdp.dispose();
         }
       } finally {
-        overview.cdp.dispose();
+        overviewCdp.dispose();
       }
     },
     [
