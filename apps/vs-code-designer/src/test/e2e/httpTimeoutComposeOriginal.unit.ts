@@ -326,6 +326,7 @@ async function main(): Promise<void> {
     assert.ok(source.includes("{ labels: ['URI'], value: endpoint }"));
     assert.ok(source.includes('semanticCdp: overviewCdp'));
     assert.ok(source.includes('semanticContextId: overviewContextId'));
+    assert.ok(source.includes('await waitForWebviewTab(httpTimeoutComposeDesignerViewType, 0,'));
     assert.ok(source.includes('semanticCdp: monitoring.cdp'));
     assert.ok(source.includes('semanticContextId: monitoring.contextId'));
     assert.ok(

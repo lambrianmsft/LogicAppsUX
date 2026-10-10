@@ -230,7 +230,7 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
         );
 
         await helpers.clickOverviewRunRow(overviewCdp, overviewContextId, runName, 'Failed');
-        await waitForWebviewTab('monitoring', 0, Math.min(90_000, httpTimeoutComposeRemaining(deadline)));
+        await waitForWebviewTab(httpTimeoutComposeDesignerViewType, 0, Math.min(90_000, httpTimeoutComposeRemaining(deadline)));
         const monitoring = await connectToVsCodeCdpByText({
           targetName: 'HTTP timeout failed run monitoring webview',
           allTextIncludes: ['HTTP'],
