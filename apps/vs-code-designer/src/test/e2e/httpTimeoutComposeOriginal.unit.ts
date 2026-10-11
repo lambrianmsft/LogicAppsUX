@@ -332,6 +332,7 @@ async function main(): Promise<void> {
     assert.ok(source.includes('await waitForWebviewTab(httpTimeoutComposeDesignerViewType, 0,'));
     assert.ok(source.includes('semanticCdp: monitoring.cdp'));
     assert.ok(source.includes('semanticContextId: monitoring.contextId'));
+    assert.ok(source.includes("binding: { activeTabText: [entry.wfName, 'Workspace'] }"));
     assert.ok(
       source.includes("{ kind: 'overview', label: 'httpTimeoutRequestRunTriggered', workflowName: entry.wfName }"),
       'Immediate post-click evidence must not require the run row before Overview renders it'

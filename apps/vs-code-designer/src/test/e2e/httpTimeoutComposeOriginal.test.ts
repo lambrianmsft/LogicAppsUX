@@ -272,7 +272,7 @@ async function provePt1sExecution(entry: CreatedWorkspace, endpoint: OwnedDelayE
               deadlineMs: deadline,
               semanticCdp: monitoring.cdp,
               semanticContextId: monitoring.contextId,
-              binding: { activeTabText: [entry.wfName, runName] },
+              binding: { activeTabText: [entry.wfName, 'Workspace'] },
             }
           );
         } finally {
