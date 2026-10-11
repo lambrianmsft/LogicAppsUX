@@ -98,6 +98,9 @@ function testCohortTemplateContract() {
   const containmentHost = read('apps/vs-code-designer/scripts/e2e-cli-containment-host.cs');
   assert.match(containmentHost, /CONTAINMENT_DRAIN_ATTEMPTS = 100/);
   assert.match(containmentHost, /CONTAINMENT_DRAIN_DELAY_MS = 100/);
+  assert.match(containmentHost, /JobObjectBasicProcessIdList = 3/);
+  assert.match(containmentHost, /activeContainedProcesses/);
+  assert.match(containmentHost, /\[containment\] residual pid=\{0\} ppid=\{1\} session=\{2\} name=\{3\}/);
   const linuxContainmentHost = read('apps/vs-code-designer/scripts/e2e-cli-containment-host.c');
   assert.match(linuxContainmentHost, /CONTAINMENT_DRAIN_ATTEMPTS = 100/);
   assert.match(linuxContainmentHost, /CONTAINMENT_DRAIN_DELAY_MS = 100/);

@@ -1597,6 +1597,11 @@ async function testContainedWrapperRejectsEscapedDescendant() {
   assert.strictEqual(result.processCleanup.containmentEmpty, false);
   if (process.platform === 'linux') {
     assert.match(result.output, /\[containment\] residual pid=\d+ ppid=\d+ pgrp=\d+ session=\d+ state=\w name=.+/);
+  } else if (process.platform === 'win32') {
+    assert.match(result.output, /\[containment\] residual pid=\d+ ppid=\d+ session=\d+ name=.+/);
+    assert.ok(result.processCleanup.activeContainedProcessCount > 0);
+    assert.ok(Array.isArray(result.processCleanup.activeContainedProcesses));
+    assert.ok(result.processCleanup.activeContainedProcesses.length > 0);
   }
   const records = readJsonLines(processRecordsPath);
   const escaped = records.find((record) => record.role === 'grandchild');
