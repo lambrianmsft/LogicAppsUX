@@ -10,6 +10,7 @@ interface TerminalSearchState {
   findValue: string;
   findWidgetText: string;
   terminalText: string;
+  missingRequiredText: string[];
   found: boolean;
 }
 
@@ -33,31 +34,43 @@ export async function disposeStoppedFuncHostTerminals(deadline: number): Promise
   throw new Error(`${terminalTaskName} terminal cleanup did not settle before the validation launch`);
 }
 
-export async function findTextInFuncHostTerminal(cdp: CdpEvaluator, expectedText: string, deadline: number): Promise<string> {
+export async function findTextInFuncHostTerminal(
+  cdp: CdpEvaluator,
+  searchText: string,
+  requiredVisibleText: readonly string[],
+  deadline: number
+): Promise<string> {
   const terminal = await waitForFuncHostTerminal(deadline);
   terminal.show(false);
 
   await pressControlShortcut(cdp, 'f', 'KeyF', 70);
   const chordDeadline = Math.min(deadline, Date.now() + 3000);
-  let opened = await pollTerminalSearchState(cdp, expectedText, chordDeadline, (state) => state.findInput);
+  let opened = await pollTerminalSearchState(cdp, searchText, requiredVisibleText, chordDeadline, (state) => state.findInput);
   if (!opened.findInput) {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes(terminalFocusFindCommand), `${terminalFocusFindCommand} is not registered`);
     console.log(`[workbench-terminal] Ctrl+F was not routed through CDP; invoking ${terminalFocusFindCommand}`);
     await vscode.commands.executeCommand(terminalFocusFindCommand);
-    opened = await pollTerminalSearchState(cdp, expectedText, deadline, (state) => state.findInput);
+    opened = await pollTerminalSearchState(cdp, searchText, requiredVisibleText, deadline, (state) => state.findInput);
   }
   assert.ok(opened.findInput, `${terminalTaskName} terminal Find input did not open`);
   await clickPoint(cdp, opened.findInput);
-  await replaceFocusedText(cdp, expectedText);
+  await replaceFocusedText(cdp, searchText);
 
-  const found = await pollTerminalSearchState(cdp, expectedText, deadline, (state) => state.findValue === expectedText && state.found);
+  const found = await pollTerminalSearchState(
+    cdp,
+    searchText,
+    requiredVisibleText,
+    deadline,
+    (state) => state.findValue === searchText && state.found
+  );
   assert.ok(
-    found.findValue === expectedText && found.found,
+    found.findValue === searchText && found.found,
     [
       `${terminalTaskName} terminal did not reveal the expected validation text through Ctrl+F`,
       `Find value: ${JSON.stringify(found.findValue)}`,
       `Find widget: ${JSON.stringify(found.findWidgetText)}`,
+      `Missing required text: ${JSON.stringify(found.missingRequiredText)}`,
       `Visible terminal tail: ${JSON.stringify(found.terminalText.slice(-4000))}`,
     ].join('\n')
   );
@@ -81,13 +94,20 @@ async function waitForFuncHostTerminal(deadline: number): Promise<vscode.Termina
 
 async function pollTerminalSearchState<T>(
   cdp: CdpEvaluator,
-  expectedText: string,
+  searchText: string,
+  requiredVisibleText: readonly string[],
   deadline: number,
   accept: (state: TerminalSearchState) => T | undefined
 ): Promise<TerminalSearchState> {
-  let lastState: TerminalSearchState = { findValue: '', findWidgetText: '', terminalText: '', found: false };
+  let lastState: TerminalSearchState = {
+    findValue: '',
+    findWidgetText: '',
+    terminalText: '',
+    missingRequiredText: [...requiredVisibleText],
+    found: false,
+  };
   while (Date.now() < deadline) {
-    lastState = await readTerminalSearchState(cdp, expectedText, Math.min(3000, deadline - Date.now()));
+    lastState = await readTerminalSearchState(cdp, searchText, requiredVisibleText, Math.min(3000, deadline - Date.now()));
     if (accept(lastState)) {
       return lastState;
     }
@@ -96,11 +116,17 @@ async function pollTerminalSearchState<T>(
   return lastState;
 }
 
-function readTerminalSearchState(cdp: CdpEvaluator, expectedText: string, timeoutMs: number): Promise<TerminalSearchState> {
+function readTerminalSearchState(
+  cdp: CdpEvaluator,
+  searchText: string,
+  requiredVisibleText: readonly string[],
+  timeoutMs: number
+): Promise<TerminalSearchState> {
   return cdp.evaluate(
     undefined,
     `(() => {
-      const expected = ${JSON.stringify(expectedText)};
+      const searchText = ${JSON.stringify(searchText)};
+      const requiredVisibleText = ${JSON.stringify(requiredVisibleText)};
       const visible = (element) => {
         if (!(element instanceof HTMLElement)) return false;
         const rect = element.getBoundingClientRect();
@@ -117,14 +143,10 @@ function readTerminalSearchState(cdp: CdpEvaluator, expectedText: string, timeou
       };
       const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
       const compact = (value) => normalize(value).replace(/\\s+/g, '');
-      const terminals = Array.from(document.querySelectorAll('.terminal-wrapper, .integrated-terminal')).filter(visible);
-      const terminal = terminals.at(-1);
-      const terminalText = terminal
-        ? Array.from(terminal.querySelectorAll('.xterm-rows, .xterm-accessibility-tree'))
-            .filter(visible)
-            .map((element) => element.textContent || '')
-            .join('\\n')
-        : '';
+      const terminalText = Array.from(document.querySelectorAll('.xterm-rows, .xterm-accessibility-tree'))
+        .filter(visible)
+        .map((element) => element.textContent || '')
+        .join('\\n');
       const inputs = Array.from(document.querySelectorAll('.panel input')).filter(visible);
       const findInput = inputs.find((input) => {
         const container = input.closest('.terminal-find-widget, .simple-find-part, .find-widget');
@@ -134,13 +156,16 @@ function readTerminalSearchState(cdp: CdpEvaluator, expectedText: string, timeou
         return !!container && identity.includes('find');
       });
       const findWidget = findInput?.closest('.terminal-find-widget, .simple-find-part, .find-widget');
+      const findWidgetText = normalize(findWidget?.textContent);
+      const missingRequiredText = requiredVisibleText.filter((value) => !compact(terminalText).includes(compact(value)));
       return {
         findInput: findInput ? pointFor(findInput) : undefined,
         findValue: findInput instanceof HTMLInputElement ? findInput.value : '',
-        findWidgetText: normalize(findWidget?.textContent),
+        findWidgetText,
         terminalText: normalize(terminalText),
-        found: findInput instanceof HTMLInputElement && findInput.value === expected &&
-          compact(terminalText).includes(compact(expected)),
+        missingRequiredText,
+        found: findInput instanceof HTMLInputElement && findInput.value === searchText &&
+          !/no results/i.test(findWidgetText) && missingRequiredText.length === 0,
       };
     })()`,
     { timeoutMs }

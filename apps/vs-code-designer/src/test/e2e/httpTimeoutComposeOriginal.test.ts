@@ -73,6 +73,12 @@ import { disposeStoppedFuncHostTerminals, findTextInFuncHostTerminal } from './w
 const managementRoot = 'http://localhost:7071/runtime/webhooks/workflow/api/management';
 const apiVersion = '2019-10-01-edge-preview';
 const mode = process.env.LA_E2E_CLI_HTTP_TIMEOUT_REQUEST_MODE;
+const httpTimeoutPt24hTerminalFindText = '1.00:00:00';
+const httpTimeoutPt24hTerminalVisibleText = [
+  'The provided request options timeout of',
+  "'1.00:00:00'",
+  "for action 'HTTP' must be less than",
+] as const;
 
 installDialogGuard();
 installFailureScreenshotHook();
@@ -367,7 +373,12 @@ async function provePt24hAndInvalidValidation(entry: CreatedWorkspace, endpoint:
     await disposeStoppedFuncHostTerminals(Math.min(deadline, Date.now() + 10_000));
     await helpers.startDebuggingGeneratedWorkspace(entry);
     const terminalValidationDeadline = Math.min(deadline, Date.now() + 90_000);
-    await findTextInFuncHostTerminal(terminalWorkbench, httpTimeoutPt24hRuntimeError, terminalValidationDeadline);
+    await findTextInFuncHostTerminal(
+      terminalWorkbench,
+      httpTimeoutPt24hTerminalFindText,
+      httpTimeoutPt24hTerminalVisibleText,
+      terminalValidationDeadline
+    );
     const terminalScreenshotDeadline = Math.min(deadline, Date.now() + defaultEvidenceScreenshotTimeoutMs);
     await captureEvidenceScreenshot(
       'http-timeout-request-pt24h-runtime-validation',

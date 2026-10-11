@@ -393,7 +393,8 @@ async function main(): Promise<void> {
     const start = scenario.indexOf('await helpers.startDebuggingGeneratedWorkspace(entry);');
     const search = scenario.indexOf('await findTextInFuncHostTerminal(');
     assert.ok(dispose >= 0 && dispose < start && start < search);
-    assert.ok(scenario.includes('await findTextInFuncHostTerminal('));
+    assert.ok(scenario.includes('httpTimeoutPt24hTerminalFindText'));
+    assert.ok(scenario.includes('httpTimeoutPt24hTerminalVisibleText'));
     assert.ok(scenario.includes('Date.now() + 90_000'));
     assert.ok(scenario.includes('Date.now() + defaultEvidenceScreenshotTimeoutMs'));
     assert.ok(scenario.includes('pt24h-terminal-validation-before-cleanup'));
@@ -402,6 +403,9 @@ async function main(): Promise<void> {
     assert.ok(helper.includes("const terminalTaskName = 'func: host start';"));
     assert.ok(helper.includes("const terminalFocusFindCommand = 'workbench.action.terminal.focusFind';"));
     assert.ok(helper.includes("await pressControlShortcut(cdp, 'f', 'KeyF', 70);"));
+    assert.ok(helper.includes("document.querySelectorAll('.xterm-rows, .xterm-accessibility-tree')"));
+    assert.ok(helper.includes('!/no results/i.test(findWidgetText)'));
+    assert.ok(helper.includes('missingRequiredText.length === 0'));
     assert.ok(helper.includes('const chordDeadline = Math.min(deadline, Date.now() + 3000);'));
     assert.ok(helper.includes('commands.includes(terminalFocusFindCommand)'));
     assert.ok(helper.includes('await vscode.commands.executeCommand(terminalFocusFindCommand);'));
@@ -409,9 +413,8 @@ async function main(): Promise<void> {
     assert.ok(helper.includes("await cdp.send('Input.insertText', { text: value });"));
     assert.strictEqual((helper.match(/code: 'ControlLeft'/g) ?? []).length, 2);
     assert.ok(helper.includes("key: 'Control'"));
-    assert.ok(helper.includes("terminal.querySelectorAll('.xterm-rows, .xterm-accessibility-tree')"));
-    assert.ok(helper.includes('findInput.value === expected'));
-    assert.ok(helper.includes('state.findValue === expectedText && state.found'));
+    assert.ok(helper.includes('findInput.value === searchText'));
+    assert.ok(helper.includes('state.findValue === searchText && state.found'));
     assert.ok(helper.includes('Refusing to dispose ${terminalTaskName} terminals while matching task executions remain active'));
   });
   await control('failing HTTP evidence expectations use the shared local screenshot cap instead of the family deadline', () => {
