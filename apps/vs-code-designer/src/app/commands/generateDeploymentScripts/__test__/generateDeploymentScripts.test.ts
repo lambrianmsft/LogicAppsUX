@@ -10,14 +10,21 @@ import { getWorkspaceFolder, isMultiRootWorkspace } from '../../../utils/workspa
 import { isLogicAppProject, tryGetLogicAppProjectRoot } from '../../../utils/verifyIsProject';
 import { AzureWizard } from '@microsoft/vscode-azext-utils';
 import { COMMON_ERRORS } from '../../../../constants';
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
+import { runInNewContext } from 'node:vm';
+import type { AzureWizardPromptStep } from '@microsoft/vscode-azext-utils';
+import type { IAzureDeploymentScriptsContext } from '../generateDeploymentScripts';
+import { SubscriptionAndResourceGroupStep } from '../generateDeploymentScriptsSteps/SubscriptionAndResourceGroupStep';
+import { ResourceGroupListStep } from '@microsoft/vscode-azext-azureutils';
+import { getLocalSettingsJson } from '../../../utils/appSettings/localSettings';
+import { workflowSubscriptionIdKey, workflowResourceGroupNameKey, workflowLocationKey } from '../../../../constants';
 
 vi.mock('@microsoft/vscode-azext-utils', () => ({
   AzureWizardExecuteStep: vi.fn().mockImplementation(() => {
     return {};
   }),
-  AzureWizardPromptStep: vi.fn().mockImplementation(() => {
-    return {};
-  }),
+  AzureWizardPromptStep: class {},
   AzureWizard: vi.fn().mockImplementation(() => ({
     prompt: vi.fn(),
     execute: vi.fn(),
@@ -43,6 +50,10 @@ vi.mock('@microsoft/vscode-azext-utils', () => ({
   DialogResponses: vi.fn(),
   AzExtTreeItem: class AzExtTreeItem {},
   AzExtParentTreeItem: class AzExtParentTreeItem {},
+}));
+
+vi.mock('@microsoft/vscode-azext-azureutils', () => ({
+  ResourceGroupListStep: Object.assign(vi.fn(), { getResourceGroups: vi.fn() }),
 }));
 
 vi.mock('../../../../localize', () => ({
@@ -165,6 +176,18 @@ describe('generateDeploymentScripts', () => {
     expect(context.telemetry.properties.errorMessage).toBeUndefined();
   });
 
+  it('does not prepare a workspace or generate artifacts when a wizard picker is cancelled', async () => {
+    const execute = vi.fn();
+    (AzureWizard as Mock).mockImplementation(() => ({
+      prompt: vi.fn().mockRejectedValue(new UserCancelledError()),
+      execute,
+    }));
+    await generateDeploymentScripts(context, node);
+    expect(context.telemetry.properties.result).toBe('Canceled');
+    expect(ensureWorkspace).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it('should use workspace folder if node is undefined', async () => {
     (ensureWorkspace as Mock).mockResolvedValue(true);
     (tryGetLogicAppProjectRoot as Mock).mockResolvedValue('workspaceRoot');
@@ -175,12 +198,127 @@ describe('generateDeploymentScripts', () => {
     expect(tryGetLogicAppProjectRoot).toHaveBeenCalled();
   });
 
-  it('should exit early a valid workspace is not opened', async () => {
+  it('does not execute legacy generation when workspace setup is declined', async () => {
     (ensureWorkspace as Mock).mockResolvedValue(false);
+    const execute = vi.fn();
+    (AzureWizard as Mock).mockImplementation(() => ({ prompt: vi.fn(), execute }));
 
     await generateDeploymentScripts(context, node);
 
     expect(ext.outputChannel.appendLog).toHaveBeenCalledWith('Exiting deployment script generation...');
-    expect(AzureWizard).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
   });
+
+  it.each(['Bicep', 'Terraform'])('does not create or convert a workspace for native %s export', async (format) => {
+    const execute = vi.fn();
+    (AzureWizard as Mock).mockImplementation((wizardContext) => ({
+      prompt: vi.fn(async () => {
+        wizardContext.infrastructureFormat = format;
+      }),
+      execute,
+    }));
+    await generateDeploymentScripts(context, node);
+    expect(ensureWorkspace).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Bicep', 1],
+    ['Bicep', 2],
+    ['Terraform', 1],
+    ['Terraform', 2],
+  ] as const)(
+    'hydrates the account before %s resource lookup with saved defaults and %s available subscriptions',
+    async (format, subscriptionCount) => {
+      // Exercise the installed account provider's single/multiple-subscription behavior, without loading VS Code or signing in.
+      const { readFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
+      const require = createRequire(path.join(process.cwd(), 'package.json'));
+      const source = path.join(path.dirname(require.resolve('@microsoft/vscode-azext-azureutils')), 'tree', 'AzureAccountTreeItemBase.js');
+      const exports: {
+        AzureAccountTreeItemBase?: {
+          prototype: {
+            getSubscriptionPromptStep(context: IActionContext): Promise<AzureWizardPromptStep<IActionContext> | undefined>;
+          };
+        };
+      } = {};
+      runInNewContext(readFileSync(source, 'utf8'), {
+        exports,
+        require: (id: string) => {
+          switch (id) {
+            case '@microsoft/vscode-azext-utils':
+              return { AzExtParentTreeItem: class {}, AzureWizardPromptStep: class {} };
+            case 'vscode':
+              return { l10n: { t: (value: string) => value } };
+            case './SubscriptionTreeItemBase':
+              return { SubscriptionTreeItemBase: { contextValue: 'subscription' } };
+            case 'semver':
+            case './IconPath':
+              return {};
+            default:
+              throw new Error(`Unexpected account dependency: ${id}`);
+          }
+        },
+      });
+      const subscription = {
+        subscriptionId: 'selected-subscription',
+        tenantId: 'selected-tenant',
+        environment: { resourceManagerEndpointUrl: 'https://management.usgovcloudapi.net/' },
+        credentials: { getToken: vi.fn() },
+        createCredentialsForScopes: vi.fn(),
+      };
+      const selectedGroup = { name: 'selected-group', location: 'usgovvirginia' };
+      const picker = vi.fn().mockResolvedValue({ subscription });
+      const account = {
+        ensureSubscriptionTreeItems: vi
+          .fn()
+          .mockResolvedValue([{ subscription }, { subscription: { subscriptionId: 'another' } }].slice(0, subscriptionCount)),
+        treeDataProvider: { showTreeItemPicker: picker },
+      };
+      ext.azureAccountTreeItem = {
+        getSubscriptionPromptStep: (wizardContext) =>
+          exports.AzureAccountTreeItemBase.prototype.getSubscriptionPromptStep.call(account, wizardContext),
+      } as typeof ext.azureAccountTreeItem;
+      vi.mocked(getLocalSettingsJson).mockResolvedValue({
+        IsEncrypted: false,
+        Values: {
+          [workflowSubscriptionIdKey]: 'saved-subscription',
+          [workflowResourceGroupNameKey]: 'saved-group',
+          [workflowLocationKey]: 'saved-location',
+        },
+      });
+      vi.mocked(ResourceGroupListStep.getResourceGroups).mockImplementation(async (wizardContext) => {
+        expect(wizardContext.environment.resourceManagerEndpointUrl).toBe(subscription.environment.resourceManagerEndpointUrl);
+        expect(wizardContext.credentials).toBe(subscription.credentials);
+        expect(wizardContext.createCredentialsForScopes).toBe(subscription.createCredentialsForScopes);
+        expect(wizardContext.subscriptionId).toBe(subscription.subscriptionId);
+        expect(wizardContext.tenantId).toBe(subscription.tenantId);
+        return [selectedGroup];
+      });
+      const execute = vi.fn();
+      (AzureWizard as Mock).mockImplementation((wizardContext: IAzureDeploymentScriptsContext) => ({
+        prompt: async () => {
+          wizardContext.infrastructureFormat = format;
+          wizardContext.ui = { showQuickPick: vi.fn().mockResolvedValue({ data: selectedGroup }) } as typeof wizardContext.ui;
+          expect(wizardContext.subscriptionId).toBe('saved-subscription');
+          expect(wizardContext.environment).toBeUndefined();
+          const subWizard = await new SubscriptionAndResourceGroupStep().getSubWizard(wizardContext);
+          for (const step of subWizard.promptSteps) {
+            if (step.shouldPrompt(wizardContext)) {
+              await step.prompt(wizardContext);
+            }
+          }
+          expect(wizardContext.resourceGroup).toEqual(selectedGroup);
+          expect(subWizard.executeSteps).toBeUndefined();
+        },
+        execute,
+      }));
+
+      await generateDeploymentScripts(context, node);
+
+      expect(picker).toHaveBeenCalledTimes(subscriptionCount === 1 ? 0 : 1);
+      expect(ResourceGroupListStep.getResourceGroups).toHaveBeenCalledWith(context);
+      expect(ensureWorkspace).not.toHaveBeenCalled();
+      expect(execute).toHaveBeenCalledOnce();
+    }
+  );
 });

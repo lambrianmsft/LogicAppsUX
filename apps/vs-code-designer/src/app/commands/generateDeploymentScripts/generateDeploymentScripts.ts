@@ -2,13 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import {
-  extensionCommand,
-  workflowLocationKey,
-  workflowResourceGroupNameKey,
-  workflowSubscriptionIdKey,
-  workflowTenantIdKey,
-} from '../../../constants';
+import { workflowLocationKey, workflowResourceGroupNameKey, workflowSubscriptionIdKey, workflowTenantIdKey } from '../../../constants';
 import { ext } from '../../../extensionVariables';
 import { localize } from '../../../localize';
 import { addLocalFuncTelemetry } from '../../utils/funcCoreTools/funcVersion';
@@ -22,8 +16,10 @@ import type { SlotTreeItem } from '../../tree/slotsTree/SlotTreeItem';
 import type * as vscode from 'vscode';
 import * as path from 'path';
 import { getLocalSettingsJson } from '../../utils/appSettings/localSettings';
+import { isNativeInfrastructureFormat, type InfrastructureFormat } from './nativeInfrastructureExport';
+import type { IResourceGroupWizardContext } from '@microsoft/vscode-azext-azureutils';
 
-export interface IAzureDeploymentScriptsContext extends IProjectWizardContext, IActionContext {
+export interface IAzureDeploymentScriptsContext extends IProjectWizardContext, IActionContext, IResourceGroupWizardContext {
   credentials: any;
   subscriptionId: any;
   resourceGroup: any;
@@ -43,6 +39,7 @@ export interface IAzureDeploymentScriptsContext extends IProjectWizardContext, I
   deploymentTarget?: DeploymentTargetType;
   connectedEnvironmentName?: string;
   connectedEnvironmentResourceGroup?: string;
+  infrastructureFormat?: InfrastructureFormat;
 }
 
 /**
@@ -59,19 +56,6 @@ export async function generateDeploymentScripts(context: IActionContext, node?: 
     ext.outputChannel.appendLog(localize('initScriptGen', 'Starting deployment script generation...'));
     addLocalFuncTelemetry(context);
 
-    context.telemetry.properties.lastStep = 'ensureWorkspace';
-    const isWorkspaceReady = await callWithTelemetryAndErrorHandling('generateDeploymentScripts.ensureWorkspace', async (actionContext: IActionContext) => {
-      actionContext.errorHandling.rethrow = true;
-      actionContext.errorHandling.suppressDisplay = true;
-      return await ensureWorkspace(actionContext);
-    });
-    
-    if (!isWorkspaceReady) {
-      ext.outputChannel.appendLog(localize('exitScriptGen', 'Exiting deployment script generation...'));
-      context.telemetry.properties.result = 'Canceled';
-      return;
-    }
-
     context.telemetry.properties.lastStep = 'isLogicAppProject';
     if (node && node.fsPath && (await isLogicAppProject(node.fsPath))) {
       projectPath = node.fsPath;
@@ -87,12 +71,28 @@ export async function generateDeploymentScripts(context: IActionContext, node?: 
     const wizardContext = await getDeploymentScriptsWizardContext(context, projectPath);
 
     const wizard: AzureWizard<IAzureDeploymentScriptsContext> = new AzureWizard(wizardContext, {
-      title: localize('generateDeploymentScripts', 'Generate Logic App deployment scripts'),
+      title: localize('generateDeploymentArtifacts', 'Generate Logic App deployment artifacts'),
       promptSteps: [new DeploymentScriptTypeStep()],
     });
 
     ext.outputChannel.appendLog(localize('launchAzureDeploymentScriptsWizard', 'Launching Azure deployment scripts wizard...'));
     await wizard.prompt();
+    if (!isNativeInfrastructureFormat(wizardContext.infrastructureFormat)) {
+      context.telemetry.properties.lastStep = 'ensureWorkspace';
+      const isWorkspaceReady = await callWithTelemetryAndErrorHandling(
+        'generateDeploymentScripts.ensureWorkspace',
+        async (actionContext: IActionContext) => {
+          actionContext.errorHandling.rethrow = true;
+          actionContext.errorHandling.suppressDisplay = true;
+          return await ensureWorkspace(actionContext);
+        }
+      );
+      if (!isWorkspaceReady) {
+        ext.outputChannel.appendLog(localize('exitScriptGen', 'Exiting deployment script generation...'));
+        context.telemetry.properties.result = 'Canceled';
+        return;
+      }
+    }
     await wizard.execute();
 
     ext.outputChannel.appendLog(localize('completeAzureDeploymentScriptsWizard', 'Azure deployment scripts wizard executed successfully.'));

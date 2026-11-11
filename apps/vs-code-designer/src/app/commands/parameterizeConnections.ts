@@ -8,7 +8,11 @@ import { localize } from '../../localize';
 import { getLocalSettingsJson } from '../utils/appSettings/localSettings';
 import { getConnectionsJson, saveConnectionReferences } from '../utils/codeless/connection';
 import { getParametersJson, saveWorkflowParameter } from '../utils/codeless/parameter';
-import { areAllConnectionsParameterized, parameterizeConnection } from '../utils/codeless/parameterizer';
+import {
+  areAllConnectionsParameterized,
+  parameterizeConnection,
+  validateConnectionAuthenticationParameters,
+} from '../utils/codeless/parameterizer';
 import { getWorkspaceLogicAppRoots } from '../utils/workspace';
 import { UserCancelledError, type IActionContext } from '@microsoft/vscode-azext-utils';
 import { workspace } from 'vscode';
@@ -79,8 +83,11 @@ async function parameterizeProjectConnectionsInternal(context: IActionContext, p
   const parametersJson = await getParametersJson(projectPath);
   const localSettingsJson = (await getLocalSettingsJson(context, projectPath)) as Record<string, any>;
 
+  validateConnectionAuthenticationParameters(connectionsData, parametersJson);
   if (areAllConnectionsParameterized(connectionsData)) {
-    ext.outputChannel.appendLog(localize('connectionsAlreadyParameterized', 'Connections already parameterized for project "{0}".', projectPath));
+    ext.outputChannel.appendLog(
+      localize('connectionsAlreadyParameterized', 'Connections already parameterized for project "{0}".', projectPath)
+    );
     return;
   }
 
@@ -99,5 +106,7 @@ async function parameterizeProjectConnectionsInternal(context: IActionContext, p
   });
   await saveWorkflowParameter(context, projectPath, parametersJson);
   await saveConnectionReferences(context, projectPath, { connections: connectionsData, settings: localSettingsJson.Values });
-  ext.outputChannel.appendLog(localize('connectionsParameterized', 'Successfully parameterized connections for project "{0}".', projectPath));
+  ext.outputChannel.appendLog(
+    localize('connectionsParameterized', 'Successfully parameterized connections for project "{0}".', projectPath)
+  );
 }

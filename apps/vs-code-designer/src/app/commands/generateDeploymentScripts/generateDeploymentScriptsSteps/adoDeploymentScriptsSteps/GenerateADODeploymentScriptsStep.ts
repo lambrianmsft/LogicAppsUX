@@ -2,7 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { isEmptyString } from '@microsoft/logic-apps-shared';
+import { isEmptyString, resolveConnectionsReferences } from '@microsoft/logic-apps-shared';
 import {
   AzureWizardExecuteStep,
   callWithTelemetryAndErrorHandling,
@@ -13,7 +13,7 @@ import {
 import type { ConnectionsData } from '@microsoft/vscode-extension-logic-apps';
 import { getBaseGraphApi, OpenBehavior, DeploymentTargetType } from '@microsoft/vscode-extension-logic-apps';
 import { getConnectionsJson } from '../../../../utils/codeless/connection';
-import { areAllConnectionsParameterized } from '../../../../utils/codeless/parameterizer';
+import { areAllConnectionsParameterized, validateConnectionAuthenticationParameters } from '../../../../utils/codeless/parameterizer';
 import axios from 'axios';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -28,6 +28,27 @@ import { unzipLogicAppArtifacts } from '../../../../utils/taskUtils';
 import { startDesignTimeApi } from '../../../../utils/codeless/startDesignTimeApi';
 import { getAuthorizationToken, getCloudHost } from '../../../../utils/codeless/getAuthorizationToken';
 import type { IAzureDeploymentScriptsContext } from '../../generateDeploymentScripts';
+import {
+  isNativeInfrastructureFormat,
+  publishNativeExport,
+  validateNativeExport,
+  getRuntimeUrlSettingName,
+  setBicepPipelineConnections,
+  validateBicepSourceNames,
+  type BicepPipelineConnection,
+  type InfrastructureFormat,
+  type NativeExportFile,
+} from '../../nativeInfrastructureExport';
+import { getLocalSettingsJson } from '../../../../utils/appSettings/localSettings';
+import { getParametersJson } from '../../../../utils/codeless/parameter';
+
+interface DeploymentConnection {
+  reference: string;
+  subscriptionId: string;
+  resourceGroup: string;
+  connectionId: string;
+  runtimeUrlSettingName: string | null;
+}
 
 export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAzureDeploymentScriptsContext> {
   public priority = 250;
@@ -47,22 +68,219 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
    */
   public async execute(context: IAzureDeploymentScriptsContext): Promise<void> {
     context.telemetry.properties.lastStep = 'GenerateADODeploymentScriptsStep';
-
-    const deploymentFolderPath = path.join(context.workspacePath, deploymentDirectory);
-    if (!fs.existsSync(deploymentFolderPath)) {
-      fs.mkdirSync(deploymentFolderPath);
+    const format = context.infrastructureFormat;
+    const nativeFormat = isNativeInfrastructureFormat(format) ? format : undefined;
+    if (nativeFormat) {
+      if (context.deploymentTarget === DeploymentTargetType.hybrid) {
+        throw new Error('Native infrastructure export supports Standard / App Service only, not Hybrid.');
+      }
+      await GenerateADODeploymentScriptsStep.confirmNativeExport(nativeFormat);
+      context.telemetry.properties.lastStep = 'resolveNativeConnections';
+    } else {
+      const deploymentFolderPath = path.join(context.workspacePath, deploymentDirectory);
+      if (!fs.existsSync(deploymentFolderPath)) {
+        fs.mkdirSync(deploymentFolderPath);
+      }
+      context.deploymentFolderPath = deploymentFolderPath;
+      context.workspacePath = (context.workspaceFolder && context.workspaceFolder.uri.fsPath) || context.workspacePath;
+      if (context.workspaceFolder) {
+        context.openBehavior = OpenBehavior.alreadyOpen;
+      }
+      context.telemetry.properties.lastStep = 'getConnectionsJson';
     }
 
-    context.deploymentFolderPath = deploymentFolderPath;
-    context.workspacePath = (context.workspaceFolder && context.workspaceFolder.uri.fsPath) || context.workspacePath;
-    if (context.workspaceFolder) {
-      context.openBehavior = OpenBehavior.alreadyOpen;
-    }
-
-    context.telemetry.properties.lastStep = 'getConnectionsJson';
     const connectionsJson = await getConnectionsJson(context.projectPath);
     const connectionsData: ConnectionsData = isEmptyString(connectionsJson) ? {} : JSON.parse(connectionsJson);
+    const workflowFiles = nativeFormat ? [] : await GenerateADODeploymentScriptsStep.prepareLegacyProject(context, connectionsData);
+    if (!nativeFormat) {
+      context.telemetry.properties.lastStep = 'generateManagedConnectionsDeploymentArtifacts';
+      ext.outputChannel.appendLog(localize('initCallConsumption', 'Initiating call to Consumption API for deployment artifacts.'));
+      ext.outputChannel.appendLog(
+        localize(
+          'operationalContext',
+          'Operational context: Tenant ID: {0}, Subscription ID: {1}, Resource Group: {2}, Logic App: {3}',
+          context.tenantId,
+          context.subscriptionId,
+          context.resourceGroup.name,
+          context.logicAppName
+        )
+      );
+      ext.outputChannel.appendLog(localize('fetchingManagedConnections', 'Fetching managed connections...'));
+    }
+    const references = await GenerateADODeploymentScriptsStep.getConnectionReferences(context, connectionsData);
+    if (nativeFormat && references.length > 100) {
+      throw new Error('Native infrastructure export supports at most 100 managed connections per export.');
+    }
+    if (nativeFormat === 'Bicep') {
+      validateBicepSourceNames(
+        context.logicAppName,
+        references.map((connection) => connection.connectionId)
+      );
+    }
 
+    const scope = { subscriptionId: context.subscriptionId, resourceGroupName: context.resourceGroup.name };
+    const files: NativeExportFile[] = [];
+    const pipelineConnections: BicepPipelineConnection[] = [];
+    let totalBytes = 0;
+    // Preserve legacy child-first generation and native host validation before cloud export.
+    const stages = nativeFormat ? (['host', 'connections'] as const) : (['connections', 'host'] as const);
+    for (const stage of stages) {
+      if (stage === 'host') {
+        if (context.deploymentTarget === DeploymentTargetType.hybrid) {
+          context.telemetry.properties.lastStep = 'generateHybridDeploymentArtifacts';
+          await GenerateADODeploymentScriptsStep.generateHybridDeploymentArtifacts(context);
+          context.telemetry.properties.lastStep = 'transformConnectionTemplatesForHybrid';
+          const hybridInfraFolder = path.join(context.deploymentFolderPath, context.logicAppName, 'infrastructure');
+          GenerateADODeploymentScriptsStep.transformConnectionTemplatesForHybrid(hybridInfraFolder);
+          ext.outputChannel.appendLog(localize('hybridArtifactsGenerated', 'Hybrid deployment artifacts generated successfully.'));
+        } else {
+          context.telemetry.properties.lastStep = nativeFormat ? 'getNativeHostArtifacts' : 'getLogicAppDeploymentArtifactsBuffer';
+          const buffer = await GenerateADODeploymentScriptsStep.getLogicAppDeploymentArtifactsBuffer(context);
+          if (nativeFormat) {
+            files.push(...validateNativeExport(buffer, nativeFormat, context.logicAppName, scope));
+            totalBytes = files.reduce((total, file) => total + file.content.length, 0);
+          } else {
+            if (!buffer) {
+              throw new Error('Failed getting Logic App deployment artifacts. No content received from the standard resources API.');
+            }
+            await unzipLogicAppArtifacts(buffer, context.deploymentFolderPath);
+            ext.outputChannel.appendLog(
+              localize('logicAppDeploymentArtifactsUnzipped', 'Logic app deployment artifacts successfully unzipped.')
+            );
+          }
+        }
+      } else {
+        for (const connection of references) {
+          if (nativeFormat) {
+            context.telemetry.properties.lastStep = 'getNativeConnectionArtifacts';
+          } else {
+            ext.outputChannel.appendLog(
+              localize(
+                'startRetrieveConnectionDeploymentArtifacts',
+                'Retrieving deployment artifacts for managed connection "{0}".',
+                connection.reference
+              )
+            );
+          }
+          const buffer = await GenerateADODeploymentScriptsStep.getManagedConnectionDeploymentArtifactsBuffer(
+            context.tenantId,
+            connection.subscriptionId,
+            connection.resourceGroup,
+            context.logicAppName,
+            connection.reference,
+            connection.connectionId,
+            nativeFormat
+          );
+          if (nativeFormat) {
+            const module = validateNativeExport(
+              buffer,
+              nativeFormat,
+              context.logicAppName,
+              scope,
+              connection.reference,
+              connection.connectionId
+            );
+            totalBytes += module.reduce((total, file) => total + file.content.length, 0);
+            if (totalBytes > 20 * 1024 * 1024) {
+              throw new Error('Native infrastructure export exceeds the 20 MiB size limit.');
+            }
+            files.push(...module);
+            pipelineConnections.push({
+              connectionReferenceName: connection.reference,
+              runtimeUrlSettingName: connection.runtimeUrlSettingName,
+            });
+          } else {
+            if (!buffer) {
+              vscode.window.showErrorMessage(
+                localize(
+                  'failedRetrieveConnectionDeploymentArtifacts',
+                  'Failed to retrieve deployment artifacts for managed connection "{0}".',
+                  connection.reference
+                )
+              );
+              continue;
+            }
+            ext.outputChannel.appendLog(
+              localize(
+                'startUnzipConnectionDeploymentArtifacts',
+                'Unzipping artifacts for managed connection "{0}" at "{1}".',
+                connection.reference,
+                context.deploymentFolderPath
+              )
+            );
+            await unzipLogicAppArtifacts(buffer, context.deploymentFolderPath);
+          }
+        }
+      }
+    }
+
+    if (nativeFormat) {
+      if (nativeFormat === 'Bicep') {
+        setBicepPipelineConnections(files, pipelineConnections);
+      }
+      context.telemetry.properties.lastStep = 'publishNativeInfrastructure';
+      context.deploymentFolderPath = publishNativeExport(files, path.join(context.workspacePath, deploymentDirectory), nativeFormat);
+    }
+    ext.outputChannel.appendLog(GenerateADODeploymentScriptsStep.getExportSuccessMessage(context));
+    if (!nativeFormat) {
+      if (context.isValidWorkspace) {
+        context.telemetry.properties.lastStep = 'addFolderToWorkspace';
+        FileManagement.addFolderToWorkspace(context.deploymentFolderPath);
+      } else {
+        context.telemetry.properties.lastStep = 'convertToValidWorkspace';
+        FileManagement.convertToValidWorkspace(context.deploymentFolderPath);
+      }
+      const correlationId = uuidv4();
+      const currentDateTime = new Date().toISOString();
+      context.telemetry.properties.lastStep = 'updateMetadata';
+      workflowFiles.forEach((filePath) =>
+        GenerateADODeploymentScriptsStep.updateMetadata(filePath, context.projectPath, correlationId, currentDateTime)
+      );
+    }
+  }
+
+  private static async confirmNativeExport(format: 'Bicep' | 'Terraform'): Promise<void> {
+    const warning =
+      format === 'Bicep'
+        ? localize(
+            'bicepPipelineCredentialWarning',
+            'Export an Azure DevOps Bicep infrastructure deployment pipeline? This requires matching backend support and AzureLogicAppsStandardConnectionsDeployment@1 installed in Azure DevOps. The existing @0 task remains available for legacy pipelines but does not satisfy this native export contract. Selected values describe the initial export, not a fixed deployment environment. Configure subscriptionId, resourceGroupName, logicAppName, resourceGroupLocation, hostingPlanName and storageAccountName as pipeline variables; missing values block deployment rather than falling back to exported values. The workspace follows the existing ARM convention in the deployment subscription unless explicitly overridden; no workspace is discovered or created. No application source or CI/CD package is included, and no deployment will run now. Review the service connection, target connection inputs/authentication, additional host settings and runtime URL setting mappings before running it; unresolved mappings block pipeline preflight. Opaque authentication/resource IDs and environment-specific settings are not automatically retargeted. Exported input files may contain plaintext credentials. Pipeline and secure parameter typing do not encrypt files or guarantee authenticated connectors. Protect exported files and do not commit credentials.'
+          )
+        : localize(
+            'nativeExportCredentialWarning',
+            'Export infrastructure only? No pipeline, workflows or application package will be generated. The workspace follows the existing ARM convention in the deployment subscription unless explicitly overridden; no workspace is discovered or created. Connection input files may contain plaintext credentials; secure/sensitive typing does not encrypt them. Terraform state can also contain secrets. Protect exported files and state and do not commit credentials.'
+          );
+    const proceed = localize('exportNativeInfrastructure', 'Export infrastructure');
+    if ((await vscode.window.showWarningMessage(warning, { modal: true }, proceed)) !== proceed) {
+      throw new UserCancelledError();
+    }
+  }
+
+  private static getExportSuccessMessage(context: IAzureDeploymentScriptsContext): string {
+    const format = context.infrastructureFormat;
+    if (!isNativeInfrastructureFormat(format)) {
+      return localize(
+        'scriptGenSuccess',
+        'Deployment script generation completed successfully. The scripts were added at "{0}". Warning: One or more workflows in your logic app may contain user-based authentication for managed connectors. You are required to manually authenticate the connection from the Azure portal after the resource is deployed by the DevOps pipeline.',
+        context.deploymentFolderPath
+      );
+    }
+    return format === 'Bicep'
+      ? localize(
+          'bicepInfrastructurePipelineExported',
+          'Bicep Azure DevOps infrastructure pipeline and connection modules exported to "{0}". The pipeline requires matching backend support and AzureLogicAppsStandardConnectionsDeployment@1 installed in Azure DevOps; the existing @0 task remains available for legacy pipelines but is insufficient for this native export contract. Host infrastructure and connections deploy through one task invocation with internal cleanup and no exported PowerShell helper. No deployment was run and no application source/CI/CD package is included. Configure serviceConnectionName and infrastructureDirectory for the export location, then define subscriptionId, resourceGroupName, logicAppName, resourceGroupLocation, hostingPlanName and storageAccountName in the pipeline UI or variable groups. These variables are required deployment targets, not fallbacks to initial exported values; the export directory remains unchanged when targeting another app. The workspace follows the existing ARM convention in the deployment subscription unless explicitly overridden; no workspace variable is required and no workspace is discovered or created. Review connection names/authentication, additional host settings and pipeline-settings.json runtime URL setting keys. Opaque authentication/resource IDs and environment-specific settings are not automatically retargeted. Null mappings must be resolved explicitly before pipeline preflight can pass; connector authentication is not guaranteed. Workflow metadata, source connections and workflow parameters were not rewritten. Input files may contain plaintext credentials; pipeline/secure typing is not encryption.',
+          context.deploymentFolderPath
+        )
+      : localize(
+          'nativeInfrastructureExported',
+          '{0} infrastructure-only modules exported to "{1}". No deployment, pipeline or application package was created; workflow metadata, source connections and workflow parameters were not rewritten. Review requiredInputs in each descriptor, provide connection identity/authentication inputs, and publish runtime URLs under the exact setting names consumed by your app. Terraform connections are child modules for one application root, not independent states. Input files may contain plaintext credentials; protect files and Terraform state.',
+          format,
+          context.deploymentFolderPath
+        );
+  }
+
+  private static async prepareLegacyProject(context: IAzureDeploymentScriptsContext, connectionsData: ConnectionsData): Promise<string[]> {
+    validateConnectionAuthenticationParameters(connectionsData, await getParametersJson(context.projectPath));
     context.telemetry.properties.lastStep = 'areAllConnectionsParameterized';
     const isParameterized = await areAllConnectionsParameterized(connectionsData);
 
@@ -83,11 +301,14 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
       );
       if (shouldParameterizeConnections === DialogResponses.yes) {
         context.telemetry.properties.lastStep = 'parameterizeConnections';
-        await callWithTelemetryAndErrorHandling('GenerateADODeploymentScriptsStep.parameterizeProjectConnections', async (actionContext: IActionContext) => {
-          actionContext.errorHandling.rethrow = true;
-          actionContext.errorHandling.suppressDisplay = true;
-          await parameterizeProjectConnections(actionContext);
-        });
+        await callWithTelemetryAndErrorHandling(
+          'GenerateADODeploymentScriptsStep.parameterizeProjectConnections',
+          async (actionContext: IActionContext) => {
+            actionContext.errorHandling.rethrow = true;
+            actionContext.errorHandling.suppressDisplay = true;
+            await parameterizeProjectConnections(actionContext);
+          }
+        );
         context.telemetry.properties.parameterizeConnectionsInDeploymentScripts = 'true';
       } else {
         context.telemetry.properties.parameterizeConnectionsInDeploymentScripts = 'false';
@@ -95,54 +316,7 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
       }
     }
 
-    context.telemetry.properties.lastStep = 'generateManagedConnectionsDeploymentArtifacts';
-    await GenerateADODeploymentScriptsStep.generateManagedConnectionsDeploymentArtifacts(context);
-
-    // For Hybrid, skip the Standard IaC API — it generates App Service infrastructure.
-    // Instead, generate ARM templates and pipeline YAML for Container Apps directly.
-    if (context.deploymentTarget === DeploymentTargetType.hybrid) {
-      context.telemetry.properties.lastStep = 'generateHybridDeploymentArtifacts';
-      await GenerateADODeploymentScriptsStep.generateHybridDeploymentArtifacts(context);
-
-      // Transform managed connection templates for Hybrid — replace Microsoft.Web/Sites
-      // identity references with AAD parameters since Hybrid uses Container Apps, not App Service.
-      context.telemetry.properties.lastStep = 'transformConnectionTemplatesForHybrid';
-      const hybridInfraFolder = path.join(context.deploymentFolderPath, context.logicAppName, 'infrastructure');
-      GenerateADODeploymentScriptsStep.transformConnectionTemplatesForHybrid(hybridInfraFolder);
-
-      ext.outputChannel.appendLog(localize('hybridArtifactsGenerated', 'Hybrid deployment artifacts generated successfully.'));
-    } else {
-      context.telemetry.properties.lastStep = 'getLogicAppDeploymentArtifactsBuffer';
-      const logicAppArtifactsBuffer = await GenerateADODeploymentScriptsStep.getLogicAppDeploymentArtifactsBuffer(context);
-      if (!logicAppArtifactsBuffer) {
-        throw new Error('Failed getting Logic App deployment artifacts. No content received from the standard resources API.');
-      }
-      await unzipLogicAppArtifacts(logicAppArtifactsBuffer, context.deploymentFolderPath);
-      ext.outputChannel.appendLog(localize('logicAppDeploymentArtifactsUnzipped', 'Logic app deployment artifacts successfully unzipped.'));
-    }
-
-    const localizedLogMessage = localize(
-      'scriptGenSuccess',
-      'Deployment script generation completed successfully. The scripts were added at "{0}". Warning: One or more workflows in your logic app may contain user-based authentication for managed connectors. You are required to manually authenticate the connection from the Azure portal after the resource is deployed by the DevOps pipeline.',
-      context.deploymentFolderPath
-    );
-    ext.outputChannel.appendLog(localizedLogMessage);
-
-    if (context.isValidWorkspace) {
-      context.telemetry.properties.lastStep = 'addFolderToWorkspace';
-      FileManagement.addFolderToWorkspace(context.deploymentFolderPath);
-    } else {
-      context.telemetry.properties.lastStep = 'convertToValidWorkspace';
-      FileManagement.convertToValidWorkspace(context.deploymentFolderPath);
-    }
-
-    const correlationId = uuidv4();
-    const currentDateTime = new Date().toISOString();
-
-    context.telemetry.properties.lastStep = 'updateMetadata';
-    workflowFiles.forEach((filePath) =>
-      GenerateADODeploymentScriptsStep.updateMetadata(filePath, context.projectPath, correlationId, currentDateTime)
-    );
+    return workflowFiles;
   }
 
   private static getWorkflowFilePaths(source: string): string[] {
@@ -191,72 +365,132 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   }
 
-  /**
-   * Calls the IaC API to obtain the deployment consumption artifacts for each managed connection.
-   * @param {IAzureDeploymentScriptsContext} context - The Azure deployment scripts context.
-   * @returns {Promise<void>} - A Promise that resolves when all artifacts are processed.
-   */
-  private static async generateManagedConnectionsDeploymentArtifacts(context: IAzureDeploymentScriptsContext): Promise<void> {
-    ext.outputChannel.appendLog(localize('initCallConsumption', 'Initiating call to Consumption API for deployment artifacts.'));
-
-    ext.outputChannel.appendLog(
-      localize(
-        'operationalContext',
-        'Operational context: Tenant ID: {0}, Subscription ID: {1}, Resource Group: {2}, Logic App: {3}',
-        context.tenantId,
-        context.subscriptionId,
-        context.resourceGroup.name,
-        context.logicAppName
-      )
-    );
-
-    ext.outputChannel.appendLog(localize('fetchingManagedConnections', 'Fetching managed connections...'));
-    const managedConnections: { refEndPoint: string; originalKey: string }[] = await GenerateADODeploymentScriptsStep.getConnectionNames(
-      context.projectPath
-    );
-
-    for (const connectionObj of managedConnections) {
-      ext.outputChannel.appendLog(
-        localize(
-          'startRetrieveConnectionDeploymentArtifacts',
-          'Retrieving deployment artifacts for managed connection "{0}".',
-          connectionObj.originalKey
-        )
-      );
-
-      const managedConnectionArtifactsBuffer = await GenerateADODeploymentScriptsStep.getManagedConnectionDeploymentArtifactsBuffer(
-        context.tenantId,
-        context.subscriptionId,
-        context.resourceGroup.name,
-        context.logicAppName,
-        connectionObj.originalKey,
-        connectionObj.refEndPoint
-      );
-      if (!managedConnectionArtifactsBuffer) {
-        vscode.window.showErrorMessage(
+  private static async getConnectionReferences(
+    context: IAzureDeploymentScriptsContext,
+    connectionsData: ConnectionsData
+  ): Promise<DeploymentConnection[]> {
+    const nativeFormat = isNativeInfrastructureFormat(context.infrastructureFormat);
+    // ARM rereads after parameterization; native discovery never rewrites source files.
+    const data: ConnectionsData = nativeFormat ? connectionsData : JSON.parse((await getConnectionsJson(context.projectPath)) || '{}');
+    const nativeInputs = nativeFormat
+      ? { parameters: await getParametersJson(context.projectPath), settings: await getLocalSettingsJson(context, context.projectPath) }
+      : undefined;
+    return Object.entries(data.managedApiConnections ?? {}).map(([reference, connection]) => {
+      if (!nativeInputs) {
+        const idPath = connection.connection.id;
+        return {
+          reference,
+          subscriptionId: context.subscriptionId,
+          resourceGroup: context.resourceGroup.name,
+          connectionId: idPath.substring(idPath.lastIndexOf('/') + 1),
+          runtimeUrlSettingName: null,
+        };
+      }
+      const sourceConnection =
+        typeof connection === 'object' && connection !== null && 'connection' in connection ? connection.connection : undefined;
+      const sourceId =
+        typeof sourceConnection === 'object' && sourceConnection !== null && 'id' in sourceConnection ? sourceConnection.id : undefined;
+      const id: unknown = resolveConnectionsReferences(
+        JSON.stringify({ id: sourceId }),
+        nativeInputs.parameters,
+        nativeInputs.settings.Values
+      )?.id;
+      const match =
+        typeof id === 'string' &&
+        /^\/subscriptions\/([^/\s@{}?#]+)\/resourceGroups\/([^/\s@{}?#]+)\/providers\/Microsoft\.Web\/connections\/([^/\s@{}?#]+)$/i.exec(
+          id
+        );
+      if (!match) {
+        throw new Error(
           localize(
-            'failedRetrieveConnectionDeploymentArtifacts',
-            'Failed to retrieve deployment artifacts for managed connection "{0}".',
-            connectionObj.originalKey
+            'unresolvedNativeConnection',
+            'Cannot resolve the resource ID for connection reference "{0}". Supply its workflow parameter/app-setting values locally before exporting. Source files have not been changed.',
+            reference
           )
         );
-        continue;
       }
+      const runtimeUrl =
+        typeof connection === 'object' && connection !== null && 'connectionRuntimeUrl' in connection
+          ? connection.connectionRuntimeUrl
+          : undefined;
+      return {
+        reference,
+        subscriptionId: match[1],
+        resourceGroup: match[2],
+        connectionId: match[3],
+        runtimeUrlSettingName: getRuntimeUrlSettingName(runtimeUrl, nativeInputs.parameters),
+      };
+    });
+  }
 
-      ext.outputChannel.appendLog(
-        localize(
-          'startUnzipConnectionDeploymentArtifacts',
-          'Unzipping artifacts for managed connection "{0}" at "{1}".',
-          connectionObj.originalKey,
-          context.deploymentFolderPath
-        )
-      );
-
-      if (!managedConnectionArtifactsBuffer) {
-        throw new Error('Failed getting Logic App deployment artifacts. No content received from the standard resources API.');
-      }
-      await unzipLogicAppArtifacts(managedConnectionArtifactsBuffer, context.deploymentFolderPath);
+  private static nativeExportRequestError(error: unknown, format: InfrastructureFormat, boundary: 'host' | 'connection'): unknown {
+    if (!axios.isAxiosError(error)) {
+      return error;
     }
+    const response = error.response;
+    if (!response || !Number.isInteger(response.status) || response.status < 100 || response.status > 599) {
+      return error;
+    }
+    const status = response.status;
+    const code = GenerateADODeploymentScriptsStep.nativeExportResponseCode(response.data);
+    const source = boundary === 'host' ? 'local design-time host' : 'cloud managed-connection export service';
+    const route =
+      boundary === 'host'
+        ? 'POST /runtime/webhooks/workflow/api/management/generateDeploymentArtifacts'
+        : 'POST /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/connections/{connectionName}/generateDeploymentArtifacts';
+    const guidance =
+      boundary === 'host'
+        ? 'Check the running design-time host logs for the server-side failure.'
+        : 'Check the managed-connection export service diagnostics. Changing the local bundle does not update this cloud service.';
+    return new Error(
+      localize(
+        'nativeExportHttpFailure',
+        '{0} infrastructure export failed at the {1} (HTTP {2}; {3}{4}). {5} Response messages, bodies and request credentials are not included.',
+        format,
+        source,
+        status,
+        route,
+        code ? `; code ${code}` : '',
+        guidance
+      )
+    );
+  }
+
+  private static nativeExportResponseCode(data: unknown): string | undefined {
+    let response: unknown = data;
+    if (Buffer.isBuffer(data) || data instanceof ArrayBuffer || typeof data === 'string') {
+      if ((typeof data === 'string' ? Buffer.byteLength(data, 'utf8') : data.byteLength) > 16 * 1024) {
+        return undefined;
+      }
+      const text = typeof data === 'string' ? data : Buffer.isBuffer(data) ? data.toString('utf8') : Buffer.from(data).toString('utf8');
+      try {
+        response = JSON.parse(text);
+      } catch {
+        // A non-JSON error body must not obscure the HTTP status or be displayed.
+        return undefined;
+      }
+    }
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      !('error' in response) ||
+      typeof response.error !== 'object' ||
+      response.error === null ||
+      !('code' in response.error)
+    ) {
+      return undefined;
+    }
+    const code = response.error.code;
+    return typeof code === 'string' &&
+      [
+        'LogicAppTargetDeploymentArtifactsInputInvalid',
+        'InvalidRequestContent',
+        'MissingIaCFile',
+        'InvalidApiConnectionDeploymentArtifactsGenerationRequest',
+        'WorkflowParametersInvalidExpression',
+      ].includes(code)
+      ? code
+      : undefined;
   }
 
   /**
@@ -275,7 +509,8 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
     resourceGroup: string,
     logicAppName: string,
     connectionName: string,
-    connectionId: string
+    connectionId: string,
+    infrastructureFormat?: InfrastructureFormat
   ): Promise<Buffer> {
     try {
       const apiVersion = '2018-07-01-preview';
@@ -283,19 +518,33 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
       const cloudHost = await getCloudHost();
       const baseGraphUri = getBaseGraphApi(cloudHost);
 
-      const apiUrl = `${baseGraphUri}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/connections/${connectionId}/generateDeploymentArtifacts?api-version=${apiVersion}`;
+      const segment = (value: string) => (isNativeInfrastructureFormat(infrastructureFormat) ? encodeURIComponent(value) : value);
+      const apiUrl = `${baseGraphUri}/subscriptions/${segment(subscriptionId)}/resourceGroups/${segment(resourceGroup)}/providers/Microsoft.Web/connections/${segment(connectionId)}/generateDeploymentArtifacts?api-version=${apiVersion}`;
       const requestBody = {
         TargetLogicAppName: logicAppName,
         ConnectionReferenceName: connectionName,
+        ...(isNativeInfrastructureFormat(infrastructureFormat) ? { InfrastructureFormat: infrastructureFormat } : {}),
       };
 
-      const response = await axios.post(apiUrl, requestBody, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `${accessToken}`,
-        },
-        responseType: 'arraybuffer',
-      });
+      const response = await axios
+        .post(apiUrl, requestBody, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `${accessToken}`,
+          },
+          responseType: 'arraybuffer',
+          ...(isNativeInfrastructureFormat(infrastructureFormat) ? { maxContentLength: 5 * 1024 * 1024 } : {}),
+        })
+        .catch((error: unknown) => {
+          throw isNativeInfrastructureFormat(infrastructureFormat)
+            ? GenerateADODeploymentScriptsStep.nativeExportRequestError(error, infrastructureFormat, 'connection')
+            : error;
+        });
+      if (isNativeInfrastructureFormat(infrastructureFormat) && !response?.data) {
+        throw new Error(
+          'No native infrastructure export content received from the managed-connection export service. Update the service to a version supporting native export and retry.'
+        );
+      }
 
       const buffer = Buffer.from(response.data, 'binary');
       ext.outputChannel.appendLog(
@@ -303,6 +552,9 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
       );
       return buffer;
     } catch (error) {
+      if (isNativeInfrastructureFormat(infrastructureFormat)) {
+        throw error;
+      }
       const responseData = JSON.parse(new TextDecoder().decode(error.response.data));
       const { message = '', code = '' } = responseData?.error ?? {};
       throw new Error(`Error getting deployment artifacts for managed connection "${connectionName}": ${code} - ${message}`);
@@ -318,9 +570,16 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
     try {
       ext.outputChannel.appendLog(localize('initApiWorkflowDesignerPort', 'Initiating API connection through workflow designer port...'));
 
-      await callWithTelemetryAndErrorHandling('GenerateADODeploymentScriptsStep.getLogicAppDeploymentArtifactsBuffer.startDesignTimeApi', async (actionContext: IActionContext) => {
-        await startDesignTimeApi(actionContext, context.projectPath);
-      });
+      await callWithTelemetryAndErrorHandling(
+        'GenerateADODeploymentScriptsStep.getLogicAppDeploymentArtifactsBuffer.startDesignTimeApi',
+        async (actionContext: IActionContext) => {
+          if (isNativeInfrastructureFormat(context.infrastructureFormat)) {
+            actionContext.errorHandling.rethrow = true;
+            actionContext.errorHandling.suppressDisplay = true;
+          }
+          await startDesignTimeApi(actionContext, context.projectPath);
+        }
+      );
 
       if (!ext.designTimeInstances.has(context.projectPath)) {
         throw new Error('Design time API is undefined. Please retry once Azure Functions Core Tools has started.');
@@ -347,44 +606,37 @@ export class GenerateADODeploymentScriptsStep extends AzureWizardExecuteStep<IAz
         targetLocation: context.resourceGroup.location,
         targetLogicAppName: context.logicAppName,
         targetAppServicePlanName: context.appServicePlan,
+        ...(isNativeInfrastructureFormat(context.infrastructureFormat) ? { infrastructureFormat: context.infrastructureFormat } : {}),
       };
 
-      const response = await axios.post(apiUrl, deploymentArtifactsInput, {
-        headers: {
-          Accept: 'application/zip',
-          'Content-Type': 'application/json',
-        },
-        responseType: 'arraybuffer',
-      });
+      const response = await axios
+        .post(apiUrl, deploymentArtifactsInput, {
+          headers: {
+            Accept: 'application/zip',
+            'Content-Type': 'application/json',
+          },
+          responseType: 'arraybuffer',
+          ...(isNativeInfrastructureFormat(context.infrastructureFormat) ? { maxContentLength: 5 * 1024 * 1024 } : {}),
+        })
+        .catch((error: unknown) => {
+          throw isNativeInfrastructureFormat(context.infrastructureFormat)
+            ? GenerateADODeploymentScriptsStep.nativeExportRequestError(error, context.infrastructureFormat, 'host')
+            : error;
+        });
+      if (isNativeInfrastructureFormat(context.infrastructureFormat) && !response?.data) {
+        throw new Error(
+          'No native infrastructure export content received from the local design-time host. Update the host to a version supporting native export and retry.'
+        );
+      }
       return Buffer.from(response.data, 'binary');
     } catch (error) {
+      if (isNativeInfrastructureFormat(context.infrastructureFormat)) {
+        throw error;
+      }
       const responseData = JSON.parse(new TextDecoder().decode(error.response.data));
       const { message = '', code = '' } = responseData?.error ?? {};
       throw new Error(`Error getting deployment artifacts for Logic App: ${code} - ${message}`);
     }
-  }
-
-  /**
-   * Retrieves the ref names s of connections from a connections JSON file.
-   * @param projectRoot The root directory of the project.
-   * @returns A promise that resolves to an array of objects, each containing a reference name and the last parameter in the connection id.
-   */
-  private static async getConnectionNames(projectRoot: string): Promise<{ refEndPoint: string; originalKey: string }[]> {
-    const data: string = await getConnectionsJson(projectRoot);
-    const managedConnections: { refEndPoint: string; originalKey: string }[] = [];
-
-    if (data) {
-      const connectionsJson = JSON.parse(data);
-      const managedApiConnections = connectionsJson['managedApiConnections'];
-      for (const connection in managedApiConnections) {
-        if (Object.prototype.hasOwnProperty.call(managedApiConnections, connection)) {
-          const idPath = managedApiConnections[connection]['connection']['id'];
-          const lastParam = idPath.substring(idPath.lastIndexOf('/') + 1);
-          managedConnections.push({ refEndPoint: lastParam, originalKey: connection });
-        }
-      }
-    }
-    return managedConnections;
   }
 
   // Generates all Hybrid deployment artifacts: ARM infrastructure templates + pipeline YAML.

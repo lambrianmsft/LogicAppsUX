@@ -10,6 +10,7 @@ import { StorageAccountNameStep } from './adoDeploymentScriptsSteps/StorageAccou
 import { AppServicePlanNameStep } from './adoDeploymentScriptsSteps/AppServicePlanNameStep';
 import { ConnectedEnvironmentStep } from './adoDeploymentScriptsSteps/ConnectedEnvironmentStep';
 import { SubscriptionAndResourceGroupStep } from './SubscriptionAndResourceGroupStep';
+import { InfrastructureFormatStep } from './InfrastructureFormatStep';
 
 // Prompts user to choose Standard (App Service) vs Hybrid (Container Apps) deployment target.
 export class DeploymentTargetStep extends AzureWizardPromptStep<IAzureDeploymentScriptsContext> {
@@ -34,7 +35,13 @@ export class DeploymentTargetStep extends AzureWizardPromptStep<IAzureDeployment
         data: DeploymentTargetType.hybrid,
       },
     ];
-    context.deploymentTarget = (await context.ui.showQuickPick(picks, { placeHolder })).data;
+    const target = (await context.ui.showQuickPick(picks, { placeHolder })).data;
+    context.deploymentTarget = target;
+    context.infrastructureFormat = target === DeploymentTargetType.hybrid ? 'Arm' : undefined;
+    context.connectedEnvironmentName = undefined;
+    context.connectedEnvironmentResourceGroup = undefined;
+    context.telemetry.properties.connectedEnvironmentName = undefined;
+    context.telemetry.properties.infrastructureFormat = target === DeploymentTargetType.hybrid ? 'Arm' : undefined;
     context.telemetry.properties.deploymentTarget = context.deploymentTarget;
   }
 
@@ -45,6 +52,13 @@ export class DeploymentTargetStep extends AzureWizardPromptStep<IAzureDeployment
     if (context.deploymentTarget === DeploymentTargetType.hybrid) {
       return { promptSteps: [new SubscriptionAndResourceGroupStep(), new ConnectedEnvironmentStep()] };
     }
-    return { promptSteps: [new SubscriptionAndResourceGroupStep(), new StorageAccountNameStep(), new AppServicePlanNameStep()] };
+    return {
+      promptSteps: [
+        new InfrastructureFormatStep(),
+        new SubscriptionAndResourceGroupStep(),
+        new StorageAccountNameStep(),
+        new AppServicePlanNameStep(),
+      ],
+    };
   }
 }
